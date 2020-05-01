@@ -67,7 +67,7 @@ class ParallelCNN( nn.Module ):
         l3 = torch.distributions.Bernoulli( logits = log3 ).log_prob( samples )
         t3 = torch.tensor( self.pixel_channel_groups[3] ).to( self.device ) *l3
 
-        return torch.sum( t0 + t1 + t2 + t3 )
+        return torch.mean( torch.sum( ( t0 + t1 + t2 + t3 ), dim = ( 1, 2, 3 ) ) )
     
     def sample( self, conditional_input = None ):
         sample = torch.tensor( np.zeros( [ 1, 1, 28, 28 ] ).astype( np.float32 ) ).to( self.device )
