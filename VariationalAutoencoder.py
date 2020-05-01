@@ -4,14 +4,16 @@ import torch.nn.functional as F
 import numpy as np
 
 class VAE(nn.Module):
-    def __init__(self):
+    def __init__( self, device ):
         super(VAE, self).__init__()
 
-        self.fc1 = nn.Linear(784, 400)
-        self.fc21 = nn.Linear(400, 20)
-        self.fc22 = nn.Linear(400, 20)
-        self.fc3 = nn.Linear(20, 400)
-        self.fc4 = nn.Linear(400, 784)
+        self.fc1 = nn.Linear(784, 400).to( device )
+        self.fc21 = nn.Linear(400, 20).to( device )
+        self.fc22 = nn.Linear(400, 20).to( device )
+        self.fc3 = nn.Linear(20, 400).to( device )
+        self.fc4 = nn.Linear(400, 784).to( device )
+
+        self.device = device
 
     def encode(self, x):
         h1 = F.relu(self.fc1(x))
@@ -37,5 +39,5 @@ class VAE(nn.Module):
         return recons_log_prob - kl_divergence
 
     def sample( self ):
-        recon_x = self.decode( torch.tensor( np.random.normal( size = [ 1, 20 ] ).astype( np.float32 ) ) )
+        recon_x = self.decode( torch.tensor( np.random.normal( size = [ 1, 20 ] ).astype( np.float32 ) ).to( self.device ) )
         return torch.reshape( recon_x, ( 1, 1, 28, 28 ) )
