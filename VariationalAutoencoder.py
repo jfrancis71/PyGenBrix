@@ -39,7 +39,8 @@ class VAE(nn.Module):
         mu, logvar = self.encode(x.view(-1, 784))
         z = self.sample_z(mu, logvar)
         decode_params = self.decode( z )
-        recons_log_prob = self.p_conditional_distribution.log_prob( x, decode_params )
+        decode_params_reshape = torch.reshape( decode_params, ( decode_params.shape[0], 1, 28, 28 ) )
+        recons_log_prob = self.p_conditional_distribution.log_prob( cx, decode_params_reshape )
         recons_log_prob_sum = torch.sum( recons_log_prob )
         kl_divergence = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         
