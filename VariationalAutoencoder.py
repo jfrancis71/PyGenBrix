@@ -6,9 +6,18 @@ import numpy as np
 class BernoulliConditionalDistribution():
     def log_prob( self, samples, conditionals ):
         log_probs = torch.distributions.Bernoulli( logits = conditionals ).log_prob( samples )
-        return log_probs
+        log_probs_sum = torch.sum( log_probs, dim = ( 1, 2, 3 ) )
+        return log_probs_sum
 
 class VAE(nn.Module):
+    """
+    to build:
+    mymodel = vae.VAE( vae.BernoulliConditionalDistribution(), device )
+    or
+    mymodel = vae.VAE( cnn.ConditionalParallelCNNDistribution( [ 1, 28, 28 ], device ), device )
+    to train:
+    Train.train( mydist, mnist, device, batch_size = 32 )
+    """
     def __init__( self, p_conditional_distribution, device ):
         super(VAE, self).__init__()
 
@@ -41,10 +50,10 @@ class VAE(nn.Module):
         decode_params = self.decode( z )
         decode_params_reshape = torch.reshape( decode_params, ( decode_params.shape[0], 1, 28, 28 ) )
         recons_log_prob = self.p_conditional_distribution.log_prob( cx, decode_params_reshape )
-        recons_log_prob_sum = torch.sum( recons_log_prob )
-        kl_divergence = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        kl_divergence = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim = ( 1 ) )
+        total_log_prob = recons_log_prob - kl_divergence
         
-        return recons_log_prob_sum - kl_divergence
+        return torch.mean( total_log_prob )
 
     def sample( self ):
         recon_x = self.decode( torch.tensor( np.random.normal( size = [ 1, 20 ] ).astype( np.float32 ) ).to( self.device ) )
