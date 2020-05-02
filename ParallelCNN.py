@@ -67,7 +67,6 @@ class ConditionalParallelCNNDistribution( nn.Module ):
 
         i0 = torch.cat( ( samples*torch.tensor( self.information_masks[0].astype( np.float32 ) ).to( self.device ), conditional_input.expand_as( samples ) ), dim=1 )
         log0 = self.parallelcnns[0]( i0 )
-        log0 = conditional_input
         l0 = torch.distributions.Bernoulli( logits = log0 ).log_prob( samples )
         t0 = torch.tensor( self.pixel_channel_groups[0] ).to( self.device ) *l0
 #        t0 = l0
