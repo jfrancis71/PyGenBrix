@@ -9,6 +9,31 @@ class BernoulliConditionalDistribution():
         log_probs_sum = torch.sum( log_probs, dim = ( 1, 2, 3 ) )
         return log_probs_sum
 
+    def sample( self, conditionals ):
+        log_probs = torch.distributions.Bernoulli( logits = conditionals ).log_prob( samples )
+        return torch.distributions.Bernoulli( logits = conditionals ).sample()
+
+    def params_size( self ):
+        return 1
+
+class NormalConditionalDistribution():
+    def log_prob( self, samples, conditionals ):
+        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], 1, 2, 28, 28 ) )
+        locs = reshaped_conditionals[:,:,0]
+        scales = .05 + torch.nn.Softplus()( reshaped_conditionals[:,:,1] )
+        log_probs = torch.distributions.Normal( loc = locs, scale = scales ).log_prob( samples )
+        log_probs_sum = torch.sum( log_probs, dim = ( 1, 2, 3 ) )
+        return log_probs_sum
+
+    def sample( self, conditionals ):
+        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], 1, 2, 28, 28 ) )
+        locs = reshaped_conditionals[:,:,0]
+        scales = .05 + torch.nn.Softplus()( reshaped_conditionals[:,:,1] )
+        return torch.distributions.Normal( loc = locs, scale = scales ).sample()
+
+    def params_size( self ):
+        return 2
+
 class VAE(nn.Module):
     """
     to build:
@@ -25,7 +50,7 @@ class VAE(nn.Module):
         self.fc21 = nn.Linear(400, 20).to( device )
         self.fc22 = nn.Linear(400, 20).to( device )
         self.fc3 = nn.Linear(20, 400).to( device )
-        self.fc4 = nn.Linear(400, 784).to( device )
+        self.fc4 = nn.Linear(400, 784*p_conditional_distribution.params_size()).to( device )
 
         self.p_conditional_distribution = p_conditional_distribution
         self.device = device
@@ -41,20 +66,21 @@ class VAE(nn.Module):
 
     def decode(self, z):
         h3 = F.relu(self.fc3(z))
-        return self.fc4(h3)
+        h4 = self.fc4(h3)
+        decode_params_reshape = torch.reshape( h4, ( h4.shape[0], 1*self.p_conditional_distribution.params_size(), 28, 28 ) )
+        return decode_params_reshape
 
     def log_prob( self, cx ):
         x = torch.reshape( cx, ( cx.shape[0], 784 ) )
         mu, logvar = self.encode(x.view(-1, 784))
         z = self.sample_z(mu, logvar)
         decode_params = self.decode( z )
-        decode_params_reshape = torch.reshape( decode_params, ( decode_params.shape[0], 1, 28, 28 ) )
-        recons_log_prob = self.p_conditional_distribution.log_prob( cx, decode_params_reshape )
+        recons_log_prob = self.p_conditional_distribution.log_prob( cx, decode_params )
         kl_divergence = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim = ( 1 ) )
         total_log_prob = recons_log_prob - kl_divergence
         
         return torch.mean( total_log_prob )
 
     def sample( self ):
-        recon_x = self.decode( torch.tensor( np.random.normal( size = [ 1, 20 ] ).astype( np.float32 ) ).to( self.device ) )
-        return torch.reshape( recon_x, ( 1, 1, 28, 28 ) )
+        decode_params = self.decode( torch.tensor( np.random.normal( size = [ 1, 20 ] ).astype( np.float32 ) ).to( self.device ) )
+        return self.p_conditional_distribution.sample( decode_params )
