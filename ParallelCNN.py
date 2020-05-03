@@ -38,26 +38,8 @@ class ConditionalParallelCNNDistribution( nn.Module ):
 
     def __init__( self, dims, device ):
         super(ConditionalParallelCNNDistribution, self).__init__()
-#        self.parallelcnns = create_parallelcnns( dims, device )
-#        self.parallelcnns = [ 1, 2, 3, 4 ]
-        self.net0 = torch.nn.Sequential(
-            torch.nn.Conv2d( 2,16,3, padding=1 ).to( device ), nn.Tanh().to( device ),
-            torch.nn.Conv2d( 16, 16, 1).to( device ), nn.Tanh().to( device ),
-            torch.nn.Conv2d( 16, dims[0]*1, 1, padding=0 ).to( device ) )
-        self.net1 = torch.nn.Sequential(
-            torch.nn.Conv2d( 2,16,3, padding=1 ).to( device ), nn.Tanh().to( device ),
-            torch.nn.Conv2d( 16, 16, 1).to( device ), nn.Tanh().to( device ),
-            torch.nn.Conv2d( 16, dims[0]*1, 1, padding=0 ).to( device ) )
-        self.net2 = torch.nn.Sequential(
-            torch.nn.Conv2d( 2,16,3, padding=1 ).to( device ), nn.Tanh().to( device ),
-            torch.nn.Conv2d( 16, 16, 1).to( device ), nn.Tanh().to( device ),
-            torch.nn.Conv2d( 16, dims[0]*1, 1, padding=0 ).to( device ) )
-        self.net3 = torch.nn.Sequential(
-            torch.nn.Conv2d( 2,16,3, padding=1 ).to( device ), nn.Tanh().to( device ),
-            torch.nn.Conv2d( 16, 16, 1).to( device ), nn.Tanh().to( device ),
-            torch.nn.Conv2d( 16, dims[0]*1, 1, padding=0 ).to( device ) )
+        self.parallelcnns = nn.ModuleList( create_parallelcnns( dims, device ) )
 
-        self.parallelcnns = [ self.net0, self.net1, self.net2, self.net3 ]
         self.pixel_channel_groups = generate_pixel_channel_groups( dims )
         self.information_masks = generate_information_masks( dims )
 #        self.position_layer = torch.nn.Parameter( torch.tensor( np.zeros( [ 1, 28, 28 ] ).astype( np.float32 ) ).to( device ), requires_grad=True )
