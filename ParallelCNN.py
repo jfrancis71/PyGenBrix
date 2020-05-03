@@ -130,3 +130,6 @@ class ConditionalParallelCNNDistribution( nn.Module ):
         sample += t3
 
         return sample
+
+    def params_size( self ):
+        return 1

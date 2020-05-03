@@ -12,7 +12,6 @@ class BernoulliConditionalDistribution():
         return log_probs_sum
 
     def sample( self, conditionals ):
-        log_probs = torch.distributions.Bernoulli( logits = conditionals ).log_prob( samples )
         return torch.distributions.Bernoulli( logits = conditionals ).sample()
 
     def params_size( self ):
@@ -39,14 +38,14 @@ class NormalConditionalDistribution():
 class QuantizedContinuousConditionalDistribution():
     def log_prob( self, samples, conditionals ):
         quantized = (samples*9.0).round()
-        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], 1, 10, 28, 28 ) )
+        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], conditionals.shape[1]//10, 10, conditionals.shape[2], conditionals.shape[3] ) )
         reshaped_conditionals = reshaped_conditionals.permute( ( 0, 1, 3, 4, 2 ) )
         log_probs = torch.distributions.Categorical( logits = reshaped_conditionals ).log_prob( quantized )
         log_probs_sum = torch.sum( log_probs, dim = ( 1, 2, 3 ) )
         return log_probs_sum
 
     def sample( self, conditionals ):
-        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], 1, 10, 28, 28 ) )
+        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], conditionals.shape[1]//10, 10, conditionals.shape[2], conditionals.shape[3] ) )
         reshaped_conditionals = reshaped_conditionals.permute( ( 0, 1, 3, 4, 2 ) )
         return torch.distributions.Categorical( logits = reshaped_conditionals ).sample()/10.0
 
@@ -56,13 +55,13 @@ class QuantizedContinuousConditionalDistribution():
 class VAE(nn.Module):
     """
     to build:
-    mymodel = vae.VAE( vae.BernoulliConditionalDistribution(), device )
+    mymodel = vae.VAE( vae_models.YZVAEModel( device ), vae.BernoulliConditionalDistribution(), device )
     or
-    mymodel = vae.VAE( cnn.ConditionalParallelCNNDistribution( [ 1, 28, 28 ], device ), device )
+    mymodel = vae.VAE( vae_models.YZVAEModel( device ), cnn.ConditionalParallelCNNDistribution( [ 1, 28, 28 ], device ), device )
     to train:
     Train.train( mydist, mnist, device, batch_size = 32 )
     """
-    def __init__( self, p_conditional_distribution, device ):
+    def __init__( self, vae_model, p_conditional_distribution, device ):
         super(VAE, self).__init__()
 
         self.fc1 = nn.Linear(784, 400).to( device )
@@ -74,7 +73,8 @@ class VAE(nn.Module):
         self.p_conditional_distribution = p_conditional_distribution
         self.device = device
 
-        self.vae_model = vae_models.MNISTVAEModel( device )
+        self.vae_model = vae_model
+        self.decoder = vae_model.decoder( p_conditional_distribution.params_size() )
 
     def encode(self, x):
 #        h1 = F.relu(self.fc1(x))
@@ -93,12 +93,11 @@ class VAE(nn.Module):
 #        h3 = F.relu(self.fc3(z))
 #        h4 = self.fc4(h3)
         reshape_z = torch.reshape( z, ( z.shape[0], self.vae_model.latents, 1, 1 ) )
-        output = self.vae_model.decoder( reshape_z )
-        decode_params_reshape = torch.reshape( output, ( output.shape[0], 1*self.p_conditional_distribution.params_size(), 28, 28 ) )
+        output = self.decoder( reshape_z )
+        decode_params_reshape = torch.reshape( output, ( output.shape[0], self.vae_model.dims[0]*self.p_conditional_distribution.params_size(), self.vae_model.dims[1],  self.vae_model.dims[2] ) )
         return decode_params_reshape
 
     def log_prob( self, cx ):
-        x = torch.reshape( cx, ( cx.shape[0], 784 ) )
         mu, logvar = self.encode( cx )
         z = self.sample_z(mu, logvar)
         decode_params = self.decode( z )
