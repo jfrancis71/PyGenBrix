@@ -3,6 +3,8 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 
+from PyGenBrix import VAEModels as vae_models
+
 class BernoulliConditionalDistribution():
     def log_prob( self, samples, conditionals ):
         log_probs = torch.distributions.Bernoulli( logits = conditionals ).log_prob( samples )
@@ -72,9 +74,15 @@ class VAE(nn.Module):
         self.p_conditional_distribution = p_conditional_distribution
         self.device = device
 
+        self.vae_model = vae_models.MNISTVAEModel( device )
+
     def encode(self, x):
-        h1 = F.relu(self.fc1(x))
-        return self.fc21(h1), self.fc22(h1)
+#        h1 = F.relu(self.fc1(x))
+#        return self.fc21(h1), self.fc22(h1)
+#        return self.vae_model.encoder( x )
+        params = self.vae_model.encoder( x )
+        split = torch.reshape( params, ( x.shape[0], self.vae_model.latents, 2 ) )
+        return split[...,0], split[...,1]
 
     def sample_z(self, mu, logvar):
         std = torch.exp(0.5*logvar)
@@ -82,14 +90,16 @@ class VAE(nn.Module):
         return mu + eps*std
 
     def decode(self, z):
-        h3 = F.relu(self.fc3(z))
-        h4 = self.fc4(h3)
-        decode_params_reshape = torch.reshape( h4, ( h4.shape[0], 1*self.p_conditional_distribution.params_size(), 28, 28 ) )
+#        h3 = F.relu(self.fc3(z))
+#        h4 = self.fc4(h3)
+        reshape_z = torch.reshape( z, ( z.shape[0], self.vae_model.latents, 1, 1 ) )
+        output = self.vae_model.decoder( reshape_z )
+        decode_params_reshape = torch.reshape( output, ( output.shape[0], 1*self.p_conditional_distribution.params_size(), 28, 28 ) )
         return decode_params_reshape
 
     def log_prob( self, cx ):
         x = torch.reshape( cx, ( cx.shape[0], 784 ) )
-        mu, logvar = self.encode(x.view(-1, 784))
+        mu, logvar = self.encode( cx )
         z = self.sample_z(mu, logvar)
         decode_params = self.decode( z )
         recons_log_prob = self.p_conditional_distribution.log_prob( cx, decode_params )
@@ -99,5 +109,5 @@ class VAE(nn.Module):
         return torch.mean( total_log_prob )
 
     def sample( self ):
-        decode_params = self.decode( torch.tensor( np.random.normal( size = [ 1, 20 ] ).astype( np.float32 ) ).to( self.device ) )
+        decode_params = self.decode( torch.tensor( np.random.normal( size = [ 1, self.vae_model.latents ] ).astype( np.float32 ) ).to( self.device ) )
         return self.p_conditional_distribution.sample( decode_params )
