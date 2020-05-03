@@ -34,6 +34,23 @@ class NormalConditionalDistribution():
     def params_size( self ):
         return 2
 
+class QuantizedContinuousConditionalDistribution():
+    def log_prob( self, samples, conditionals ):
+        quantized = (samples*9.0).round()
+        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], 1, 10, 28, 28 ) )
+        reshaped_conditionals = reshaped_conditionals.permute( ( 0, 1, 3, 4, 2 ) )
+        log_probs = torch.distributions.Categorical( logits = reshaped_conditionals ).log_prob( quantized )
+        log_probs_sum = torch.sum( log_probs, dim = ( 1, 2, 3 ) )
+        return log_probs_sum
+
+    def sample( self, conditionals ):
+        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], 1, 10, 28, 28 ) )
+        reshaped_conditionals = reshaped_conditionals.permute( ( 0, 1, 3, 4, 2 ) )
+        return torch.distributions.Categorical( logits = reshaped_conditionals ).sample()/10.0
+
+    def params_size( self ):
+        return 10
+
 class VAE(nn.Module):
     """
     to build:
