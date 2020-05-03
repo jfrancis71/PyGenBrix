@@ -42,74 +42,32 @@ class ConditionalParallelCNNDistribution( nn.Module ):
 
         self.pixel_channel_groups = generate_pixel_channel_groups( dims )
         self.information_masks = generate_information_masks( dims )
-#        self.position_layer = torch.nn.Parameter( torch.tensor( np.zeros( [ 1, 28, 28 ] ).astype( np.float32 ) ).to( device ), requires_grad=True )
         self.device = device
         
     def log_prob( self, samples, conditional_input ):
+        output_logits = torch.tensor( np.zeros( samples.shape ) ).to( self.device )
+        for n in range( len( self.parallelcnns ) ):
+            subnet_input = torch.cat(
+                ( samples*torch.tensor( self.information_masks[n].astype( np.float32 ) ).to( self.device ),
+                conditional_input.expand_as( samples ) ), dim=1 )
+            subnet_output_logits = self.parallelcnns[n]( subnet_input )
+            output_logits += subnet_output_logits * torch.tensor( self.pixel_channel_groups[n] ).to( self.device ) 
 
-        i0 = torch.cat( ( samples*torch.tensor( self.information_masks[0].astype( np.float32 ) ).to( self.device ), conditional_input.expand_as( samples ) ), dim=1 )
-        log0 = self.parallelcnns[0]( i0 )
-        l0 = torch.distributions.Bernoulli( logits = log0 ).log_prob( samples )
-        t0 = torch.tensor( self.pixel_channel_groups[0] ).to( self.device ) *l0
-#        t0 = l0
+        output_logprob = torch.distributions.Bernoulli( logits = output_logits ).log_prob( samples )
 
-        i1 = torch.cat( ( samples*torch.tensor( self.information_masks[1].astype( np.float32 ) ).to( self.device ), conditional_input.expand_as( samples ) ), dim=1 )
-        log1 = self.parallelcnns[1]( i1 )
-        l1 = torch.distributions.Bernoulli( logits = log1 ).log_prob( samples )
-        t1 = torch.tensor( self.pixel_channel_groups[1] ).to( self.device ) *l1
+        return torch.mean( torch.sum( ( output_logprob ), dim = ( 1, 2, 3 ) ) )
 
-        i2 = torch.cat( ( samples*torch.tensor( self.information_masks[2].astype( np.float32 ) ).to( self.device ), conditional_input.expand_as( samples ) ), dim=1 )
-        log2 = self.parallelcnns[2]( i2 )
-        l2 = torch.distributions.Bernoulli( logits = log2 ).log_prob( samples )
-        t2 = torch.tensor( self.pixel_channel_groups[2] ).to( self.device ) *l2
-        
-        i3 = torch.cat( ( samples*torch.tensor( self.information_masks[3].astype( np.float32 ) ).to( self.device ), conditional_input.expand_as( samples ) ), dim=1 )
-        log3 = self.parallelcnns[3]( i3 )
-        l3 = torch.distributions.Bernoulli( logits = log3 ).log_prob( samples )
-        t3 = torch.tensor( self.pixel_channel_groups[3] ).to( self.device ) *l3
-
-#        print( "L0", l0[0,0,:3,:3] )
-#        print( "T0", t0[0,0,:3,:3] )
-
-        return torch.mean( torch.sum( ( t0 + t1 + t2 + t3 ), dim = ( 1, 2, 3 ) ) )
-
-    def log_prob1( self, samples, conditional_input ):
-        return torch.mean( torch.sum( torch.distributions.Bernoulli( logits = conditional_input ).log_prob( samples ), dim = ( 1, 2, 3 ) ) )
-    
     def sample( self, conditional_input ):
         sample = torch.tensor( np.zeros( [ 1, 1, 28, 28 ] ).astype( np.float32 ) ).to( self.device )
-        
-        i0 = torch.cat(
-            ( sample*torch.tensor( self.information_masks[0].astype( np.float32 ) ).to( self.device ),
-            conditional_input.expand_as( sample ) ), dim=1 )
-        log0 = self.parallelcnns[0]( i0 )
-        l0 = torch.distributions.Bernoulli( logits = log0 ).sample()
-        t0 = torch.tensor( self.pixel_channel_groups[0] ).to( self.device ) *l0
-        sample += t0
 
-        i1 = torch.cat(
-            ( sample*torch.tensor( self.information_masks[1].astype( np.float32 ) ).to( self.device ),
-            conditional_input.expand_as( sample ) ), dim=1 )
-        log1 = self.parallelcnns[1]( i1 )
-        l1 = torch.distributions.Bernoulli( logits = log1 ).sample()
-        t1 = torch.tensor( self.pixel_channel_groups[1] ).to( self.device ) *l1
-        sample += t1
+        for n in range( len( self.parallelcnns ) ):
+            subnet_input = torch.cat(
+                ( sample*torch.tensor( self.information_masks[n].astype( np.float32 ) ).to( self.device ),
+                conditional_input.expand_as( sample ) ), dim=1 )
+            subnet_output_logits = self.parallelcnns[n]( subnet_input )
 
-        i2 = torch.cat(
-            ( sample*torch.tensor( self.information_masks[2].astype( np.float32 ) ).to( self.device ),
-            conditional_input.expand_as( sample ) ), dim=1 )
-        log2 = self.parallelcnns[2]( i2 )
-        l2 = torch.distributions.Bernoulli( logits = log2 ).sample()
-        t2 = torch.tensor( self.pixel_channel_groups[2] ).to( self.device ) *l2
-        sample += t2
-
-        i3 = torch.cat(
-            ( sample*torch.tensor( self.information_masks[3].astype( np.float32 ) ).to( self.device ),
-            conditional_input.expand_as( sample ) ), dim=1 )
-        log3 = self.parallelcnns[3]( i3 )
-        l3 = torch.distributions.Bernoulli( logits = log3 ).sample()
-        t3 = torch.tensor( self.pixel_channel_groups[3] ).to( self.device ) *l3
-        sample += t3
+            sample += torch.distributions.Bernoulli( logits = subnet_output_logits ).sample() * \
+                torch.tensor( self.pixel_channel_groups[n] ).to( self.device )
 
         return sample
 
