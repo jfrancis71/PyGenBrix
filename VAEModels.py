@@ -34,7 +34,7 @@ class MNISTVAEModel( torch.nn.Module ):
             torch.nn.ConvTranspose2d( 2 * base_depth, base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
             torch.nn.ConvTranspose2d( base_depth, base_depth, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(),
             torch.nn.ConvTranspose2d( base_depth, base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
-            torch.nn.Conv2d( base_depth, 1*params_size, kernel_size=5, stride=1, padding=2 )
+            torch.nn.Conv2d( base_depth, params_size, kernel_size=5, stride=1, padding=2 )
         ).to( self.device )
 
 # 64x64x3 shaped model
@@ -66,5 +66,5 @@ class YZVAEModel( torch.nn.Module ):
             torch.nn.ConvTranspose2d( 256, 64*4, 6, stride=2, padding= 2 ), torch.nn.LeakyReLU(),
             torch.nn.ConvTranspose2d( 64*4, 64*2, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(),
             torch.nn.ConvTranspose2d( 64*2, 64, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(),
-            torch.nn.ConvTranspose2d( 64, 3*params_size, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+            torch.nn.ConvTranspose2d( 64, params_size, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
         ).to( self.device )

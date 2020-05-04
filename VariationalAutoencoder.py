@@ -5,42 +5,56 @@ import numpy as np
 
 from PyGenBrix import VAEModels as vae_models
 
+### Conditional Distributions
+### Must support log_prob, sample, and params_size
 class BernoulliConditionalDistribution():
-    def log_prob( self, samples, conditionals ):
+### Promises to compute log probability on a per sample basis
+### Requires:
+###     the batch number of samples and conditionals must match
+###     invoking functions must supply a total channel size for conditionals that is same as output
+###     of params_size
+    def log_prob( self, samples, conditionals, mask = None ):
         log_probs = torch.distributions.Bernoulli( logits = conditionals ).log_prob( samples )
+        if mask is not None:
+            log_probs = log_probs * mask
         log_probs_sum = torch.sum( log_probs, dim = ( 1, 2, 3 ) )
         return log_probs_sum
 
+### Requires conditionals is of a batch shape
     def sample( self, conditionals ):
         return torch.distributions.Bernoulli( logits = conditionals ).sample()
 
-    def params_size( self ):
-        return 1
+    def params_size( self, channels ):
+        return 1*channels
 
 class NormalConditionalDistribution():
-    def log_prob( self, samples, conditionals ):
-        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], 1, 2, 28, 28 ) )
+    def log_prob( self, samples, conditionals, mask = None ):
+        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], samples.shape[1], 2, conditionals.shape[2], conditionals.shape[3] ) )
         locs = reshaped_conditionals[:,:,0]
         scales = .05 + torch.nn.Softplus()( reshaped_conditionals[:,:,1] )
         log_probs = torch.distributions.Normal( loc = locs, scale = scales ).log_prob( samples )
+        if mask is not None:
+            log_probs = log_probs * mask
         log_probs_sum = torch.sum( log_probs, dim = ( 1, 2, 3 ) )
         return log_probs_sum
 
     def sample( self, conditionals ):
-        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], 1, 2, 28, 28 ) )
+        reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], conditionals.shape[1]//2, 2, conditionals.shape[2], conditionals.shape[3] ) )
         locs = reshaped_conditionals[:,:,0]
         scales = .05 + torch.nn.Softplus()( reshaped_conditionals[:,:,1] )
         return torch.distributions.Normal( loc = locs, scale = scales ).sample()
 
-    def params_size( self ):
-        return 2
+    def params_size( self, channels ):
+        return 2*channels
 
 class QuantizedContinuousConditionalDistribution():
-    def log_prob( self, samples, conditionals ):
+    def log_prob( self, samples, conditionals, mask = None ):
         quantized = (samples*9.0).round()
         reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], conditionals.shape[1]//10, 10, conditionals.shape[2], conditionals.shape[3] ) )
         reshaped_conditionals = reshaped_conditionals.permute( ( 0, 1, 3, 4, 2 ) )
         log_probs = torch.distributions.Categorical( logits = reshaped_conditionals ).log_prob( quantized )
+        if mask is not None:
+            log_probs = log_probs * mask
         log_probs_sum = torch.sum( log_probs, dim = ( 1, 2, 3 ) )
         return log_probs_sum
 
@@ -49,8 +63,8 @@ class QuantizedContinuousConditionalDistribution():
         reshaped_conditionals = reshaped_conditionals.permute( ( 0, 1, 3, 4, 2 ) )
         return torch.distributions.Categorical( logits = reshaped_conditionals ).sample()/10.0
 
-    def params_size( self ):
-        return 10
+    def params_size( self, channels ):
+        return 10*channels
 
 class VAE(nn.Module):
     """
@@ -64,22 +78,13 @@ class VAE(nn.Module):
     def __init__( self, vae_model, p_conditional_distribution, device ):
         super(VAE, self).__init__()
 
-        self.fc1 = nn.Linear(784, 400).to( device )
-        self.fc21 = nn.Linear(400, 20).to( device )
-        self.fc22 = nn.Linear(400, 20).to( device )
-        self.fc3 = nn.Linear(20, 400).to( device )
-        self.fc4 = nn.Linear(400, 784*p_conditional_distribution.params_size()).to( device )
-
         self.p_conditional_distribution = p_conditional_distribution
         self.device = device
 
         self.vae_model = vae_model
-        self.decoder = vae_model.decoder( p_conditional_distribution.params_size() )
+        self.decoder = vae_model.decoder( p_conditional_distribution.params_size( vae_model.dims[0] ) )
 
     def encode(self, x):
-#        h1 = F.relu(self.fc1(x))
-#        return self.fc21(h1), self.fc22(h1)
-#        return self.vae_model.encoder( x )
         params = self.vae_model.encoder( x )
         split = torch.reshape( params, ( x.shape[0], self.vae_model.latents, 2 ) )
         return split[...,0], split[...,1]
@@ -90,11 +95,9 @@ class VAE(nn.Module):
         return mu + eps*std
 
     def decode(self, z):
-#        h3 = F.relu(self.fc3(z))
-#        h4 = self.fc4(h3)
         reshape_z = torch.reshape( z, ( z.shape[0], self.vae_model.latents, 1, 1 ) )
         output = self.decoder( reshape_z )
-        decode_params_reshape = torch.reshape( output, ( output.shape[0], self.vae_model.dims[0]*self.p_conditional_distribution.params_size(), self.vae_model.dims[1],  self.vae_model.dims[2] ) )
+        decode_params_reshape = torch.reshape( output, ( output.shape[0], self.p_conditional_distribution.params_size( self.vae_model.dims[0] ), self.vae_model.dims[1],  self.vae_model.dims[2] ) )
         return decode_params_reshape
 
     def log_prob( self, cx ):
