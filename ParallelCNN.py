@@ -39,7 +39,7 @@ def create_parallelcnns( dims, params_size, device ):
 class ParallelCNNConditionalDistribution( nn.Module ):
 
     def __init__( self, dims, p_conditional_distribution, device ):
-        super(ConditionalParallelCNNDistribution, self).__init__()
+        super(ParallelCNNConditionalDistribution, self).__init__()
         self.parallelcnns = nn.ModuleList( create_parallelcnns( dims, p_conditional_distribution.params_size( dims[0] ), device ) )
         self.pixel_channel_groups = generate_pixel_channel_groups( dims )
         self.information_masks = generate_information_masks( dims )
