@@ -36,7 +36,7 @@ def create_parallelcnns( dims, params_size, device ):
         
 ) for x in range(4*dims[0]) ]
 
-class ConditionalParallelCNNDistribution( nn.Module ):
+class ParallelCNNConditionalDistribution( nn.Module ):
 
     def __init__( self, dims, p_conditional_distribution, device ):
         super(ConditionalParallelCNNDistribution, self).__init__()

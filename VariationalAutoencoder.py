@@ -47,7 +47,7 @@ class NormalConditionalDistribution():
     def params_size( self, channels ):
         return 2*channels
 
-class QuantizedContinuousConditionalDistribution():
+class QuantizedConditionalDistribution():
     def log_prob( self, samples, conditionals, mask = None ):
         quantized = (samples*9.0).round()
         reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], conditionals.shape[1]//10, 10, conditionals.shape[2], conditionals.shape[3] ) )
