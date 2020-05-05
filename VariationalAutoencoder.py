@@ -49,7 +49,7 @@ class NormalConditionalDistribution():
 
 class QuantizedConditionalDistribution():
     def log_prob( self, samples, conditionals, mask = None ):
-        quantized = (samples*9.0).round()
+        quantized = torch.clamp( (samples*10.0).floor(), 0, 9 )
         reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], conditionals.shape[1]//10, 10, conditionals.shape[2], conditionals.shape[3] ) )
         reshaped_conditionals = reshaped_conditionals.permute( ( 0, 1, 3, 4, 2 ) )
         log_probs = torch.distributions.Categorical( logits = reshaped_conditionals ).log_prob( quantized )
@@ -61,7 +61,7 @@ class QuantizedConditionalDistribution():
     def sample( self, conditionals ):
         reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], conditionals.shape[1]//10, 10, conditionals.shape[2], conditionals.shape[3] ) )
         reshaped_conditionals = reshaped_conditionals.permute( ( 0, 1, 3, 4, 2 ) )
-        return torch.distributions.Categorical( logits = reshaped_conditionals ).sample()/10.0
+        return torch.distributions.Categorical( logits = reshaped_conditionals ).sample()/10.0 + .05
 
     def params_size( self, channels ):
         return 10*channels
