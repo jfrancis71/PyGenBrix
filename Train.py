@@ -2,6 +2,7 @@ import torch.optim as optim
 import torch
 import time
 import numpy as np
+import torch.nn as nn
 
 def partition(l, n):
     n = max(1, n)
@@ -42,3 +43,21 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
 
         print( "Epoch ", epoch, ", Training Loss=", training_running_loss/training_batch_no, ", Validation Loss ", validation_running_loss/validation_batch_no )
 
+# To train a conditional distribution:
+# mydist = Train.Distribution( 
+#     cnn.ParallelCNNConditionalDistribution([ 1, 28, 28 ], vae.BernoulliConditionalDistribution(), device).to( device ),
+#     [ 1, 28, 28 ],
+#    device )
+# Train.train( mydist, mnist, device, batch_size=32, sleep_time=0)
+class Distribution( nn.Module ):
+    def __init__( self, distribution, dims, device ):
+        super( Distribution, self ).__init__()
+        self.cond_distribution = distribution
+        self.device = device
+        self.conditionals = torch.nn.Parameter( torch.tensor( np.zeros( dims ).astype( np.float32 ) ).to( device ), requires_grad=True )
+        
+    def log_prob( self, samples ):
+        return torch.mean( self.cond_distribution.log_prob( samples, self.conditionals.expand_as( samples ) ) )
+    
+    def sample( self ):
+        return self.cond_distribution.sample( torch.tensor( np.array( [ self.conditionals.cpu().detach().numpy() ] ) ).to( self.device ) )
