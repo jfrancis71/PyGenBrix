@@ -30,7 +30,7 @@ def create_parallelcnns( dims, params_size, device ):
     return [ torch.nn.Sequential(
 #Note we're using 1 here. be careful on the different params_size
 #ParallelCNN has a params_size of 1, but the pixel distribution will have different params_size
-        torch.nn.Conv2d( dims[0]+3,16,3, padding=1 ).to( device ), nn.Tanh().to( device ),
+        torch.nn.Conv2d( dims[0]+1,16,3, padding=1 ).to( device ), nn.Tanh().to( device ),
         torch.nn.Conv2d( 16, 16, 1).to( device ), nn.Tanh().to( device ),
         torch.nn.Conv2d( 16, params_size, 1, padding=0 ).to( device )
         
@@ -75,4 +75,4 @@ class ParallelCNNConditionalDistribution( nn.Module ):
         return samples
 
     def params_size( self, channels ):
-        return 3
+        return 1
