@@ -25,7 +25,7 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
             tens = torch.tensor( batch ).to( device )
             dat = tens
             optimizer.zero_grad()
-            result = model.log_prob( dat )
+            result = torch.mean( model.log_prob( dat ) )
             loss = -result
             training_running_loss += loss.item()
             training_batch_no += 1
@@ -36,7 +36,7 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
             tens = torch.tensor( batch ).to( device )
             dat = tens
             optimizer.zero_grad()
-            result = model.log_prob( dat )
+            result = torch.mean( model.log_prob( dat ) )
             loss = -result
             validation_running_loss += loss.item()
             validation_batch_no += 1
@@ -57,7 +57,7 @@ class Distribution( nn.Module ):
         self.conditionals = torch.nn.Parameter( torch.tensor( np.zeros( dims ).astype( np.float32 ) ).to( device ), requires_grad=True )
         
     def log_prob( self, samples ):
-        return torch.mean( self.cond_distribution.log_prob( samples, self.conditionals.expand_as( samples ) ) )
+        return self.cond_distribution.log_prob( samples, self.conditionals.expand_as( samples ) )
     
     def sample( self ):
         return self.cond_distribution.sample( torch.tensor( np.array( [ self.conditionals.cpu().detach().numpy() ] ) ).to( self.device ) )

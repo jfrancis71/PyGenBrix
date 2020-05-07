@@ -26,7 +26,6 @@ class MNISTVAEModel( torch.nn.Module ):
 #We defer building decoder until we know params_size
     def decoder( self, params_size ):
         return torch.nn.Sequential(
-#                torch.nn.Reshape([1, 1, self.latents]),
             #note below layer turns into 7x7x....
             torch.nn.ConvTranspose2d( self.latents, 2 * base_depth, 7, stride=1, padding= 0 ), torch.nn.LeakyReLU(),
             torch.nn.ConvTranspose2d( 2 * base_depth, 2 * base_depth, 5, stride=1, padding= 2 ), torch.nn.LeakyReLU(),
@@ -61,7 +60,6 @@ class YZVAEModel( torch.nn.Module ):
     def decoder( self, params_size ):
         return torch.nn.Sequential(
             torch.nn.Conv2d( 16, 64*4*8*8, 1, padding=0,stride=1 ), torch.nn.LeakyReLU(),
-            #tf.keras.layers.Reshape( [ 8, 8, 256 ] ),
             torch.nn.ConvTranspose2d( 64*4*8*8, 256, 8, stride=1, padding= 0 ), torch.nn.LeakyReLU(),
             torch.nn.ConvTranspose2d( 256, 64*4, 6, stride=2, padding= 2 ), torch.nn.LeakyReLU(),
             torch.nn.ConvTranspose2d( 64*4, 64*2, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(),

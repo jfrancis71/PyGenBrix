@@ -71,7 +71,7 @@ class VAE(nn.Module):
     to build:
     mymodel = vae.VAE( vae_models.YZVAEModel( device ), vae.BernoulliConditionalDistribution(), device )
     or
-    mymodel = vae.VAE( vae_models.YZVAEModel( device ), cnn.ConditionalParallelCNNDistribution( [ 1, 28, 28 ], device ), device )
+    mymodel = vae.VAE( vae_models.YZVAEModel( device ), cnn.ParallelCNNConditionalDistribution( [ 1, 28, 28 ], vae.QuantizedConditionalDistribution(), device ), device )
     to train:
     Train.train( mydist, mnist, device, batch_size = 32 )
     """
@@ -86,8 +86,8 @@ class VAE(nn.Module):
 
     def encode(self, x):
         params = self.vae_model.encoder( x )
-        split = torch.reshape( params, ( x.shape[0], self.vae_model.latents, 2 ) )
-        return split[...,0], split[...,1]
+        mu, logvar = torch.reshape( params, ( x.shape[0], self.vae_model.latents, 2 ) )
+        return mu, logvar
 
     def sample_z(self, mu, logvar):
         std = torch.exp(0.5*logvar)
@@ -96,9 +96,7 @@ class VAE(nn.Module):
 
     def decode(self, z):
         reshape_z = torch.reshape( z, ( z.shape[0], self.vae_model.latents, 1, 1 ) )
-        output = self.decoder( reshape_z )
-        decode_params_reshape = torch.reshape( output, ( output.shape[0], self.p_conditional_distribution.params_size( self.vae_model.dims[0] ), self.vae_model.dims[1],  self.vae_model.dims[2] ) )
-        return decode_params_reshape
+        return self.decoder( reshape_z )
 
     def log_prob( self, cx ):
         mu, logvar = self.encode( cx )
@@ -108,7 +106,7 @@ class VAE(nn.Module):
         kl_divergence = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim = ( 1 ) )
         total_log_prob = recons_log_prob - kl_divergence
         
-        return torch.mean( total_log_prob )
+        return total_log_prob
 
     def sample( self ):
         decode_params = self.decode( torch.tensor( np.random.normal( size = [ 1, self.vae_model.latents ] ).astype( np.float32 ) ).to( self.device ) )
