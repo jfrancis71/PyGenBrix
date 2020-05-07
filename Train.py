@@ -23,9 +23,8 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
         validation_batch_no = 0
         for batch in partition( training_set, batch_size ):
             tens = torch.tensor( batch ).to( device )
-            dat = tens
             optimizer.zero_grad()
-            result = torch.mean( model.log_prob( dat ) )
+            result = torch.mean( model.log_prob( tens ) )
             loss = -result
             training_running_loss += loss.item()
             training_batch_no += 1
@@ -34,9 +33,8 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
             time.sleep( sleep_time )
         for batch in partition( validation_set, batch_size ):
             tens = torch.tensor( batch ).to( device )
-            dat = tens
             optimizer.zero_grad()
-            result = torch.mean( model.log_prob( dat ) )
+            result = torch.mean( model.log_prob( tens ) )
             loss = -result
             validation_running_loss += loss.item()
             validation_batch_no += 1
