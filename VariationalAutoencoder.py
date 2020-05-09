@@ -7,7 +7,7 @@ from PyGenBrix import VAEModels as vae_models
 
 ### Conditional Distributions
 ### Must support log_prob, sample, and params_size
-class BernoulliConditionalDistribution():
+class BernoulliConditionalDistribution( nn.Module ):
 ### Promises to compute log probability on a per sample basis
 ### Requires:
 ###     the batch number of samples and conditionals must match
@@ -27,7 +27,7 @@ class BernoulliConditionalDistribution():
     def params_size( self, channels ):
         return 1*channels
 
-class NormalConditionalDistribution():
+class NormalConditionalDistribution( nn.Module ):
     def log_prob( self, samples, conditionals, mask = None ):
         reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], samples.shape[1], 2, conditionals.shape[2], conditionals.shape[3] ) )
         locs = reshaped_conditionals[:,:,0]
@@ -47,7 +47,7 @@ class NormalConditionalDistribution():
     def params_size( self, channels ):
         return 2*channels
 
-class QuantizedConditionalDistribution():
+class QuantizedConditionalDistribution( nn.Module ):
     def log_prob( self, samples, conditionals, mask = None ):
         quantized = torch.clamp( (samples*10.0).floor(), 0, 9 )
         reshaped_conditionals = torch.reshape( conditionals, ( conditionals.shape[0], conditionals.shape[1]//10, 10, conditionals.shape[2], conditionals.shape[3] ) )

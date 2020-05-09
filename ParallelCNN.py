@@ -38,17 +38,16 @@ def create_parallelcnns( dims, params_size ):
 
 class ParallelCNNConditionalDistribution( nn.Module ):
 
-    def __init__( self, dims, p_conditional_distribution, device ):
+    def __init__( self, dims, p_conditional_distribution ):
         super(ParallelCNNConditionalDistribution, self).__init__()
-        self.parallelcnns = nn.ModuleList( create_parallelcnns( dims, p_conditional_distribution.params_size( dims[0] ) ) ).to( device )
-        self.pixel_channel_groups = torch.tensor( generate_pixel_channel_groups( dims ).astype( np.float32 ) ).to( device )
-        self.information_masks = torch.tensor( generate_information_masks( dims ).astype( np.float32 ) ).to( device )
-        self.device = device
+        self.parallelcnns = nn.ModuleList( create_parallelcnns( dims, p_conditional_distribution.params_size( dims[0] ) ) )
+        self.pixel_channel_groups = nn.Parameter( torch.tensor( generate_pixel_channel_groups( dims ).astype( np.float32 ) ), requires_grad = False )
+        self.information_masks = nn.Parameter( torch.tensor( generate_information_masks( dims ).astype( np.float32 ) ), requires_grad = False )
         self.p_conditional_distribution = p_conditional_distribution
         self.dims = dims
         
     def log_prob( self, samples, conditional_inputs ):
-        output_log_prob = torch.tensor( np.zeros( samples.shape[0] ) ).to( self.device )
+        output_log_prob = torch.tensor( np.zeros( samples.shape[0] ) ).to( samples.device )
         for n in range( len( self.parallelcnns ) ):
             masked_input = samples*self.information_masks[n]
             subnet_input = torch.cat( (
@@ -61,7 +60,7 @@ class ParallelCNNConditionalDistribution( nn.Module ):
         return output_log_prob
 
     def sample( self, conditional_inputs ):
-        samples = torch.tensor( np.zeros( [ conditional_inputs.shape[0], self.dims[0], self.dims[1], self.dims[2] ] ).astype( np.float32 ) ).to( self.device )
+        samples = torch.tensor( np.zeros( [ conditional_inputs.shape[0], self.dims[0], self.dims[1], self.dims[2] ] ).astype( np.float32 ) ).to( conditional_inputs.device )
 
         for n in range( len( self.parallelcnns ) ):
             subnet_input = torch.cat(
