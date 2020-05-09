@@ -26,13 +26,13 @@ def generate_information_masks( dims ):
     information_masks = np.array( [ np.sum( pixel_channel_groups[:x], axis=0 ) if x > 0 else np.zeros( [ dims[0], dims[1], dims[2] ] ) for x in range(4*dims[0]) ] )
     return information_masks
 
-def create_parallelcnns( dims, params_size, device ):
+def create_parallelcnns( dims, params_size ):
     return [ torch.nn.Sequential(
 #Note we're using 1 here. be careful on the different params_size
 #ParallelCNN has a params_size of 1, but the pixel distribution will have different params_size
-        torch.nn.Conv2d( dims[0]+1,16,3, padding=1 ).to( device ), nn.Tanh().to( device ),
-        torch.nn.Conv2d( 16, 16, 1).to( device ), nn.Tanh().to( device ),
-        torch.nn.Conv2d( 16, params_size, 1, padding=0 ).to( device )
+        torch.nn.Conv2d( dims[0]+1,16,3, padding=1 ), nn.Tanh(),
+        torch.nn.Conv2d( 16, 16, 1), nn.Tanh(),
+        torch.nn.Conv2d( 16, params_size, 1, padding=0 )
         
 ) for x in range(4*dims[0]) ]
 
@@ -40,7 +40,7 @@ class ParallelCNNConditionalDistribution( nn.Module ):
 
     def __init__( self, dims, p_conditional_distribution, device ):
         super(ParallelCNNConditionalDistribution, self).__init__()
-        self.parallelcnns = nn.ModuleList( create_parallelcnns( dims, p_conditional_distribution.params_size( dims[0] ), device ) )
+        self.parallelcnns = nn.ModuleList( create_parallelcnns( dims, p_conditional_distribution.params_size( dims[0] ) ) ).to( device )
         self.pixel_channel_groups = generate_pixel_channel_groups( dims )
         self.information_masks = generate_information_masks( dims )
         self.device = device
