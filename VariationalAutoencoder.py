@@ -78,7 +78,7 @@ class VAE(nn.Module):
     def __init__( self, vae_model, p_conditional_distribution, device ):
         super(VAE, self).__init__()
 
-        self.p_conditional_distribution = p_conditional_distribution
+        self.p_conditional_distribution = p_conditional_distribution.to( device )
         self.device = device
 
         self.vae_model = vae_model

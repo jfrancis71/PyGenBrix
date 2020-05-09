@@ -43,14 +43,14 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
 
 # To train a conditional distribution:
 # mydist = Train.Distribution( 
-#     cnn.ParallelCNNConditionalDistribution([ 1, 28, 28 ], vae.BernoulliConditionalDistribution(), device).to( device ),
+#     cnn.ParallelCNNConditionalDistribution([ 1, 28, 28 ], vae.BernoulliConditionalDistribution() ),
 #     [ 1, 28, 28 ],
 #    device )
 # Train.train( mydist, mnist, device, batch_size=32, sleep_time=0)
 class Distribution( nn.Module ):
     def __init__( self, distribution, dims, device ):
         super( Distribution, self ).__init__()
-        self.cond_distribution = distribution
+        self.cond_distribution = distribution.to( device )
         self.device = device
         self.conditionals = torch.nn.Parameter( torch.tensor( np.zeros( dims ).astype( np.float32 ) ).to( device ), requires_grad=True )
         
