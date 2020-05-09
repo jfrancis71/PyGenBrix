@@ -69,9 +69,9 @@ class QuantizedConditionalDistribution( nn.Module ):
 class VAE(nn.Module):
     """
     to build:
-    mymodel = vae.VAE( vae_models.YZVAEModel( device ), vae.BernoulliConditionalDistribution(), device )
+    mymodel = vae.VAE( vae_models.YZVAEModel(), vae.BernoulliConditionalDistribution(), device )
     or
-    mymodel = vae.VAE( vae_models.YZVAEModel( device ), cnn.ParallelCNNConditionalDistribution( [ 1, 28, 28 ], vae.QuantizedConditionalDistribution(), device ), device )
+    mymodel = vae.VAE( vae_models.YZVAEModel(), cnn.ParallelCNNConditionalDistribution( [ 1, 28, 28 ], vae.QuantizedConditionalDistribution(), device ), device )
     to train:
     Train.train( mydist, mnist, device, batch_size = 32 )
     """
