@@ -41,8 +41,8 @@ class ParallelCNNConditionalDistribution( nn.Module ):
     def __init__( self, dims, p_conditional_distribution, device ):
         super(ParallelCNNConditionalDistribution, self).__init__()
         self.parallelcnns = nn.ModuleList( create_parallelcnns( dims, p_conditional_distribution.params_size( dims[0] ) ) ).to( device )
-        self.pixel_channel_groups = generate_pixel_channel_groups( dims )
-        self.information_masks = generate_information_masks( dims )
+        self.pixel_channel_groups = torch.tensor( generate_pixel_channel_groups( dims ).astype( np.float32 ) ).to( device )
+        self.information_masks = torch.tensor( generate_information_masks( dims ).astype( np.float32 ) ).to( device )
         self.device = device
         self.p_conditional_distribution = p_conditional_distribution
         self.dims = dims
@@ -50,12 +50,12 @@ class ParallelCNNConditionalDistribution( nn.Module ):
     def log_prob( self, samples, conditional_inputs ):
         output_log_prob = torch.tensor( np.zeros( samples.shape[0] ) ).to( self.device )
         for n in range( len( self.parallelcnns ) ):
-            masked_input = samples*torch.tensor( self.information_masks[n].astype( np.float32 ) ).to( self.device )
+            masked_input = samples*self.information_masks[n]
             subnet_input = torch.cat( (
                 masked_input,
                 conditional_inputs ), dim=1 )
             subnet_output_logits = self.parallelcnns[n]( subnet_input )
-            toutput_log_prob = self.p_conditional_distribution.log_prob( samples, subnet_output_logits, mask = torch.tensor( self.pixel_channel_groups[n] ).to( self.device ) )
+            toutput_log_prob = self.p_conditional_distribution.log_prob( samples, subnet_output_logits, mask = self.pixel_channel_groups[n] )
             output_log_prob += toutput_log_prob
 
         return output_log_prob
@@ -65,12 +65,12 @@ class ParallelCNNConditionalDistribution( nn.Module ):
 
         for n in range( len( self.parallelcnns ) ):
             subnet_input = torch.cat(
-                ( samples*torch.tensor( self.information_masks[n].astype( np.float32 ) ).to( self.device ),
+                ( samples*self.information_masks[n],
                 conditional_inputs ), dim=1 )
             subnet_output_logits = self.parallelcnns[n]( subnet_input )
 
             samples += self.p_conditional_distribution.sample( subnet_output_logits ) * \
-                torch.tensor( self.pixel_channel_groups[n] ).to( self.device )
+                self.pixel_channel_groups[n]
 
         return samples
 
