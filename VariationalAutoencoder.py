@@ -82,10 +82,11 @@ class VAE(nn.Module):
         self.device = device
 
         self.vae_model = vae_model
-        self.decoder = vae_model.decoder( p_conditional_distribution.params_size( vae_model.dims[0] ) )
+        self.encoder = vae_model.encoder().to( device )
+        self.decoder = vae_model.decoder( p_conditional_distribution.params_size( vae_model.dims[0] ) ).to( device )
 
     def encode(self, x):
-        params = self.vae_model.encoder( x )
+        params = self.encoder( x )
         split = torch.reshape( params, ( x.shape[0], self.vae_model.latents, 2 ) )
         return split[...,0], split[...,1]
 
