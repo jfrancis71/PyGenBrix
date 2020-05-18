@@ -5,7 +5,8 @@ import numpy as np
 
 from PyGenBrix import VAEModels as vae_models
 
-#Works moderately well on MNIST after training for 34 epochs with a Bernoulli distribution.
+# Works moderately well on MNIST after training for 34 epochs with a Bernoulli distribution.
+# Achieved validation around 66.8
 
 class ConditionalVAE(nn.Module):
     """
