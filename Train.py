@@ -8,9 +8,10 @@ def partition(l, n):
     n = max(1, n)
     return (l[i:i+n] for i in range(0, len(l), n))
 
-def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep_time = 0 ):
+#If training conditional, samples will need to be in Bx2xCxYxX format
+def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep_time = 0, conditional = False ):
     
-    optimizer = optim.Adam( model.parameters(), lr=.001)
+    optimizer = optim.Adam( model.parameters(), lr=.0001)
     randomized_samples = np.random.permutation( samples )
     training_size = np.round(randomized_samples.shape[0]*0.9).astype(int)
     training_set = randomized_samples[:training_size]
@@ -24,7 +25,10 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
         for batch in partition( training_set, batch_size ):
             tens = torch.tensor( batch ).to( device )
             optimizer.zero_grad()
-            result = torch.mean( model.log_prob( tens ) )
+            if conditional is False:
+                result = torch.mean( model.log_prob( tens ) )
+            else:
+                result = torch.mean( model.log_prob( tens[:,1], tens[:,0] ) )
             loss = -result
             training_running_loss += loss.item()
             training_batch_no += 1
@@ -34,12 +38,19 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
         for batch in partition( validation_set, batch_size ):
             tens = torch.tensor( batch ).to( device )
             optimizer.zero_grad()
-            result = torch.mean( model.log_prob( tens ) )
+            if conditional is False:
+                result = torch.mean( model.log_prob( tens ) )
+            else:
+                result = torch.mean( model.log_prob( tens[:,1], tens[:,0] ) )
             loss = -result
             validation_running_loss += loss.item()
             validation_batch_no += 1
 
         print( "Epoch ", epoch, ", Training Loss=", training_running_loss/training_batch_no, ", Validation Loss ", validation_running_loss/validation_batch_no )
+
+# Note the 2 different training conditionals scenarious.
+# In Train conditionals means the conditionals have been given as data.
+# In the Distribution module, the conditional is a learnable parameter.
 
 # To train a conditional distribution:
 # mydist = Train.Distribution( 
