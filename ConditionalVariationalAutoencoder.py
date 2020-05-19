@@ -68,7 +68,7 @@ class ConditionalVAE(nn.Module):
 
     def sample( self, conditional ):
         z = torch.tensor( np.random.normal( size = [ 1, self.vae_model.latents ] ).astype( np.float32 ) ).to( self.device )
-        encode_conditional = self.conditional( conditional )[:,:self.vae_model.latents]
+        encode_conditional = self.conditional( conditional )
         concat_decoder = torch.cat( ( z, encode_conditional ), 1 )
         decode_params = self.decode( concat_decoder )
         return self.p_conditional_distribution.sample( decode_params )
