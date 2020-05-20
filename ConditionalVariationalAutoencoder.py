@@ -24,15 +24,9 @@ class ConditionalVAE(nn.Module):
         self.device = device
 
         self.vae_model = vae_model
-        self.encoder = vae_model.encoder( no_conditional_channels = 10 ).to( device )
-#        self.conditional = vae_model.encoder().to( device )
-        self.decoder = vae_model.decoder( p_conditional_distribution.params_size( vae_model.dims[0] ), no_conditional_channels = 10 ).to( device )
-        self.conditional = torch.nn.Sequential(
-            torch.nn.Conv2d( 1, 32, 3, stride=2, padding=1 ), torch.nn.LeakyReLU(),
-            torch.nn.Conv2d( 32, 32, 3, stride=2, padding=1 ), torch.nn.LeakyReLU(),
-            torch.nn.Conv2d( 32, 32, 3, stride=2, padding=0 ), torch.nn.LeakyReLU(),
-            torch.nn.Flatten(),
-            torch.nn.Linear( 32*3*3, 10 ) ).to( device )
+        self.encoder = vae_model.encoder( no_conditional_channels = vae_model.latents ).to( device )
+        self.conditional = vae_model.encoder().to( device )
+        self.decoder = vae_model.decoder( p_conditional_distribution.params_size( vae_model.dims[0] ), no_conditional_channels = vae_model.latents ).to( device )
 
     def encode(self, x):
         params = self.encoder( x )
@@ -45,11 +39,11 @@ class ConditionalVAE(nn.Module):
         return mu + eps*std
 
     def decode(self, z):
-        reshape_z = torch.reshape( z, ( z.shape[0], self.vae_model.latents + 10, 1, 1 ) )
+        reshape_z = torch.reshape( z, ( z.shape[0], self.vae_model.latents + self.vae_model.latents, 1, 1 ) )
         return self.decoder( reshape_z )
 
     def log_prob( self, x, conditional ):
-        encode_conditional = self.conditional( conditional )#[:,:self.vae_model.latents]
+        encode_conditional = self.conditional( conditional )[:,:self.vae_model.latents]
         cond_reshape = encode_conditional.reshape( conditional.shape[0], encode_conditional.shape[1], 1, 1 ).repeat( 1, 1, 28, 28 )
         concat_encoder = torch.cat( ( x, cond_reshape ), 1 )
         mu, logvar = self.encode( concat_encoder )
@@ -68,7 +62,7 @@ class ConditionalVAE(nn.Module):
 
     def sample( self, conditional ):
         z = torch.tensor( np.random.normal( size = [ 1, self.vae_model.latents ] ).astype( np.float32 ) ).to( self.device )
-        encode_conditional = self.conditional( conditional )
+        encode_conditional = self.conditional( conditional )[:,:self.vae_model.latents]
         concat_decoder = torch.cat( ( z, encode_conditional ), 1 )
         decode_params = self.decode( concat_decoder )
         return self.p_conditional_distribution.sample( decode_params )
