@@ -25,10 +25,7 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
         for batch in partition( training_set, batch_size ):
             tens = torch.tensor( batch ).to( device )
             optimizer.zero_grad()
-            if conditional is False:
-                result = torch.mean( model.log_prob( tens ) )
-            else:
-                result = torch.mean( model.log_prob( tens[:,1], tens[:,0] ) )
+            result = torch.mean( model.log_prob( tens ) )
             loss = -result
             training_running_loss += loss.item()
             training_batch_no += 1
@@ -38,10 +35,7 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
         for batch in partition( validation_set, batch_size ):
             tens = torch.tensor( batch ).to( device )
             optimizer.zero_grad()
-            if conditional is False:
-                result = torch.mean( model.log_prob( tens ) )
-            else:
-                result = torch.mean( model.log_prob( tens[:,1], tens[:,0] ) )
+            result = torch.mean( model.log_prob( tens ) )
             loss = -result
             validation_running_loss += loss.item()
             validation_batch_no += 1
@@ -49,8 +43,21 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
         print( "Epoch ", epoch, ", Training Loss=", training_running_loss/training_batch_no, ", Validation Loss ", validation_running_loss/validation_batch_no )
 
 # Note the 2 different training conditionals scenarious.
-# In Train conditionals means the conditionals have been given as data.
+# In DistributionPairs conditionals means the conditionals have been given as data.
 # In the Distribution module, the conditional is a learnable parameter.
+
+# Note, the first element in pair is thing we are conditioning on, second element is our target r.v.
+class DistributionPairs( nn.Module ):
+    def __init__( self, conditional_distribution, device ):
+        super( DistributionPairs, self ).__init__()
+        self.conditional_distribution = conditional_distribution
+        self.device = device
+
+    def log_prob( self, sample ):
+        return self.conditional_distribution.log_prob( sample[:,1], sample[:,0] )
+
+    def sample( self, conditional ):
+        return self.conditional_distribution.sample( torch.tensor( conditional ).to( self.device ) )
 
 # To train a conditional distribution:
 # mydist = Train.Distribution( 
