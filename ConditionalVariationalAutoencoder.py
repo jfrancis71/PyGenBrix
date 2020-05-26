@@ -33,11 +33,6 @@ class ConditionalVAE(nn.Module):
         split = torch.reshape( params, ( x.shape[0], self.vae_model.latents, 2 ) )
         return split[...,0], split[...,1]
 
-    def sample_z(self, mu, logvar):
-        std = torch.exp(0.5*logvar)
-        eps = torch.randn_like(std)
-        return mu + eps*std
-
     def decode(self, z):
         reshape_z = torch.reshape( z, ( z.shape[0], self.vae_model.latents + self.vae_model.latents, 1, 1 ) )
         return self.decoder( reshape_z )
@@ -47,7 +42,7 @@ class ConditionalVAE(nn.Module):
         cond_reshape = encode_conditional.reshape( conditional.shape[0], encode_conditional.shape[1], 1, 1 ).repeat( 1, 1, 28, 28 )
         concat_encoder = torch.cat( ( x, cond_reshape ), 1 )
         mu, logvar = self.encode( concat_encoder )
-        z = self.sample_z(mu, logvar)
+        z = torch.distributions.normal.Normal( mu, torch.exp( 0.5*logvar ) ).rsample()
         concat_decoder = torch.cat( ( z, encode_conditional ), 1 )
         decode_params = self.decode( concat_decoder )
         recons_log_prob = self.p_conditional_distribution.log_prob( x, decode_params )

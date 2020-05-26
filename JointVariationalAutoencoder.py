@@ -38,11 +38,6 @@ class JointVAE(nn.Module):
         split = torch.reshape( params, ( x.shape[0], self.vae_model.latents, 2 ) )
         return split[...,0], split[...,1]
 
-    def sample_z(self, mu, logvar):
-        std = torch.exp(0.5*logvar)
-        eps = torch.randn_like(std)
-        return mu + eps*std
-
     def decode(self, z):
         reshape_z = torch.reshape( z, ( z.shape[0], self.vae_model.latents, 1, 1 ) )
         return self.decoder( reshape_z )
@@ -50,9 +45,9 @@ class JointVAE(nn.Module):
     def log_prob( self, x ):
 
         mu1, logvar1 = self.encode( x[:,0] )
-        z1 = self.sample_z(mu1, logvar1)
+        z1 = torch.distributions.normal.Normal( mu1, torch.exp( 0.5*logvar1 ) ).rsample()
         mu2, logvar2 = self.encode( x[:,1] )
-        z2 = self.sample_z(mu2, logvar2)
+        z2 = torch.distributions.normal.Normal( mu2, torch.exp( 0.5*logvar2 ) ).rsample()
 
         decode_params1 = self.decode( z1 )
         recons_log_prob1 = self.p_conditional_distribution.log_prob( x[:,0], decode_params1 )

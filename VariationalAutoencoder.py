@@ -90,18 +90,13 @@ class VAE(nn.Module):
         split = torch.reshape( params, ( x.shape[0], self.vae_model.latents, 2 ) )
         return split[...,0], split[...,1]
 
-    def sample_z(self, mu, logvar):
-        std = torch.exp(0.5*logvar)
-        eps = torch.randn_like(std)
-        return mu + eps*std
-
     def decode(self, z):
         reshape_z = torch.reshape( z, ( z.shape[0], self.vae_model.latents, 1, 1 ) )
         return self.decoder( reshape_z )
 
     def log_prob( self, cx ):
         mu, logvar = self.encode( cx )
-        z = self.sample_z(mu, logvar)
+        z = torch.distributions.normal.Normal( mu, torch.exp( 0.5*logvar ) ).rsample()
         decode_params = self.decode( z )
         recons_log_prob = self.p_conditional_distribution.log_prob( cx, decode_params )
         kl_divergence = torch.sum(
