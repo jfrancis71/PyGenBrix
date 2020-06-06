@@ -12,26 +12,25 @@ from PyGenBrix import VAEModels as vae_models
 class JointVAE(nn.Module):
     """
     to build:
-    mymodel = vae.JointVAE( vae_models.YZVAEModel(), vae.BernoulliConditionalDistribution(), device )
+    mymodel = vae.JointVAE( vae_models.YZVAEModel(), vae.BernoulliConditionalDistribution() )
     or
-    mymodel = vae.JointVAE( vae_models.YZVAEModel(), cnn.ParallelCNNConditionalDistribution( [ 1, 28, 28 ], vae.QuantizedConditionalDistribution(), device ), device )
+    mymodel = vae.JointVAE( vae_models.YZVAEModel(), cnn.ParallelCNNConditionalDistribution( [ 1, 28, 28 ], vae.QuantizedConditionalDistribution() ) )
     to train:
     Train.train( mydist, mnist, device, batch_size = 32 )
     """
-    def __init__( self, vae_model, p_conditional_distribution, device ):
+    def __init__( self, vae_model, p_conditional_distribution ):
         super(JointVAE, self).__init__()
 
-        self.p_conditional_distribution = p_conditional_distribution.to( device )
-        self.device = device
+        self.p_conditional_distribution = p_conditional_distribution
 
         self.vae_model = vae_model
-        self.encoder = vae_model.encoder().to( device )
+        self.encoder = vae_model.encoder()
         self.conditional = torch.nn.Sequential(
             torch.nn.Linear( vae_model.latents, vae_model.latents * 8 ), torch.nn.LeakyReLU(),
             torch.nn.Linear( 8 * vae_model.latents, vae_model.latents * 8 ), torch.nn.LeakyReLU(),
             torch.nn.Linear( 8 * vae_model.latents, vae_model.latents * 8 ), torch.nn.LeakyReLU(),
-            torch.nn.Linear( 8 * vae_model.latents, vae_model.latents * 2 ) ).to ( device )
-        self.decoder = vae_model.decoder( p_conditional_distribution.params_size( vae_model.dims[0] ) ).to( device )
+            torch.nn.Linear( 8 * vae_model.latents, vae_model.latents * 2 ) )
+        self.decoder = vae_model.decoder( p_conditional_distribution.params_size( vae_model.dims[0] ) )
 
     def encode(self, x):
         params = self.encoder( x )
@@ -57,7 +56,7 @@ class JointVAE(nn.Module):
         kl_divergence1 = torch.sum(
             torch.distributions.kl.kl_divergence(
                 torch.distributions.Normal( loc = mu1, scale = torch.exp( 0.5*logvar1 ) ),
-	        torch.distributions.Normal( loc = torch.tensor( 0.0 ).to( self.device ), scale = torch.tensor( 1.0 ).to( self.device ) ) ),
+	        torch.distributions.Normal( loc = torch.tensor( 0.0 ).to( next(self.decoder.parameters()).device ), scale = torch.tensor( 1.0 ).to( next(self.decoder.parameters()).device ) ) ),
             dim = ( 1 ) )
 
         prior_params = self.conditional( z1 )
@@ -75,7 +74,7 @@ class JointVAE(nn.Module):
         return total_log_prob
 
     def sample( self ):
-        z1 = torch.tensor( np.random.normal( size = [ 1, self.vae_model.latents ] ).astype( np.float32 ) ).to( self.device )
+        z1 = torch.tensor( np.random.normal( size = [ 1, self.vae_model.latents ] ).astype( np.float32 ) ).to( next(self.decoder.parameters()).device )
         decode_params1 = self.decode( z1 )
         x1 = self.p_conditional_distribution.sample( decode_params1 )
         prior_params = self.conditional( z1 )
