@@ -71,7 +71,7 @@ class VAE(nn.Module):
     to build:
     mymodel = vae.VAE( vae_models.YZVAEModel(), vae.BernoulliConditionalDistribution() )
     or
-    mymodel = vae.VAE( vae_models.YZVAEModel(), cnn.ParallelCNNConditionalDistribution( [ 1, 28, 28 ], vae.QuantizedConditionalDistribution(), device ) )
+    mymodel = vae.VAE( vae_models.YZVAEModel(), cnn.ParallelCNNConditionalDistribution( [ 1, 28, 28 ], vae.QuantizedConditionalDistribution() ) )
     to train:
     Train.train( mydist, mnist, device, batch_size = 32 )
     """
