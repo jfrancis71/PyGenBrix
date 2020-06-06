@@ -69,21 +69,20 @@ class QuantizedConditionalDistribution( nn.Module ):
 class VAE(nn.Module):
     """
     to build:
-    mymodel = vae.VAE( vae_models.YZVAEModel(), vae.BernoulliConditionalDistribution(), device )
+    mymodel = vae.VAE( vae_models.YZVAEModel(), vae.BernoulliConditionalDistribution() )
     or
-    mymodel = vae.VAE( vae_models.YZVAEModel(), cnn.ParallelCNNConditionalDistribution( [ 1, 28, 28 ], vae.QuantizedConditionalDistribution(), device ), device )
+    mymodel = vae.VAE( vae_models.YZVAEModel(), cnn.ParallelCNNConditionalDistribution( [ 1, 28, 28 ], vae.QuantizedConditionalDistribution(), device ) )
     to train:
     Train.train( mydist, mnist, device, batch_size = 32 )
     """
-    def __init__( self, vae_model, p_conditional_distribution, device ):
+    def __init__( self, vae_model, p_conditional_distribution ):
         super(VAE, self).__init__()
 
-        self.p_conditional_distribution = p_conditional_distribution.to( device )
-        self.device = device
+        self.p_conditional_distribution = p_conditional_distribution
 
         self.vae_model = vae_model
-        self.encoder = vae_model.encoder().to( device )
-        self.decoder = vae_model.decoder( p_conditional_distribution.params_size( vae_model.dims[0] ) ).to( device )
+        self.encoder = vae_model.encoder()
+        self.decoder = vae_model.decoder( p_conditional_distribution.params_size( vae_model.dims[0] ) )
 
     def encode(self, x):
         params = self.encoder( x )
@@ -102,12 +101,12 @@ class VAE(nn.Module):
         kl_divergence = torch.sum(
             torch.distributions.kl.kl_divergence(
                 torch.distributions.Normal( loc = mu, scale = torch.exp( 0.5*logvar ) ),
-	        torch.distributions.Normal( loc = torch.tensor( 0.0 ).to( self.device ), scale = torch.tensor( 1.0 ).to( self.device ) ) ),
+	        torch.distributions.Normal( loc = torch.tensor( 0.0 ).to( next(self.decoder.parameters()).device ), scale = torch.tensor( 1.0 ).to( next(self.decoder.parameters()).device ) ) ),
             dim = ( 1 ) )
         total_log_prob = recons_log_prob - kl_divergence
         
         return total_log_prob
 
     def sample( self ):
-        decode_params = self.decode( torch.tensor( np.random.normal( size = [ 1, self.vae_model.latents ] ).astype( np.float32 ) ).to( self.device ) )
+        decode_params = self.decode( torch.tensor( np.random.normal( size = [ 1, self.vae_model.latents ] ).astype( np.float32 ) ).to( next(self.decoder.parameters()).device ) )
         return self.p_conditional_distribution.sample( decode_params )
