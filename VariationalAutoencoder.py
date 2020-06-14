@@ -107,6 +107,10 @@ class VAE(nn.Module):
         
         return total_log_prob
 
-    def sample( self ):
-        decode_params = self.decode( torch.tensor( np.random.normal( size = [ 1, self.vae_model.latents ] ).astype( np.float32 ) ).to( next(self.decoder.parameters()).device ) )
+    def sample( self, z = None ):
+        if z is not None:
+            sample_z = z
+        else:
+            sample_z = np.random.normal( size = [ 1, self.vae_model.latents ] ).astype( np.float32 )
+        decode_params = self.decode( torch.tensor( sample_z ).to( next(self.decoder.parameters()).device ) )
         return self.p_conditional_distribution.sample( decode_params )

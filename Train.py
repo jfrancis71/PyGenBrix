@@ -9,7 +9,7 @@ def partition(l, n):
     return (l[i:i+n] for i in range(0, len(l), n))
 
 #If training conditional, samples will need to be in Bx2xCxYxX format
-def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep_time = 0 ):
+def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, callback = None, sleep_time = 0 ):
     
     optimizer = optim.Adam( model.parameters(), lr=.0001)
     randomized_samples = np.random.permutation( samples )
@@ -39,6 +39,8 @@ def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, sleep
             loss = -result
             validation_running_loss += loss.item()
             validation_batch_no += 1
+        if callback is not None:
+            callback( model, validation_set )
 
         print( "Epoch ", epoch, ", Training Loss=", training_running_loss/training_batch_no, ", Validation Loss ", validation_running_loss/validation_batch_no )
 
