@@ -55,10 +55,11 @@ class Distribution( nn.Module ):
         super( Distribution, self ).__init__()
         self.cond_distribution = distribution.to( device )
         self.device = device
+        self.dims = dims
         self.conditionals = torch.nn.Parameter( torch.tensor( np.zeros( dims ).astype( np.float32 ) ).to( device ), requires_grad=True )
         
     def log_prob( self, samples ):
-        return self.cond_distribution.log_prob( samples, self.conditionals.expand_as( samples ) )
+        return self.cond_distribution.log_prob( samples, self.conditionals.expand( [ samples.shape[0], self.dims[0], self.dims[1], self.dims[2] ] ) )
     
     def sample( self ):
         return self.cond_distribution.sample( torch.tensor( np.array( [ self.conditionals.cpu().detach().numpy() ] ) ).to( self.device ) )
