@@ -53,26 +53,34 @@ def create_parallelcnns( dims, params_size, parallel_cnn_fn = default_parallel_c
 #the output 8x8, and the remaining pixels in the 8x8 are sampled conditioned on these.
 class Upsampler( nn.Module ):
     #dims is the dimensions of the input sample
-    def __init__( self, dims, p_conditional_distribution, parallel_cnn_fn = default_parallel_cnn_fn ):
+    def __init__( self, input_dims, p_conditional_distribution, parallel_cnn_fn = default_parallel_cnn_fn ):
         super(Upsampler, self).__init__()
-        self.output_dims = [ dims[0], dims[1]*2, dims[2]*2 ]
-        self.parallelcnns = nn.ModuleList( create_parallelcnns( dims, p_conditional_distribution.params_size( dims[0] ), parallel_cnn_fn ) )
+        self.output_dims = [ input_dims[0], input_dims[1]*2, input_dims[2]*2 ]
+        self.parallelcnns = nn.ModuleList( create_parallelcnns( input_dims, p_conditional_distribution.params_size( input_dims[0] ), parallel_cnn_fn ) )
         self.pixel_channel_groups = nn.Parameter( torch.tensor( generate_pixel_channel_groups( self.output_dims ).astype( np.float32 ) ), requires_grad = False )
         self.information_masks = nn.Parameter( torch.tensor( generate_information_masks( self.output_dims ).astype( np.float32 ) ), requires_grad = False )
         self.p_conditional_distribution = p_conditional_distribution
-        self.dims = dims
+        self.input_dims = input_dims
 
 #Compute the log prob of samples conditioned on even pixels (where pixels counts from 0)
 #but excluding the log prob of the even pixels themselves
     def log_prob( self, samples, conditional_inputs ):
-        assert( samples.shape[0] == conditional_inputs.shape[0] )
-        if (samples.shape[2] != conditional_inputs.shape[2]):
-            raise TypeError("samples shape  {}, but conditional_inputs has shape {}"
-                            .format( samples.shape, conditional_inputs.shape ) )
-        
-        assert( samples.shape[3] == conditional_inputs.shape[3] )
+
+        if (samples.shape[0] != conditional_inputs.shape[0]):
+            raise TypeError("samples batch size {}, but conditional_inputs has batch size {}"
+                            .format( samples.shape[0], conditional_inputs.shape[0] ) )
+        if (samples.shape[2:4] != conditional_inputs.shape[2:4]):
+            raise TypeError("samples spatial shape  {}, but conditional_inputs has spatial shape {}"
+                            .format( samples.shape[2:4], conditional_inputs.shape[2:4] ) )
+        if ( conditional_inputs.shape[1] != 1 ):#MultiStateParallelConditionalCNN assumes conditional has channel size 1
+            raise TypeError("conditional_inputs has channel size {}, but should be 1"
+                            .format( conditional_inputs.shape[1] ) )
+        if ( list( samples.shape[1:] ) != self.output_dims ):
+            raise TypeError("samples has shape {}, but network configured to output shape {}"
+                            .format( samples.shape[1:], self.output_dims ) )
+
         output_log_prob = 0.0
-        for n in range( self.dims[0], len( self.parallelcnns ) ):
+        for n in range( self.input_dims[0], len( self.parallelcnns ) ):
             masked_input = samples*self.information_masks[n]
             subnet_input = torch.cat( (
                 masked_input,
@@ -85,22 +93,25 @@ class Upsampler( nn.Module ):
 
 #array is the input array to be upsampled
     def sample( self, array, conditional_inputs ):
-            
-        assert( array.shape[0] == conditional_inputs.shape[0] )
-        if (self.dims[1]*2 != conditional_inputs.shape[2]):
-            raise TypeError("dims specified  {}, but conditional_inputs has shape {}"
-                            .format( self.dims, conditional_inputs.shape ) )
+
+        if (array.shape[0] != conditional_inputs.shape[0]):
+            raise TypeError("input batch size {}, but conditional_inputs has batch size {}"
+                            .format( array.shape[0], conditional_inputs.shape[0] ) )
+        if (self.output_dims[1:] != list( conditional_inputs.shape[2:] ) ):
+            raise TypeError("output_dims specified  {}, but conditional_inputs has shape {}"
+                            .format( self.output_dims, conditional_inputs.shape ) )
+        if ( self.output_dims[2:] == conditional_inputs.shape[3:] ):
+            raise TypeError(" output dims specified  {}, but conditional_inputs has shape {}"
+                            .format( self.output_dims[2:], conditional_inputs.shape[3:] ) )
+        if ( self.input_dims != list( array.shape[1:] ) ):
+            raise TypeError("input dims specified  {}, but array has shape {}"
+                            .format( self.input_dims, array.shape ) )
         
-        assert( self.dims[2]*2 == conditional_inputs.shape[3] )
-        if ( self.dims != list( array.shape[1:] ) ):
-            raise TypeError("dims specified  {}, but array has shape {}"
-                            .format( self.dims, array.shape ) )
-        
-        samples = torch.tensor( np.zeros( [ conditional_inputs.shape[0], self.dims[0], self.output_dims[1], self.output_dims[2] ] ).astype( np.float32 ) ).to( conditional_inputs.device )
+        samples = torch.tensor( np.zeros( [ conditional_inputs.shape[0], self.output_dims[0], self.output_dims[1], self.output_dims[2] ] ).astype( np.float32 ) ).to( conditional_inputs.device )
 
         samples[:,:,::2,::2] = array
         
-        for n in range( self.dims[0], len( self.parallelcnns ) ):
+        for n in range( self.input_dims[0], len( self.parallelcnns ) ):
             subnet_input = torch.cat(
                 ( samples*self.information_masks[n],
                 conditional_inputs ), dim=1 )
