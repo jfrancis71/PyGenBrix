@@ -3,6 +3,8 @@ import torch
 import time
 import numpy as np
 import torch.nn as nn
+import matplotlib.pyplot as plt
+from IPython import display
 
 def partition(l, n):
     n = max(1, n)
@@ -63,3 +65,9 @@ class Distribution( nn.Module ):
     
     def sample( self ):
         return self.cond_distribution.sample( torch.tensor( np.array( [ self.conditionals.cpu().detach().numpy() ] ) ).to( self.device ) )
+
+def disp( model, validation_set ):
+    samp = model.sample()
+    display.clear_output(wait=False)
+    plt.imshow( np.transpose( samp[0].cpu().detach(), [ 1, 2, 0 ] ) )
+    plt.show()
