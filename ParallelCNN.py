@@ -27,9 +27,8 @@ def generate_information_masks( dims ):
     information_masks = np.array( [ np.sum( pixel_channel_groups[:x], axis=0 ) if x > 0 else np.zeros( [ dims[0], dims[1], dims[2] ] ) for x in range(4*dims[0]) ] )
     return information_masks
 
-activation_fn = nn.Tanh()
-
 def default_parallel_cnn_fn( dims, params_size ):
+    activation_fn = nn.Tanh()
     return torch.nn.Sequential(
 #Note we're using 1 here. be careful on the different params_size
 #ParallelCNN has a params_size of 1, but the pixel distribution will have different params_size
@@ -43,46 +42,6 @@ def default_parallel_cnn_fn( dims, params_size ):
 
 def create_parallelcnns( dims, params_size, parallel_cnn_fn = default_parallel_cnn_fn ):
     return [ parallel_cnn_fn( dims, params_size ) for x in range(4*dims[0]) ]
-
-class ParallelCNNConditionalDistribution( nn.Module ):
-
-    def __init__( self, dims, p_conditional_distribution ):
-        super(ParallelCNNConditionalDistribution, self).__init__()
-        self.parallelcnns = nn.ModuleList( create_parallelcnns( dims, p_conditional_distribution.params_size( dims[0] ) ) )
-        self.pixel_channel_groups = nn.Parameter( torch.tensor( generate_pixel_channel_groups( dims ).astype( np.float32 ) ), requires_grad = False )
-        self.information_masks = nn.Parameter( torch.tensor( generate_information_masks( dims ).astype( np.float32 ) ), requires_grad = False )
-        self.p_conditional_distribution = p_conditional_distribution
-        self.dims = dims
-        
-    def log_prob( self, samples, conditional_inputs ):
-        output_log_prob = torch.tensor( np.zeros( samples.shape[0] ) ).to( samples.device )
-        for n in range( len( self.parallelcnns ) ):
-            masked_input = samples*self.information_masks[n]
-            subnet_input = torch.cat( (
-                masked_input,
-                conditional_inputs ), dim=1 )
-            subnet_output_logits = self.parallelcnns[n]( subnet_input )
-            toutput_log_prob = self.p_conditional_distribution.log_prob( samples, subnet_output_logits, mask = self.pixel_channel_groups[n] )
-            output_log_prob += toutput_log_prob
-
-        return output_log_prob
-
-    def sample( self, conditional_inputs ):
-        samples = torch.tensor( np.zeros( [ conditional_inputs.shape[0], self.dims[0], self.dims[1], self.dims[2] ] ).astype( np.float32 ) ).to( conditional_inputs.device )
-
-        for n in range( len( self.parallelcnns ) ):
-            subnet_input = torch.cat(
-                ( samples*self.information_masks[n],
-                conditional_inputs ), dim=1 )
-            subnet_output_logits = self.parallelcnns[n]( subnet_input )
-
-            samples += self.p_conditional_distribution.sample( subnet_output_logits ) * \
-                self.pixel_channel_groups[n]
-
-        return samples
-
-    def params_size( self, channels ):
-        return 1
 
 #MultiStageParallelCNN
 #This is currently specifically designed for a 64x64 image, but could be made customisable in the future.
@@ -152,10 +111,10 @@ class Upsampler( nn.Module ):
 
         return samples
 
-class MultiStageParallelCNNDistribution( nn.Module ):
+class MultiStageParallelCNNConditionalDistribution( nn.Module ):
 #levels is number of upsampling levels, eg. 4 takes you from a 4x4 to 64x64. It has a minimum value of 1
     def __init__( self, dims, p_conditional_distribution, levels, parallel_cnn_fn = default_parallel_cnn_fn ):
-        super(MultiStageParallelCNNDistribution, self).__init__()
+        super(MultiStageParallelCNNConditionalDistribution, self).__init__()
         self.p_conditional_distribution = p_conditional_distribution
         #Bottom levels dims actually works on double resolution of first set of independent pixels.
         #This is a bit of an implementation artefact of us reusing parallelcnn's for generating first level
@@ -205,6 +164,9 @@ class MultiStageParallelCNNDistribution( nn.Module ):
             u = self.upsamplers[ level ].sample( u, conditional_inputs[:,:,::2**(self.levels-level-1),::2**(self.levels-level-1)] )
 
         return u
+
+    def params_size( self, channels ):
+        return 1
 
 activation_fn = F.relu
 
