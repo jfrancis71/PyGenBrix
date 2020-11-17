@@ -69,5 +69,8 @@ class Distribution( nn.Module ):
 def disp( model, validation_set ):
     samp = model.sample()
     display.clear_output(wait=False)
-    plt.imshow( np.transpose( samp[0].cpu().detach(), [ 1, 2, 0 ] ) )
+    if ( samp.shape[1] == 1 ):
+        plt.imshow( samp[0].cpu().detach()[0], vmin=0.0, vmax=1.0, cmap='gray' )
+    else:
+        plt.imshow( np.transpose( samp[0].cpu().detach(), [ 1, 2, 0 ] ), vmin=0.0, vmax=1.0 )
     plt.show()
