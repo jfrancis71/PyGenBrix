@@ -27,6 +27,8 @@ def generate_information_masks( dims ):
     information_masks = np.array( [ np.sum( pixel_channel_groups[:x], axis=0 ) if x > 0 else np.zeros( [ dims[0], dims[1], dims[2] ] ) for x in range(4*dims[0]) ] )
     return information_masks
 
+#Achieved epoch 10, training 6606, validation 6725 on celeba aligned 100,000 images, batch size 8, level = 1, quantized output distribution
+#Achieved epoch 10, training 4167, validation 4059 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution
 def default_parallel_cnn_fn( dims, params_size ):
     activation_fn = nn.Tanh()
     return torch.nn.Sequential(
