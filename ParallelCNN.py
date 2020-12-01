@@ -237,6 +237,8 @@ def unet_parallel_cnn_fn( dims, params_size ):
     return unet( dims, params_size )
 
 #Achieved epoch 10, training 3474, validation 3522 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution
+#Achieved epoch 10, training 3511, validation 3678 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution, no conditionals = 16
+#Achieved epoch 10, training 3580, validation 3694 on coco cropped 100,000 images, batch size 8, level = 4, quantized output distribution
 class unet1( nn.Module ):
     def __init__( self, dims, params_size ):
         super(unet1, self).__init__()
