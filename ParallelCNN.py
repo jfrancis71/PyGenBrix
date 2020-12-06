@@ -3,29 +3,153 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 
+class UpsamplerDistribution( nn.Module ):
+    def __init__( self, output_distribution, input_low_res_image, logits, parallelcnns ):
+        super( UpsamplerDistribution, self ).__init__()
+        self.logits = logits
+        self.parallelcnns = parallelcnns
+        self.output_distribution = output_distribution
+        self.input_low_res_image = input_low_res_image
+        self.device = input_low_res_image.device
 
-def generate_pixel_groups( height, width ):#1 means predict on this iteration
-    pixel_groups = np.zeros( [ 4, height, width ] ).astype( np.float32 )
-    pixel_groups[0,::2,::2] = 1
-    pixel_groups[1,1::2,1::2] = 1
-    pixel_groups[2,::2,1::2] = 1
-    pixel_groups[3,1::2,0::2] = 1
-    return pixel_groups
+#Compute the log prob of samples conditioned on even pixels (where pixels counts from 0)
+#but excluding the log prob of the even pixels themselves
+#note samples will have double the spatial resolution of input_low_res_image
+    def log_prob( self, samples ):
+        assert( 2*self.input_low_res_image.shape[3] == samples.shape[3] )
+        if (samples.shape[0] != self.logits.shape[0]):
+            raise TypeError("samples batch size {}, but logits has batch size {}"
+                            .format( samples.shape[0], self.logits.shape[0] ) )
+        if (samples.shape[2:4] != self.logits.shape[2:4]):
+            raise TypeError("samples spatial shape  {}, but logits has spatial shape {}"
+                            .format( samples.shape[2:4], self.logits.shape[2:4] ) )
+        if ( self.logits.shape[1] != 1 ):#MultiStateParallelConditionalCNN assumes logits has channel size 1
+            raise TypeError("conditional_inputs has channel size {}, but should be 1"
+                            .format( self.logits.shape[1] ) )
+        if ( samples[0,0,0,0] != self.input_low_res_image[0,0,0,0] ):
+            raise TypeError("The low res image doesn't appear to be the subsampled input sample")
 
-def generate_pixel_channel_groups( dims ):
-    pixel_channel_groups = np.zeros( [ 4, dims[0], dims[0], dims[1], dims[2] ]).astype( np.float32 )
-    pixel_groups = generate_pixel_groups( dims[1], dims[2] )
-    for p in range(4):
-        for ch in range(dims[0]):
-            pixel_channel_groups[p,ch,ch,:,:] = pixel_groups[p,:,:]
-    pixel_channel_groups = pixel_channel_groups.reshape( [ dims[0]*4, dims[0], dims[1], dims[2] ] )
-    return pixel_channel_groups
+        output_log_prob = 0.0
+        allowed_information = 0.0 * samples
+        allowed_information[:,:,::2,::2] += samples[:,:,::2,::2]
+        no_channels = len( self.parallelcnns )
+        #predict all odd pixels
+        for channel in range( no_channels ):
+            network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
+            network_output_logits = self.parallelcnns[ channel ][ 0 ]( network_input )
+            output_log_prob += self.output_distribution( network_output_logits[:,:,1::2,1::2] ).log_prob( samples[:,channel::channel+1,1::2,1::2] )
+            allowed_information[:,channel,1::2,1::2] += samples[:,channel,1::2,1::2]
+        #predict all pixels even row, odd column
+        for channel in range( no_channels ):
+            network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
+            network_output_logits = self.parallelcnns[ channel ][ 1 ]( network_input )
+            output_log_prob += self.output_distribution( network_output_logits[:,:,::2,1::2] ).log_prob( samples[:,channel::channel+1,::2,1::2] )
+            allowed_information[:,channel,::2,1::2] += samples[:,channel,::2,1::2]
+        #predict all pixels odd row, even column
+        for channel in range( no_channels ):
+            network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
+            network_output_logits = self.parallelcnns[ channel ][ 2 ]( network_input )
+            output_log_prob += self.output_distribution( network_output_logits[:,:,1::2,::2] ).log_prob( samples[:,channel::channel+1,1::2,::2] )
+            allowed_information[:,channel,1::2,::2] += samples[:,channel,1::2,::2]
 
-#1 means you are allowed to see this, 0 means must be blocked
-def generate_information_masks( dims ):
-    pixel_channel_groups = generate_pixel_channel_groups( dims )
-    information_masks = np.array( [ np.sum( pixel_channel_groups[:x], axis=0 ) if x > 0 else np.zeros( [ dims[0], dims[1], dims[2] ] ) for x in range(4*dims[0]) ] )
-    return information_masks
+        return output_log_prob
+
+    def sample( self ):
+        samples = torch.tensor( np.zeros( [ self.input_low_res_image.shape[0], self.input_low_res_image.shape[1], self.input_low_res_image.shape[2]*2, self.input_low_res_image.shape[3]*2 ] ).astype( np.float32 ) ).to( self.device )
+        samples[:,:,::2,::2] += self.input_low_res_image
+        no_channels = len( self.parallelcnns )
+        #predict all odd pixels
+        for channel in range( no_channels ):
+            network_input = torch.cat( ( samples, self.logits ), dim = 1 )
+            network_output_logits = self.parallelcnns[ channel ][ 0 ]( network_input )
+            samples[:,channel,1::2,1::2] = self.output_distribution( network_output_logits ).sample()[:,0,1::2,1::2]
+        #predict all pixels even row, odd column
+        for channel in range( no_channels ):
+            network_input = torch.cat( ( samples, self.logits ), dim = 1 )
+            network_output_logits = self.parallelcnns[ channel ][ 1 ]( network_input )
+            samples[:,channel,::2,1::2] = self.output_distribution( network_output_logits ).sample()[:,0,::2,1::2]
+        #predict all pixels odd row, even column
+        for channel in range( no_channels ):
+            network_input = torch.cat( ( samples, self.logits ), dim = 1 )
+            network_output_logits = self.parallelcnns[ channel ][ 2 ]( network_input )
+            samples[:,channel,1::2,::2] = self.output_distribution( network_output_logits ).sample()[:,0,1::2,::2]
+
+        return samples
+
+class MultiStageParallelCNNDistribution( nn.Module ):
+    def __init__( self, output_distribution, dims, bottom_parallelcnns, upsample_parallelcnns, levels, logits ):
+        super( MultiStageParallelCNNDistribution, self ).__init__()
+        self.output_distribution = output_distribution
+        self.levels = levels
+        self.logits = logits
+#        self.bottom_level_dims = 2*dims[1]//(2**levels)
+        self.bottom_parallelcnns = bottom_parallelcnns
+        self.upsample_parallelcnns = upsample_parallelcnns
+        self.dims = dims
+
+    def log_prob( self, samples ):
+        bottom_samples = samples[:,:,::2**self.levels,::2**self.levels]
+        bottom_logit_inputs = self.logits[:,:,::2**self.levels,::2**self.levels]
+        
+        output_log_prob = 0.0
+        allowed_information = 0.0 * bottom_samples
+        no_channels = len( self.bottom_parallelcnns )
+        #predict all even pixels
+        for channel in range( no_channels ):
+            network_input = torch.cat( ( allowed_information, bottom_logit_inputs ), dim = 1 )
+            network_output_logits = self.bottom_parallelcnns[ channel ]( network_input )
+            output_log_prob += self.output_distribution( network_output_logits ).log_prob( bottom_samples[:,channel:channel+1] )
+            allowed_information[:,channel] = bottom_samples[:,channel]
+            
+        for level in range( self.levels ):
+            output_log_prob += UpsamplerDistribution(
+                self.output_distribution,
+                samples[:,:,::2**(self.levels-level),::2**(self.levels-level)],
+                self.logits[:,:,::2**(self.levels-level-1),::2**(self.levels-level-1)],
+                self.upsample_parallelcnns[ level ] ).log_prob( samples[:,:,::2**(self.levels-level-1),::2**(self.levels-level-1)] )
+            
+        return output_log_prob
+    
+    def sample( self ):
+        no_channels = len( self.bottom_parallelcnns )
+        sample = torch.zeros( [ self.logits.shape[0], self.dims[0], self.dims[1]//2**self.levels, self.dims[2]//2**self.levels ] ).to( self.logits.device )
+        bottom_logit_inputs = self.logits[:,:,::2**self.levels,::2**self.levels]
+        for channel in range( no_channels ):
+            network_input = torch.cat( ( sample, bottom_logit_inputs ), dim = 1 )
+            network_output_logits = self.bottom_parallelcnns[ channel ]( network_input )
+            tp = self.output_distribution( network_output_logits ).sample()
+            sample[0,channel] = tp[0,0]
+            
+        for level in range( self.levels ):
+            sample = UpsamplerDistribution(
+                self.output_distribution,
+                sample,
+                self.logits[:,:,::2**(self.levels-level-1),::2**(self.levels-level-1)],
+                self.upsample_parallelcnns[ level ] ).sample()
+            
+        return sample
+
+class MultiStageParallelCNNLayer( nn.Module ):
+    def __init__( self, dims, output_distribution, levels ):
+        super( MultiStageParallelCNNLayer, self ).__init__()
+        self.bottom_pcnn = nn.ModuleList( [ default_parallel_cnn_fn( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range( dims[0] ) ] )
+        self.upsamplers_nets = nn.ModuleList( [ nn.ModuleList( [ nn.ModuleList( [ default_parallel_cnn_fn( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range(3) ] ) for c in range(dims[0]) ] ) for l in range(levels) ] )
+        self.levels = levels
+        self.output_distribution = output_distribution
+        self.dims = dims
+    
+    def forward( self, logits ):
+        return MultiStageParallelCNNDistribution( self.output_distribution, self.dims, self.bottom_pcnn, self.upsamplers_nets, self.levels, logits )
+
+    #These should be changed to support new distribution style
+    def log_prob( self, sample, conditionals ):
+        return self.forward( conditionals ).log_prob( sample )
+    
+    def sample( self, conditionals ):
+        return self.forward( conditionals ).sample()
+
+    def params_size( self, channels ):
+        return 1
 
 #Achieved epoch 10, training 6606, validation 6725 on celeba aligned 100,000 images, batch size 8, level = 1, quantized output distribution
 #Achieved epoch 10, training 4167, validation 4059 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution
@@ -44,142 +168,6 @@ def default_parallel_cnn_fn( dims, params_size ):
 
 def create_parallelcnns( dims, params_size, parallel_cnn_fn = default_parallel_cnn_fn ):
     return [ parallel_cnn_fn( dims, params_size ) for x in range(4*dims[0]) ]
-
-#MultiStageParallelCNN
-#This is currently specifically designed for a 64x64 image, but could be made customisable in the future.
-#Guide achieved 4,221 at epoch 1,226 for aligned celeba 64x64, with quantized output distribution.
-
-#Performs an "upsample" stage, note the input is not a "smoothed" version of the
-#output, it is the even pixels of the output.
-#eg in upsampling, if the input is 4x4, these 4x4 will be the even pixels in
-#the output 8x8, and the remaining pixels in the 8x8 are sampled conditioned on these.
-class Upsampler( nn.Module ):
-    #dims is the dimensions of the input sample
-    def __init__( self, input_dims, p_conditional_distribution, parallel_cnn_fn = default_parallel_cnn_fn ):
-        super(Upsampler, self).__init__()
-        self.output_dims = [ input_dims[0], input_dims[1]*2, input_dims[2]*2 ]
-        self.parallelcnns = nn.ModuleList( create_parallelcnns( input_dims, p_conditional_distribution.params_size( input_dims[0] ), parallel_cnn_fn ) )
-        self.pixel_channel_groups = nn.Parameter( torch.tensor( generate_pixel_channel_groups( self.output_dims ).astype( np.float32 ) ), requires_grad = False )
-        self.information_masks = nn.Parameter( torch.tensor( generate_information_masks( self.output_dims ).astype( np.float32 ) ), requires_grad = False )
-        self.p_conditional_distribution = p_conditional_distribution
-        self.input_dims = input_dims
-
-#Compute the log prob of samples conditioned on even pixels (where pixels counts from 0)
-#but excluding the log prob of the even pixels themselves
-    def log_prob( self, samples, conditional_inputs ):
-
-        if (samples.shape[0] != conditional_inputs.shape[0]):
-            raise TypeError("samples batch size {}, but conditional_inputs has batch size {}"
-                            .format( samples.shape[0], conditional_inputs.shape[0] ) )
-        if (samples.shape[2:4] != conditional_inputs.shape[2:4]):
-            raise TypeError("samples spatial shape  {}, but conditional_inputs has spatial shape {}"
-                            .format( samples.shape[2:4], conditional_inputs.shape[2:4] ) )
-        if ( conditional_inputs.shape[1] != 1 ):#MultiStateParallelConditionalCNN assumes conditional has channel size 1
-            raise TypeError("conditional_inputs has channel size {}, but should be 1"
-                            .format( conditional_inputs.shape[1] ) )
-        if ( list( samples.shape[1:] ) != self.output_dims ):
-            raise TypeError("samples has shape {}, but network configured to output shape {}"
-                            .format( samples.shape[1:], self.output_dims ) )
-
-        output_log_prob = 0.0
-        for n in range( self.input_dims[0], len( self.parallelcnns ) ):
-            masked_input = samples*self.information_masks[n]
-            subnet_input = torch.cat( (
-                masked_input,
-                conditional_inputs ), dim=1 )
-            subnet_output_logits = self.parallelcnns[n]( subnet_input )
-            toutput_log_prob = self.p_conditional_distribution.log_prob( samples, subnet_output_logits, mask = self.pixel_channel_groups[n] )
-            output_log_prob += toutput_log_prob
-
-        return output_log_prob
-
-#array is the input array to be upsampled
-    def sample( self, array, conditional_inputs ):
-
-        if (array.shape[0] != conditional_inputs.shape[0]):
-            raise TypeError("input batch size {}, but conditional_inputs has batch size {}"
-                            .format( array.shape[0], conditional_inputs.shape[0] ) )
-        if (self.output_dims[1:] != list( conditional_inputs.shape[2:] ) ):
-            raise TypeError("output_dims specified  {}, but conditional_inputs has shape {}"
-                            .format( self.output_dims, conditional_inputs.shape ) )
-        if ( self.output_dims[2:] == conditional_inputs.shape[3:] ):
-            raise TypeError(" output dims specified  {}, but conditional_inputs has shape {}"
-                            .format( self.output_dims[2:], conditional_inputs.shape[3:] ) )
-        if ( self.input_dims != list( array.shape[1:] ) ):
-            raise TypeError("input dims specified  {}, but array has shape {}"
-                            .format( self.input_dims, array.shape ) )
-        
-        samples = torch.tensor( np.zeros( [ conditional_inputs.shape[0], self.output_dims[0], self.output_dims[1], self.output_dims[2] ] ).astype( np.float32 ) ).to( conditional_inputs.device )
-
-        samples[:,:,::2,::2] = array
-        
-        for n in range( self.input_dims[0], len( self.parallelcnns ) ):
-            subnet_input = torch.cat(
-                ( samples*self.information_masks[n],
-                conditional_inputs ), dim=1 )
-            subnet_output_logits = self.parallelcnns[n]( subnet_input )
-
-            samples += self.p_conditional_distribution.sample( subnet_output_logits ) * \
-                self.pixel_channel_groups[n]
-
-        return samples
-
-class MultiStageParallelCNNConditionalDistribution( nn.Module ):
-#levels is number of upsampling levels, eg. 4 takes you from a 4x4 to 64x64. It has a minimum value of 1
-    def __init__( self, dims, p_conditional_distribution, levels, parallel_cnn_fn = default_parallel_cnn_fn ):
-        super(MultiStageParallelCNNConditionalDistribution, self).__init__()
-        self.p_conditional_distribution = p_conditional_distribution
-        #Bottom levels dims actually works on double resolution of first set of independent pixels.
-        #This is a bit of an implementation artefact of us reusing parallelcnn's for generating first level
-        self.bottom_level_dims = 2*dims[1]//(2**levels)
-        self.parallelcnns = nn.ModuleList( create_parallelcnns( [ dims[0], self.bottom_level_dims, self.bottom_level_dims ], p_conditional_distribution.params_size( dims[0] ), parallel_cnn_fn ) )
-        self.pixel_channel_groups = nn.Parameter( torch.tensor( generate_pixel_channel_groups( [ dims[0], self.bottom_level_dims, self.bottom_level_dims ] ).astype( np.float32 ) ), requires_grad = False )
-        self.information_masks = nn.Parameter( torch.tensor( generate_information_masks( [ dims[0], self.bottom_level_dims, self.bottom_level_dims ] ).astype( np.float32 ) ), requires_grad = False )
-        self.upsamplers = nn.ModuleList( [ Upsampler(  [ dims[0], dims[1]//(2**(levels-level)), dims[1]//(2**(levels-level)) ], p_conditional_distribution, parallel_cnn_fn ) for level in range( levels ) ] )
-        self.dims = dims
-        self.levels = levels
-
-    def log_prob( self, samples, conditional_inputs ):
-        subsamples = samples[:,:,::2**(self.levels-1),::2**(self.levels-1)]
-        subconditional_inputs = conditional_inputs[:,:,::2**(self.levels-1),::2**(self.levels-1)]
-        
-        output_log_prob = torch.tensor( np.zeros( subsamples.shape[0] ) ).to( subsamples.device )
-        for n in range( self.dims[0] ):
-            masked_input = subsamples*self.information_masks[n]
-            subnet_input = torch.cat( (
-                masked_input,
-                subconditional_inputs ), dim=1 )
-            subnet_output_logits = self.parallelcnns[n]( subnet_input )
-            toutput_log_prob = self.p_conditional_distribution.log_prob( subsamples, subnet_output_logits, mask = self.pixel_channel_groups[n] )
-            output_log_prob += toutput_log_prob
-        
-        upsampled_log_prob = output_log_prob
-        for level in range( self.levels ):
-            upsampled_log_prob += self.upsamplers[ level ].log_prob( samples[:,:,::2**(self.levels-level-1),::2**(self.levels-level-1)], conditional_inputs[:,:,::2**(self.levels-level-1),::2**(self.levels-level-1)] )
-
-        return upsampled_log_prob
-
-    def sample( self, conditional_inputs ):
-        subsamples = torch.tensor( np.zeros( [ conditional_inputs.shape[0], self.dims[0], self.bottom_level_dims, self.bottom_level_dims ] ).astype( np.float32 ) ).to( conditional_inputs.device )
-        subconditional_inputs = conditional_inputs[:,:,::2**(self.levels-1),::2**(self.levels-1)]
-        
-        for n in range( self.dims[0] ):
-            subnet_input = torch.cat(
-                ( subsamples*self.information_masks[n],
-                subconditional_inputs ), dim=1 )
-            subnet_output_logits = self.parallelcnns[n]( subnet_input )
-
-            subsamples += self.p_conditional_distribution.sample( subnet_output_logits ) * \
-                self.pixel_channel_groups[n]
-
-        u = self.upsamplers[0].sample( subsamples[:,:,::2,::2], conditional_inputs[:,:,::2**(self.levels-1),::2**(self.levels-1)] )
-        for level in range( 1, self.levels ):
-            u = self.upsamplers[ level ].sample( u, conditional_inputs[:,:,::2**(self.levels-level-1),::2**(self.levels-level-1)] )
-
-        return u
-
-    def params_size( self, channels ):
-        return 1
 
 activation_fn = F.relu
 
