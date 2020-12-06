@@ -6,43 +6,37 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 from IPython import display
 
-def partition(l, n):
-    n = max(1, n)
-    return (l[i:i+n] for i in range(0, len(l), n))
-
 #If training conditional, samples will need to be in Bx2xCxYxX format
-def train( model, samples, device = "CPU", epochs = 5000, batch_size = 32, callback = None, sleep_time = 0 ):
-    
+def train( model, dataset, device = "CPU", epochs = 5000, batch_size = 32, callback = None, sleep_time = 0 ):
     optimizer = optim.Adam( model.parameters(), lr=.0001)
-    randomized_samples = np.random.permutation( samples )
-    training_size = np.round(randomized_samples.shape[0]*0.9).astype(int)
-    training_set = randomized_samples[:training_size]
-    validation_set = randomized_samples[training_size:min(training_size+64,randomized_samples.shape[0]-1)]
+    dataset_size = len( dataset )
+    training_size = np.round(dataset_size*0.9).astype(int)
+    train_set, valid_set = torch.utils.data.random_split( dataset, [ training_size, dataset_size - training_size ] )
+    train_set_loader = torch.utils.data.DataLoader( train_set, batch_size = batch_size, shuffle = True )
+    valid_set_loader = torch.utils.data.DataLoader( valid_set, batch_size = batch_size, shuffle = True )
 
     for epoch in range(epochs):
         training_running_loss = 0.0
         validation_running_loss = 0.0
         training_batch_no = 0
         validation_batch_no = 0
-        for batch in partition( training_set, batch_size ):
-            tensor = torch.tensor( batch ).to( device )
+        for i, ( inputs, _ ) in enumerate( train_set_loader ):
             optimizer.zero_grad()
-            result = torch.mean( model.log_prob( tensor ) )
+            result = torch.mean( model.log_prob( inputs.to( device ) ) )
             loss = -result
             training_running_loss += loss.item()
             training_batch_no += 1
             loss.backward()
             optimizer.step()
             time.sleep( sleep_time )
-        for batch in partition( validation_set, batch_size ):
-            tensor = torch.tensor( batch ).to( device )
+        for i, ( inputs, _ ) in enumerate( valid_set_loader ):
             optimizer.zero_grad()
-            result = torch.mean( model.log_prob( tensor ) )
+            result = torch.mean( model.log_prob( inputs.to( device ) ) )
             loss = -result
             validation_running_loss += loss.item()
             validation_batch_no += 1
         if callback is not None:
-            callback( model, validation_set )
+            callback( model, valid_set )
 
         print( "Epoch ", epoch, ", Training Loss=", training_running_loss/training_batch_no, ", Validation Loss ", validation_running_loss/validation_batch_no )
 
