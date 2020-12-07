@@ -129,11 +129,26 @@ class MultiStageParallelCNNDistribution( nn.Module ):
             
         return sample
 
+#Achieved epoch 10, training 6606, validation 6725 on celeba aligned 100,000 images, batch size 8, level = 1, quantized output distribution
+#Achieved epoch 10, training 4167, validation 4059 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution
+def default_parallel_cnn_fn( dims, params_size ):
+    activation_fn = nn.Tanh()
+    return torch.nn.Sequential(
+#Note we're using 1 here. be careful on the different params_size
+#ParallelCNN has a params_size of 1, but the pixel distribution will have different params_size
+        torch.nn.Conv2d( dims[0]+1,16,3, padding=1 ), activation_fn,
+        torch.nn.Conv2d( 16, 32, 3, padding=1), activation_fn,
+        torch.nn.Conv2d( 32, 64, 3, padding=1), activation_fn,
+        torch.nn.Conv2d( 64, 32, 3, padding=1), activation_fn,
+        torch.nn.Conv2d( 32, 16, 1), activation_fn,
+        torch.nn.Conv2d( 16, params_size, 1, padding=0 )
+)
+
 class MultiStageParallelCNNLayer( nn.Module ):
-    def __init__( self, dims, output_distribution, levels ):
+    def __init__( self, dims, output_distribution, levels, parallel_cnn_fn = default_parallel_cnn_fn ):
         super( MultiStageParallelCNNLayer, self ).__init__()
-        self.bottom_pcnn = nn.ModuleList( [ default_parallel_cnn_fn( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range( dims[0] ) ] )
-        self.upsamplers_nets = nn.ModuleList( [ nn.ModuleList( [ nn.ModuleList( [ default_parallel_cnn_fn( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range(3) ] ) for c in range(dims[0]) ] ) for l in range(levels) ] )
+        self.bottom_pcnn = nn.ModuleList( [ parallel_cnn_fn( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range( dims[0] ) ] )
+        self.upsamplers_nets = nn.ModuleList( [ nn.ModuleList( [ nn.ModuleList( [ parallel_cnn_fn( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range(3) ] ) for c in range(dims[0]) ] ) for l in range(levels) ] )
         self.levels = levels
         self.output_distribution = output_distribution
         self.dims = dims
@@ -150,21 +165,6 @@ class MultiStageParallelCNNLayer( nn.Module ):
 
     def params_size( self, channels ):
         return 1
-
-#Achieved epoch 10, training 6606, validation 6725 on celeba aligned 100,000 images, batch size 8, level = 1, quantized output distribution
-#Achieved epoch 10, training 4167, validation 4059 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution
-def default_parallel_cnn_fn( dims, params_size ):
-    activation_fn = nn.Tanh()
-    return torch.nn.Sequential(
-#Note we're using 1 here. be careful on the different params_size
-#ParallelCNN has a params_size of 1, but the pixel distribution will have different params_size
-        torch.nn.Conv2d( dims[0]+1,16,3, padding=1 ), activation_fn,
-        torch.nn.Conv2d( 16, 32, 3, padding=1), activation_fn,
-        torch.nn.Conv2d( 32, 64, 3, padding=1), activation_fn,
-        torch.nn.Conv2d( 64, 32, 3, padding=1), activation_fn,
-        torch.nn.Conv2d( 32, 16, 1), activation_fn,
-        torch.nn.Conv2d( 16, params_size, 1, padding=0 )
-)
 
 def create_parallelcnns( dims, params_size, parallel_cnn_fn = default_parallel_cnn_fn ):
     return [ parallel_cnn_fn( dims, params_size ) for x in range(4*dims[0]) ]
