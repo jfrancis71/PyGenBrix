@@ -37,19 +37,19 @@ class UpsamplerDistribution( nn.Module ):
         for channel in range( no_channels ):
             network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
             network_output_logits = self.parallelcnns[ channel ][ 0 ]( network_input )
-            output_log_prob += self.output_distribution( network_output_logits[:,:,1::2,1::2] ).log_prob( samples[:,channel::channel+1,1::2,1::2] )
+            output_log_prob += self.output_distribution( network_output_logits[:,:,1::2,1::2] ).log_prob( samples[:,channel:channel+1,1::2,1::2] )
             allowed_information[:,channel,1::2,1::2] += samples[:,channel,1::2,1::2]
         #predict all pixels even row, odd column
         for channel in range( no_channels ):
             network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
             network_output_logits = self.parallelcnns[ channel ][ 1 ]( network_input )
-            output_log_prob += self.output_distribution( network_output_logits[:,:,::2,1::2] ).log_prob( samples[:,channel::channel+1,::2,1::2] )
+            output_log_prob += self.output_distribution( network_output_logits[:,:,::2,1::2] ).log_prob( samples[:,channel:channel+1,::2,1::2] )
             allowed_information[:,channel,::2,1::2] += samples[:,channel,::2,1::2]
         #predict all pixels odd row, even column
         for channel in range( no_channels ):
             network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
             network_output_logits = self.parallelcnns[ channel ][ 2 ]( network_input )
-            output_log_prob += self.output_distribution( network_output_logits[:,:,1::2,::2] ).log_prob( samples[:,channel::channel+1,1::2,::2] )
+            output_log_prob += self.output_distribution( network_output_logits[:,:,1::2,::2] ).log_prob( samples[:,channel:channel+1,1::2,::2] )
             allowed_information[:,channel,1::2,::2] += samples[:,channel,1::2,::2]
 
         return output_log_prob
