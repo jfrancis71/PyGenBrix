@@ -166,9 +166,6 @@ class MultiStageParallelCNNLayer( nn.Module ):
     def params_size( self, channels ):
         return 1
 
-def create_parallelcnns( dims, params_size, parallel_cnn_fn = default_parallel_cnn_fn ):
-    return [ parallel_cnn_fn( dims, params_size ) for x in range(4*dims[0]) ]
-
 activation_fn = F.relu
 
 #Achieved epoch 10, training 3677, validation 3668 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution
