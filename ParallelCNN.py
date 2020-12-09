@@ -156,13 +156,6 @@ class MultiStageParallelCNNLayer( nn.Module ):
     def forward( self, logits ):
         return MultiStageParallelCNNDistribution( self.output_distribution, self.dims, self.bottom_pcnn, self.upsamplers_nets, self.levels, logits )
 
-    #These should be changed to support new distribution style
-    def log_prob( self, sample, conditionals ):
-        return self.forward( conditionals ).log_prob( sample )
-    
-    def sample( self, conditionals ):
-        return self.forward( conditionals ).sample()
-
     def params_size( self, channels ):
         return 1
 

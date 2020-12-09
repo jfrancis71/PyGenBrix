@@ -41,24 +41,24 @@ def train( model, dataset, device = "CPU", epochs = 5000, batch_size = 32, callb
         print( "Epoch ", epoch, ", Training Loss=", training_running_loss/training_batch_no, ", Validation Loss ", validation_running_loss/validation_batch_no )
 
 # To train a conditional distribution:
-# mydist = Train.Distribution( 
-#     cnn.ParallelCNNConditionalDistribution([ 1, 28, 28 ], vae.BernoulliConditionalDistribution() ),
+# mydist = Train.PyGenBrixModel( 
+#     cnn.MultiStageParallelCNNLayer([ 1, 28, 28 ], vae.IndependentBernoulliLayer() ),
 #     [ 1, 28, 28 ],
 #    device )
 # Train.train( mydist, mnist, device, batch_size=32, sleep_time=0)
-class Distribution( nn.Module ):
+class PyGenBrixModel( nn.Module ):
     def __init__( self, distribution, dims, device ):
-        super( Distribution, self ).__init__()
+        super( PyGenBrixModel, self ).__init__()
         self.cond_distribution = distribution.to( device )
         self.device = device
         self.dims = dims
         self.conditionals = torch.nn.Parameter( torch.tensor( np.zeros( dims ).astype( np.float32 ) ).to( device ), requires_grad=True )
         
     def log_prob( self, samples ):
-        return self.cond_distribution.log_prob( samples, self.conditionals.expand( [ samples.shape[0], self.dims[0], self.dims[1], self.dims[2] ] ) )
+        return self.cond_distribution( self.conditionals.expand( [ samples.shape[0], self.dims[0], self.dims[1], self.dims[2] ] ) ).log_prob( samples )
     
     def sample( self ):
-        return self.cond_distribution.sample( torch.tensor( np.array( [ self.conditionals.cpu().detach().numpy() ] ) ).to( self.device ) )
+        return self.cond_distribution(  torch.tensor( np.array( [ self.conditionals.cpu().detach().numpy() ] ) ).to( self.device ) ).sample()
 
 def disp( model, validation_set ):
     samp = model.sample()
