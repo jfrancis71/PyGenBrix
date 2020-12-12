@@ -2,33 +2,11 @@ from PIL import Image
 import glob
 from os.path import expanduser
 import numpy as np
-#import tensorflow as tf
 import imageio
 import cv2
 
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-#Unsure of origin of this celeba crop?
-def import_celeba_cropped_image( filename ):
-    f = Image.open( filename )
-    crop =  f.crop( (15,40,15+148-1,40+148-1))
-    newsize = crop.resize( (64,64 ) )
-    return newsize
-
-#Returns a numpy array where images have been conformed to Bx64x64x3
-def import_celeba_cropped_images( folder=None, max_no=1000, add_noise=True ):
-    if folder is None:
-        folder = expanduser("~") + "/ImageDataSets/CelebA/img_align_celeba"
-    files = glob.glob(folder + "/*.jpg")
-    lsamples = [ np.asarray(import_celeba_cropped_image( filename ) ) for filename in files[:max_no] ]
-    samples = np.array( lsamples ).astype( np.float32 )
-    deq = samples/256. + np.random.uniform( low=-0.01,high=0.01, size=[max_no,64,64,3]).astype( np.float32)
-    if add_noise:
-        ret = deq
-    else:
-        ret = samples/255.
-    return ret
 
 #Returns a PIL Image
 def import_camera_image():
