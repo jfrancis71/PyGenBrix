@@ -29,30 +29,45 @@ class UpsamplerDistribution( nn.Module ):
         if ( samples[0,0,0,0] != self.input_low_res_image[0,0,0,0] ):
             raise TypeError("The low res image doesn't appear to be the subsampled input sample")
 
+        logging_dict = {}
         output_log_prob = 0.0
         allowed_information = 0.0 * samples
         allowed_information[:,:,::2,::2] += samples[:,:,::2,::2]
         no_channels = len( self.parallelcnns )
+
         #predict all odd pixels
+        block_log_prob = 0.0
         for channel in range( no_channels ):
             network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
             network_output_logits = self.parallelcnns[ channel ][ 0 ]( network_input )
-            output_log_prob += self.output_distribution( network_output_logits[:,:,1::2,1::2] ).log_prob( samples[:,channel:channel+1,1::2,1::2] )
+            block_log_prob += self.output_distribution( network_output_logits[:,:,1::2,1::2] ).log_prob( samples[:,channel:channel+1,1::2,1::2] )["log_prob"]
             allowed_information[:,channel,1::2,1::2] += samples[:,channel,1::2,1::2]
+        logging_dict["block1_log_prob"] = block_log_prob
+        output_log_prob += block_log_prob
+
         #predict all pixels even row, odd column
+        block_log_prob = 0.0
         for channel in range( no_channels ):
             network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
             network_output_logits = self.parallelcnns[ channel ][ 1 ]( network_input )
-            output_log_prob += self.output_distribution( network_output_logits[:,:,::2,1::2] ).log_prob( samples[:,channel:channel+1,::2,1::2] )
+            block_log_prob += self.output_distribution( network_output_logits[:,:,::2,1::2] ).log_prob( samples[:,channel:channel+1,::2,1::2] )["log_prob"]
             allowed_information[:,channel,::2,1::2] += samples[:,channel,::2,1::2]
+        logging_dict["block2_log_prob"] = block_log_prob
+        output_log_prob += block_log_prob
+
         #predict all pixels odd row, even column
+        block_log_prob = 0.0
         for channel in range( no_channels ):
             network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
             network_output_logits = self.parallelcnns[ channel ][ 2 ]( network_input )
-            output_log_prob += self.output_distribution( network_output_logits[:,:,1::2,::2] ).log_prob( samples[:,channel:channel+1,1::2,::2] )
+            block_log_prob += self.output_distribution( network_output_logits[:,:,1::2,::2] ).log_prob( samples[:,channel:channel+1,1::2,::2] )["log_prob"]
             allowed_information[:,channel,1::2,::2] += samples[:,channel,1::2,::2]
+        logging_dict["block3_log_prob"] = block_log_prob
+        output_log_prob += block_log_prob
 
-        return output_log_prob
+        logging_dict["log_prob"] = output_log_prob
+
+        return logging_dict
 
     def sample( self ):
         samples = torch.tensor( np.zeros( [ self.input_low_res_image.shape[0], self.input_low_res_image.shape[1], self.input_low_res_image.shape[2]*2, self.input_low_res_image.shape[3]*2 ] ).astype( np.float32 ) ).to( self.device )
@@ -90,6 +105,8 @@ class MultiStageParallelCNNDistribution( nn.Module ):
     def log_prob( self, samples ):
         bottom_samples = samples[:,:,::2**self.levels,::2**self.levels]
         bottom_logit_inputs = self.logits[:,:,::2**self.levels,::2**self.levels]
+
+        logging_dict = {}
         
         output_log_prob = 0.0
         allowed_information = 0.0 * bottom_samples
@@ -98,17 +115,27 @@ class MultiStageParallelCNNDistribution( nn.Module ):
         for channel in range( no_channels ):
             network_input = torch.cat( ( allowed_information, bottom_logit_inputs ), dim = 1 )
             network_output_logits = self.bottom_parallelcnns[ channel ]( network_input )
-            output_log_prob += self.output_distribution( network_output_logits ).log_prob( bottom_samples[:,channel:channel+1] )
+            channel_log_prob = self.output_distribution( network_output_logits ).log_prob( bottom_samples[:,channel:channel+1] )["log_prob"]
+            logging_dict["base_log_prob_channel_"+str(channel)] = channel_log_prob
+            output_log_prob += channel_log_prob
             allowed_information[:,channel] = bottom_samples[:,channel]
+        logging_dict["base_log_prob"] = output_log_prob.clone()
             
         for level in range( self.levels ):
-            output_log_prob += UpsamplerDistribution(
+            upsample_log_prob_dict = UpsamplerDistribution(
                 self.output_distribution,
                 samples[:,:,::2**(self.levels-level),::2**(self.levels-level)],
                 self.logits[:,:,::2**(self.levels-level-1),::2**(self.levels-level-1)],
                 self.upsample_parallelcnns[ level ] ).log_prob( samples[:,:,::2**(self.levels-level-1),::2**(self.levels-level-1)] )
+            logging_dict["upsample_level_"+str(level)+"_block1_log_prob"] = upsample_log_prob_dict["block1_log_prob"]
+            logging_dict["upsample_level_"+str(level)+"_block2_log_prob"] = upsample_log_prob_dict["block2_log_prob"]
+            logging_dict["upsample_level_"+str(level)+"_block3_log_prob"] = upsample_log_prob_dict["block3_log_prob"]
+            logging_dict["upsample_level_"+str(level)+"_log_prob"] = upsample_log_prob_dict["log_prob"]
+            output_log_prob += upsample_log_prob_dict["log_prob"]
+
+        logging_dict["log_prob"] = output_log_prob
             
-        return output_log_prob
+        return logging_dict
     
     def sample( self ):
         no_channels = len( self.bottom_parallelcnns )

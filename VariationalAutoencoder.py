@@ -5,10 +5,30 @@ import numpy as np
 
 from PyGenBrix import VAEModels as vae_models
 
+class IndependentNormalDistribution():
+    def __init__( self, loc, scale ):
+        self.dist = torch.distributions.Independent( torch.distributions.Normal( loc = loc, scale = scale ), 3 )
+    def log_prob( self, samples ):
+        return { "log_prob" : self.dist.log_prob( samples ) }
+
+    def sample( self ):
+        return self.dist.sample()
+
+    
+class IndependentBernoulliDistribution():
+    def __init__( self, logits ):
+        self.dist = torch.distributions.Independent( torch.distributions.Bernoulli( logits = logits ), 3 )
+    def log_prob( self, samples ):
+        return { "log_prob" : self.dist.log_prob( samples ) }
+
+    def sample( self ):
+        return self.dist.sample()
+
+
 class IndependentBernoulliLayer( nn.Module ):
 
     def forward( self, logits ):
-        return torch.distributions.Independent( torch.distributions.Bernoulli( logits = logits ), 3 )
+        return IndependentBernoulliDistribution( logits = logits )
 
     def params_size( self, channels ):
         return 1*channels
@@ -22,7 +42,7 @@ class IndependentNormalLayer( nn.Module ):
         output_channels = logits.shape[1] // 2
         loc = logits[:,:output_channels]
         scale = .05 + torch.nn.Softplus()( logits[:,output_channels:] )
-        return torch.distributions.Independent( torch.distributions.Normal( loc = loc, scale = scale ), 3 )
+        return IndependentNormalDistribution( loc = loc, scale = scale )
 
     def params_size( self, channels ):
         return 2*channels
@@ -37,7 +57,7 @@ class QuantizedDistribution():
         reshaped_conditionals = reshaped_conditionals.permute( ( 0, 1, 3, 4, 2 ) )
         log_probs = torch.distributions.Categorical( logits = reshaped_conditionals ).log_prob( quantized )
         log_probs_sum = torch.sum( log_probs, dim = ( 1, 2, 3 ) )
-        return log_probs_sum
+        return { "log_prob" : log_probs_sum }
 
     def sample( self ):
         reshaped_conditionals = torch.reshape( self.logits, ( self.logits.shape[0], self.logits.shape[1]//10, 10, self.logits.shape[2], self.logits.shape[3] ) )
@@ -84,15 +104,17 @@ class VAE(nn.Module):
         mu, logvar = self.encode( cx )
         z = torch.distributions.normal.Normal( mu, torch.exp( 0.5*logvar ) ).rsample()
         decode_params = self.decode( z )
-        recons_log_prob = self.output_distribution_layer( decode_params ).log_prob( cx )
+        recons_log_prob_dict = self.output_distribution_layer( decode_params ).log_prob( cx )
         kl_divergence = torch.sum(
             torch.distributions.kl.kl_divergence(
                 torch.distributions.Normal( loc = mu, scale = torch.exp( 0.5*logvar ) ),
 	        torch.distributions.Normal( loc = torch.tensor( 0.0 ).to( next(self.decoder.parameters()).device ), scale = torch.tensor( 1.0 ).to( next(self.decoder.parameters()).device ) ) ),
             dim = ( 1 ) )
-        total_log_prob = recons_log_prob - kl_divergence
+        total_log_prob = recons_log_prob_dict["log_prob"] - kl_divergence
+
+        result_dict = { "log_prob": total_log_prob, "kl" : kl_divergence, "recon_log_prob" : recons_log_prob_dict["log_prob"] }
         
-        return total_log_prob
+        return result_dict
 
     def sample( self, z = None ):
         if z is not None:

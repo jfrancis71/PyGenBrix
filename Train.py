@@ -22,7 +22,7 @@ def train( model, dataset, device = "CPU", epochs = 5000, batch_size = 32, callb
         validation_batch_no = 0
         for i, ( inputs, _ ) in enumerate( train_set_loader ):
             optimizer.zero_grad()
-            result = torch.mean( model.log_prob( inputs.to( device ) ) )
+            result = torch.mean( model.log_prob( inputs.to( device ) )["log_prob"] )
             loss = -result
             training_running_loss += loss.item()
             training_batch_no += 1
@@ -31,7 +31,7 @@ def train( model, dataset, device = "CPU", epochs = 5000, batch_size = 32, callb
             time.sleep( sleep_time )
         for i, ( inputs, _ ) in enumerate( valid_set_loader ):
             optimizer.zero_grad()
-            result = torch.mean( model.log_prob( inputs.to( device ) ) )
+            result = torch.mean( model.log_prob( inputs.to( device ) )["log_prob"] )
             loss = -result
             validation_running_loss += loss.item()
             validation_batch_no += 1
