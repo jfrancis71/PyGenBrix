@@ -116,7 +116,7 @@ class MultiStageParallelCNNDistribution( nn.Module ):
             network_input = torch.cat( ( allowed_information, bottom_logit_inputs ), dim = 1 )
             network_output_logits = self.bottom_parallelcnns[ channel ]( network_input )
             channel_log_prob = self.output_distribution( network_output_logits ).log_prob( bottom_samples[:,channel:channel+1] )["log_prob"]
-            logging_dict["base_log_prob_channel_"+str(channel)] = channel_log_prob
+            logging_dict["base_log_prob/channel_"+str(channel)] = channel_log_prob
             output_log_prob += channel_log_prob
             allowed_information[:,channel] = bottom_samples[:,channel]
         logging_dict["base_log_prob"] = output_log_prob.clone()
@@ -127,10 +127,10 @@ class MultiStageParallelCNNDistribution( nn.Module ):
                 samples[:,:,::2**(self.levels-level),::2**(self.levels-level)],
                 self.logits[:,:,::2**(self.levels-level-1),::2**(self.levels-level-1)],
                 self.upsample_parallelcnns[ level ] ).log_prob( samples[:,:,::2**(self.levels-level-1),::2**(self.levels-level-1)] )
-            logging_dict["upsample_level_"+str(level)+"_block1_log_prob"] = upsample_log_prob_dict["block1_log_prob"]
-            logging_dict["upsample_level_"+str(level)+"_block2_log_prob"] = upsample_log_prob_dict["block2_log_prob"]
-            logging_dict["upsample_level_"+str(level)+"_block3_log_prob"] = upsample_log_prob_dict["block3_log_prob"]
-            logging_dict["upsample_level_"+str(level)+"_log_prob"] = upsample_log_prob_dict["log_prob"]
+            logging_dict["upsample_level_"+str(level)+"/block1_log_prob"] = upsample_log_prob_dict["block1_log_prob"]
+            logging_dict["upsample_level_"+str(level)+"/block2_log_prob"] = upsample_log_prob_dict["block2_log_prob"]
+            logging_dict["upsample_level_"+str(level)+"/block3_log_prob"] = upsample_log_prob_dict["block3_log_prob"]
+            logging_dict["upsample_level_"+str(level)+"/log_prob"] = upsample_log_prob_dict["log_prob"]
             output_log_prob += upsample_log_prob_dict["log_prob"]
 
         logging_dict["log_prob"] = output_log_prob
