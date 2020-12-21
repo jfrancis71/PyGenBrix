@@ -174,8 +174,12 @@ def default_parallel_cnn_fn( dims, params_size ):
 class MultiStageParallelCNNLayer( nn.Module ):
     def __init__( self, dims, output_distribution, levels, parallel_cnn_fn = default_parallel_cnn_fn ):
         super( MultiStageParallelCNNLayer, self ).__init__()
-        self.bottom_pcnn = nn.ModuleList( [ parallel_cnn_fn( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range( dims[0] ) ] )
-        self.upsamplers_nets = nn.ModuleList( [ nn.ModuleList( [ nn.ModuleList( [ parallel_cnn_fn( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range(3) ] ) for c in range(dims[0]) ] ) for l in range(levels) ] )
+        self.bottom_pcnn = nn.ModuleList( [
+            ( default_parallel_cnn_fn if ( dims[1]/2**(levels) < 4 ) else parallel_cnn_fn ) ( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range( dims[0] ) ] )
+        self.upsamplers_nets = nn.ModuleList( [ nn.ModuleList( [ nn.ModuleList( [
+# note here the unet's don't work on any images less than 4x4
+            ( default_parallel_cnn_fn if ( dims[1]/2**(levels-l) < 4 ) else parallel_cnn_fn ) (
+                [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range(3) ] ) for c in range(dims[0]) ] ) for l in range(levels) ] )
         self.levels = levels
         self.output_distribution = output_distribution
         self.dims = dims
