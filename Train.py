@@ -106,10 +106,10 @@ class LightningTrainer( pl.LightningModule ):
         return torch.optim.Adam( self.model.parameters(), lr = self.learning_rate )
     
     def train_dataloader( self ):
-        return torch.utils.data.DataLoader( self.train_set, batch_size = 8, shuffle = True )
+        return torch.utils.data.DataLoader( self.train_set, batch_size = self.batch_size, shuffle = True )
     
     def val_dataloader( self ):
-        return torch.utils.data.DataLoader( self.val_set, batch_size = 8 )
+        return torch.utils.data.DataLoader( self.val_set, batch_size = self.batch_size )
 
 #To run a training session:
 #pl.Trainer( fast_dev_run = False, gpus=1 ).fit( Train.LightningTrainer( mymodel, dataset, Train.disp, batch_size = 16 ) )
