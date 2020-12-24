@@ -38,6 +38,14 @@ class MNISTVAEModel( torch.nn.Module ):
             torch.nn.Conv2d( base_depth, params_size, kernel_size=5, stride=1, padding=2 )
         )
 
+class reshape( torch.nn.Module ):
+    def __init__( self ):
+        super( reshape, self ).__init__()
+
+    def forward( self, x ):
+        shape = x.shape
+        return torch.reshape( x, ( shape[0], 256, 8, 8 ) )
+
 # 64x64x3 shaped model
 # Losely based on: https://github.com/yzwxx/vae-celebA/blob/master/model_vae.py
 # Achieved loss of -11,162 on CelebA after 23 epochs on 20,000 images.
@@ -45,7 +53,7 @@ class MNISTVAEModel( torch.nn.Module ):
 class YZVAEModel( torch.nn.Module ):
     def __init__( self ):
         super( YZVAEModel, self ).__init__()
-        self.latents = 16
+        self.latents = 512
         self.dims = [ 3, 64, 64 ]
 
     def encoder( self ):
@@ -60,10 +68,11 @@ class YZVAEModel( torch.nn.Module ):
 
     def decoder( self, params_size ):
         return torch.nn.Sequential(
-            torch.nn.Conv2d( 16, 64*4*8*8, 1, padding=0,stride=1 ), torch.nn.LeakyReLU(),
-            torch.nn.ConvTranspose2d( 64*4*8*8, 256, 8, stride=1, padding= 0 ), torch.nn.LeakyReLU(),
-            torch.nn.ConvTranspose2d( 256, 64*4, 6, stride=2, padding= 2 ), torch.nn.LeakyReLU(),
-            torch.nn.ConvTranspose2d( 64*4, 64*2, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(),
-            torch.nn.ConvTranspose2d( 64*2, 64, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(),
-            torch.nn.ConvTranspose2d( 64, params_size, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+            torch.nn.Conv2d( self.latents, 64*4*8*8, 1, padding=0,stride=1 ), torch.nn.LeakyReLU(),
+            reshape(),
+            torch.nn.ConvTranspose2d( 256, 256, 5, stride=2, output_padding=1, padding= 2 ), torch.nn.LeakyReLU(), #256x16x16, h1
+            torch.nn.ConvTranspose2d( 256, 64*2, 5, stride=2, padding= 2, output_padding=1 ), torch.nn.LeakyReLU(), #128x32x32, h2
+            torch.nn.ConvTranspose2d( 64*2, 64//2, 5, stride=2, padding=2, output_padding = 1 ), torch.nn.LeakyReLU(), #32x64x64, h3
+            torch.nn.ConvTranspose2d( 64//2, params_size, 5, stride=1, padding=2, output_padding = 0 ), torch.nn.LeakyReLU(), #h4
+#            torch.nn.ConvTranspose2d( 64, params_size, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
         )
