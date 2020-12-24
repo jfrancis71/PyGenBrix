@@ -14,6 +14,16 @@ class IndependentNormalDistribution():
     def sample( self ):
         return self.dist.sample()
 
+class IndependentL2Distribution():
+    def __init__( self, loc ):
+        self.loc = torch.tanh( loc )
+    def log_prob( self, samples ): #.918... is log (1/sqrt(2 pi) )
+        return { "log_prob" : torch.sum( -0.918939 - 0.5 * (samples - self.loc)**2, dim = ( 1, 2, 3 ) ) }
+
+    def sample( self ):
+        return self.loc
+
+
     
 class IndependentBernoulliDistribution():
     def __init__( self, logits ):
@@ -24,6 +34,14 @@ class IndependentBernoulliDistribution():
     def sample( self ):
         return self.dist.sample()
 
+
+class IndependentL2Layer( nn.Module ):
+
+    def forward( self, logits ):
+        return IndependentL2Distribution( logits = logits )
+
+    def params_size( self, channels ):
+        return 1*channels
 
 class IndependentBernoulliLayer( nn.Module ):
 
