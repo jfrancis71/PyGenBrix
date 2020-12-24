@@ -42,6 +42,14 @@ def train( model, dataset, device = "CPU", epochs = 5000, batch_size = 32, callb
 
         print( "Epoch ", epoch, ", Training Loss=", training_running_loss/training_batch_no, ", Validation Loss ", validation_running_loss/validation_batch_no )
 
+class Forwarder( nn.Module ):
+    def __init__( self, model ):
+        super( Forwarder, self ).__init__()
+        self.model = model
+
+    def forward( self, x ):
+        return self.model.log_prob( x )["log_prob"]
+
 class LightningTrainer( pl.LightningModule ):
     def __init__( self, model, dataset, callback = None, learning_rate = .001, batch_size = 32 ):
         super( LightningTrainer, self ).__init__()
@@ -54,6 +62,10 @@ class LightningTrainer( pl.LightningModule ):
         self.train_set, self.val_set = torch.utils.data.random_split(
             dataset, [ training_size, dataset_size - training_size ],
             generator=torch.Generator().manual_seed(42) ) 
+
+    def on_fit_start( self ):
+        img = self.train_set[0][0].to( self.device )
+        self.logger.experiment.add_graph( Forwarder( self.model ), torch.unsqueeze( img, dim = 0 ) )
         
     def training_step( self, batch, batch_indx ):
         x, _ = batch
