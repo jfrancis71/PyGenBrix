@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 import numpy as np
 import torch.nn.functional as F
+import pl_bolts.models.vision.unet as plt_unet
 
 class UpsamplerDistribution( nn.Module ):
     def __init__( self, output_distribution, input_low_res_image, logits, parallelcnns ):
@@ -172,20 +173,34 @@ def default_parallel_cnn_fn( dims, params_size ):
 )
 
 class MultiStageParallelCNNLayer( nn.Module ):
-    def __init__( self, dims, output_distribution, levels, parallel_cnn_fn = default_parallel_cnn_fn ):
+    def __init__( self, dims, output_distribution, upsampling_stages, parallel_cnn_fn = default_parallel_cnn_fn ):
         super( MultiStageParallelCNNLayer, self ).__init__()
-        self.bottom_pcnn = nn.ModuleList( [
-            ( default_parallel_cnn_fn if ( dims[1]/2**(levels) < 4 ) else parallel_cnn_fn ) ( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range( dims[0] ) ] )
-        self.upsamplers_nets = nn.ModuleList( [ nn.ModuleList( [ nn.ModuleList( [
-# note here the unet's don't work on any images less than 4x4
-            ( default_parallel_cnn_fn if ( dims[1]/2**(levels-l) < 4 ) else parallel_cnn_fn ) (
-                [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range(3) ] ) for c in range(dims[0]) ] ) for l in range(levels) ] )
-        self.levels = levels
+#        self.bottom_pcnn = nn.ModuleList( [
+#            ( default_parallel_cnn_fn if ( dims[1]/2**(levels) < 4 ) else parallel_cnn_fn ) ( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range( dims[0] ) ] )
+#        self.upsamplers_nets = nn.ModuleList( [ nn.ModuleList( [ nn.ModuleList( [
+## note here the unet's don't work on any images less than 4x4
+#            ( default_parallel_cnn_fn if ( dims[1]/2**(levels-l) < 4 ) else parallel_cnn_fn ) (
+#                [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range(3) ] ) for c in range(dims[0]) ] ) for l in range(levels) ] )
+        bottom_width = dims[1]/2**upsampling_stages
+        num_layers = int( min( bottom_width - 1, 3 ) )
+        num_logits = output_distribution.params_size( 1 )
+        self.bottom_net = nn.ModuleList( [ 
+        #Bug in PLT.UNet for num_layers = 0
+            ( plt_unet.UNet( num_classes = num_logits, input_channels = 1 + dims[0], num_layers = num_layers ) if num_layers > 0 else default_parallel_cnn_fn( dims, num_logits ) ) for c in range( dims[0] ) ] )
+        upsampler_nets = []
+        for l in range( upsampling_stages ):
+            output_width = bottom_width * 2**(l+1)
+            num_layers = int( min( output_width - 1, 3 ) )
+            upsampler_nets.append(
+                nn.ModuleList( [
+                    nn.ModuleList( [ plt_unet.UNet( num_logits, input_channels = 1 + dims[0], num_layers = num_layers ) for s in range(3) ] ) for c in range(dims[0]) ] ) )
+        self.upsampling_stages = upsampling_stages
         self.output_distribution = output_distribution
         self.dims = dims
+        self.upsampler_nets = nn.ModuleList( upsampler_nets )
     
     def forward( self, logits ):
-        return MultiStageParallelCNNDistribution( self.output_distribution, self.dims, self.bottom_pcnn, self.upsamplers_nets, self.levels, logits )
+        return MultiStageParallelCNNDistribution( self.output_distribution, self.dims, self.bottom_net, self.upsampler_nets, self.upsampling_stages, logits )
 
     def params_size( self, channels ):
         return 1
