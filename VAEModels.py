@@ -38,6 +38,41 @@ class MNISTVAEModel( torch.nn.Module ):
             torch.nn.Conv2d( base_depth, params_size, kernel_size=5, stride=1, padding=2 )
         )
 
+
+#Model losely based on: https://colab.research.google.com/github/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_Layers_VAE.ipynb
+class SmallRGBVAEModel( torch.nn.Module ):
+    def __init__( self ):
+        super( SmallRGBVAEModel, self ).__init__()
+        self.latents = 16
+        self.dims = [ 3, 32, 32 ]
+
+    def encoder( self, no_conditional_channels = 0 ):
+        base_input = 3 + no_conditional_channels
+        return torch.nn.Sequential(
+            torch.nn.Conv2d( base_input, base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+            torch.nn.Conv2d( base_depth, base_depth, 5, stride=2, padding=2 ), torch.nn.LeakyReLU(),
+            torch.nn.Conv2d( base_depth, 2 * base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+            torch.nn.Conv2d( 2*base_depth, 2 * base_depth, 5, stride=2, padding=2 ), torch.nn.LeakyReLU(),
+            torch.nn.Conv2d( 2*base_depth, 4 * self.latents, 8, stride=1, padding=0 ), torch.nn.LeakyReLU(),
+            torch.nn.Flatten(),
+            torch.nn.Linear( 4 * self.latents, self.latents * 2 )
+        )
+
+#We defer building decoder until we know params_size
+
+    def decoder( self, params_size, no_conditional_channels = 0 ):
+        base_input = self.latents + no_conditional_channels
+        return torch.nn.Sequential(
+            #note below layer turns into 8x8x....
+            torch.nn.ConvTranspose2d( base_input, 2 * base_depth, 7, stride=1, padding= 0 ), torch.nn.LeakyReLU(),
+            torch.nn.ConvTranspose2d( 2 * base_depth, 2 * base_depth, 5, stride=1, padding= 2 ), torch.nn.LeakyReLU(),
+            torch.nn.ConvTranspose2d( 2 * base_depth, 2 * base_depth, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(), #check padding 6
+            torch.nn.ConvTranspose2d( 2 * base_depth, base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+            torch.nn.ConvTranspose2d( base_depth, base_depth, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(),
+            torch.nn.ConvTranspose2d( base_depth, base_depth, 5, stride=1, padding=0 ), torch.nn.LeakyReLU(),
+            torch.nn.Conv2d( base_depth, params_size, kernel_size=5, stride=1, padding=2 )
+        )
+
 class reshape( torch.nn.Module ):
     def __init__( self ):
         super( reshape, self ).__init__()
