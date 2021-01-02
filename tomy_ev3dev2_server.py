@@ -19,53 +19,42 @@ p3.mode = 'ev3-uart'
 p3.set_device = 'lego-ev3-color'
 ls = ev3dev2.sensor.lego.ColorSensor( ev3dev2.sensor.INPUT_3 )
 
-def left():
-    global wheel_status
-    global motorb
-    if ( wheel_status == -1 ):
-        print( "Skipping left")
-        return
-    wheel_status = -1
-    print( " Start Left", flush=True )
-    motorb.on_for_rotations( 50, -400./360.0 )
-    print( "Finished Left", flush=True )
-
-def right():
-    global wheel_status
-    global motorb
-    if ( wheel_status == 1 ):
-        print( "Skipping right")
-        return
-    wheel_status = 1
-    print( " Start Right", flush=True )
-    motorb.on_for_rotations( 50, 400./360.0 )
-    print( "Finished Right", flush=True )
-
-def tank( speed ):
+def tank( speed, wheel ):
     global motora
+    global motorb
     global motord
+    global wheel_status
+
     print( " Start tank ", flush=True )
+    if ( wheel != wheel_status ):
+        if ( wheel == 1 ):
+            print( "Starting wheel right", flush = True )
+            motorb.run_to_rel_pos( position_sp = 400, speed_sp = 400, stop_action = "hold" )
+        else:
+            print( "Starting wheel left", flush = True )
+            motorb.run_to_rel_pos( position_sp = -400, speed_sp = 400, stop_action = "hold" )
+
+    print( "Completed wheel start", flush = True )
     print( " Start  A", flush=True )
-#    motora.on_for_rotations( -20, .5/4.0 - (1-speed)/8. )
     motora.run_to_rel_pos( position_sp = -90*speed, speed_sp = 100, stop_action = "hold" )
     print( " Finished  A Start", flush=True )
     print( " Start  D", flush=True )
-#    motord.on_for_rotations( -20, .75/4.0  - (1-speed)/8. )
     motord.run_to_rel_pos( position_sp = -45 - 90*speed, speed_sp = 100, stop_action = "hold" )
     print( " Finished  D Start", flush=True )
-    print( "Waiting for A to finish ")
+    print( "Waiting for A to finish ", flush=True)
     motora.wait_while( "running" )
-    print( "A Finished ")
-    print( "Waiting for D to finish ")
+    print( "A Finished ", flush=True)
+    print( "Waiting for D to finish ", flush=True)
     motord.wait_while( "running" )
-    print( "D Finished ")
-    print( "Finshed Tank", flush=True )
+    print( "D Finished ", flush=True)
+    print( "Waiting for wheel to finish", flush = True )
+    motorb.wait_while( "running" )
+    print( "Wheel finished" )
+    wheel_status = wheel
 
-
-def color():
     print( "Getting color", flush=True )
     col = ls.color
 
     print( "Finished color", flush = True )
+    print( "Finshed Tank", flush=True )
     return col
-
