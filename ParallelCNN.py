@@ -157,8 +157,6 @@ class MultiStageParallelCNNDistribution( nn.Module ):
             
         return sample
 
-#Achieved epoch 10, training 6606, validation 6725 on celeba aligned 100,000 images, batch size 8, level = 1, quantized output distribution
-#Achieved epoch 10, training 4167, validation 4059 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution
 def default_parallel_cnn_fn( dims, params_size ):
     activation_fn = nn.Tanh()
     return torch.nn.Sequential(
@@ -175,12 +173,6 @@ def default_parallel_cnn_fn( dims, params_size ):
 class MultiStageParallelCNNLayer( nn.Module ):
     def __init__( self, dims, output_distribution, upsampling_stages, parallel_cnn_fn = default_parallel_cnn_fn ):
         super( MultiStageParallelCNNLayer, self ).__init__()
-#        self.bottom_pcnn = nn.ModuleList( [
-#            ( default_parallel_cnn_fn if ( dims[1]/2**(levels) < 4 ) else parallel_cnn_fn ) ( [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range( dims[0] ) ] )
-#        self.upsamplers_nets = nn.ModuleList( [ nn.ModuleList( [ nn.ModuleList( [
-## note here the unet's don't work on any images less than 4x4
-#            ( default_parallel_cnn_fn if ( dims[1]/2**(levels-l) < 4 ) else parallel_cnn_fn ) (
-#                [ dims[0], 1024, 1024 ], output_distribution.params_size( 1 ) ) for s in range(3) ] ) for c in range(dims[0]) ] ) for l in range(levels) ] )
         bottom_width = dims[1]/2**upsampling_stages
         num_layers = int( min( bottom_width - 1, 3 ) )
         num_logits = output_distribution.params_size( 1 )
@@ -204,139 +196,3 @@ class MultiStageParallelCNNLayer( nn.Module ):
 
     def params_size( self, channels ):
         return 1
-
-activation_fn = F.relu
-
-#Achieved epoch 10, training 3677, validation 3668 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution
-class unet( nn.Module ):
-    def __init__( self, dims, params_size ):
-        super(unet, self).__init__()
-        self.upconv1_1 = torch.nn.Conv2d( dims[0]+1,64,3, padding=1 )
-        self.upconv1_2 = torch.nn.Conv2d( 64, 64, 3, padding=1)
-        
-        self.upconv2_1 = torch.nn.Conv2d( 64, 128, 3, padding = 1, stride = 2 )
-        self.upconv2_2 = torch.nn.Conv2d( 128, 128, 3, padding=1)
-        
-        self.downconv1_3 = torch.nn.Conv2d( 128, 64, 3, padding = 1 )
-        self.downconv1_2 = torch.nn.Conv2d( 64, 64, 3, padding = 1 )
-        self.downconv1_1 = torch.nn.Conv2d( 64, params_size, 1, padding = 0 )
-        
-        self.downconv2_2 = torch.nn.Conv2d( 128, 128, 3, padding = 1 )
-        self.downconv2_1 = torch.nn.Conv2d( 128, 128, 3, padding = 1 )
-        self.downconv2_upsample = torch.nn.Conv2d( 128, 256, 1, padding = 0 )
-
-    
-    def forward( self, x ):
-        x = self.upconv1_1( x )
-        x = activation_fn( x )
-        x = self.upconv1_2( x )
-        c1 = activation_fn( x )
-        
-        x = self.upconv2_1( c1 )
-        x = activation_fn( x )
-        x = self.upconv2_2( x )
-        c2 = activation_fn( x )
-        
-        x = self.downconv2_2( c2 )
-        x = activation_fn( x )
-        x = self.downconv2_1( x )
-        x = activation_fn( x )
-        x = self.downconv2_upsample( x )
-
-        orig = x.shape
-        x = x.permute(0, 2, 3, 1).view( orig[0], orig[2], orig[3], orig[1]//4, 2, 2)
-        x = x.permute(0, 1, 4, 2, 5, 3 ).contiguous().view( orig[0], orig[2]*2, orig[3]*2, orig[1]//4 )
-        x = x.permute( 0, 3, 1, 2 )
-        
-        x = torch.cat( [ c1, x ], axis = 1 )
-        x = self.downconv1_3( x )
-        x = activation_fn( x )
-        x = self.downconv1_2( x )
-        x = activation_fn( x )
-        x = self.downconv1_1( x )
-        
-        return x
-
-def unet_parallel_cnn_fn( dims, params_size ):
-    return unet( dims, params_size )
-
-#Achieved epoch 10, training 3474, validation 3522 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution
-#Achieved epoch 10, training 3511, validation 3678 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution, no conditionals = 16
-#Achieved epoch 10, training 3276, validation 3570 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution, activation=tanh
-#Achieved epoch 53, training 2817, validation 4364 on celeba aligned 100,000 images, batch size 8, level = 4, quantized output distribution, clearly overtrained, but interesting
-#Achieved epoch 10, training 3580, validation 3694 on coco cropped 100,000 images, batch size 8, level = 4, quantized output distribution
-class unet1( nn.Module ):
-    def __init__( self, dims, params_size ):
-        super(unet1, self).__init__()
-        self.upconv1_1 = torch.nn.Conv2d( dims[0]+1,64,3, padding=1 )
-        self.upconv1_2 = torch.nn.Conv2d( 64, 64, 3, padding=1)
-
-        self.upconv2_1 = torch.nn.Conv2d( 64, 128, 3, padding = 1, stride = 2 )
-        self.upconv2_2 = torch.nn.Conv2d( 128, 128, 3, padding=1)
-        
-        self.upconv3_1 = torch.nn.Conv2d( 128, 256, 3, padding = 1, stride = 2 )
-        self.upconv3_2 = torch.nn.Conv2d( 256, 256, 3, padding=1)
-
-        self.downconv1_3 = torch.nn.Conv2d( 128, 64, 3, padding = 1 )
-        self.downconv1_2 = torch.nn.Conv2d( 64, 64, 3, padding = 1 )
-        self.downconv1_1 = torch.nn.Conv2d( 64, params_size, 1, padding = 0 )
-
-        self.downconv2_2 = torch.nn.Conv2d( 256, 128, 3, padding = 1 )
-        self.downconv2_1 = torch.nn.Conv2d( 128, 128, 3, padding = 1 )
-        self.downconv2_upsample = torch.nn.Conv2d( 128, 256, 1, padding = 0 )
-        
-        self.downconv3_2 = torch.nn.Conv2d( 256, 256, 3, padding = 1 )
-        self.downconv3_1 = torch.nn.Conv2d( 256, 256, 3, padding = 1 )
-        self.downconv3_upsample = torch.nn.Conv2d( 256, 512, 1, padding = 0 )
-
-
-    def forward( self, x ):
-        x = self.upconv1_1( x )
-        x = activation_fn( x )
-        x = self.upconv1_2( x )
-        c1 = activation_fn( x )
-
-        x = self.upconv2_1( c1 )
-        x = activation_fn( x )
-        x = self.upconv2_2( x )
-        c2 = activation_fn( x )
-        
-        x = self.upconv3_1( c2 )
-        x = activation_fn( x )
-        x = self.upconv3_2( x )
-        c3 = activation_fn( x )
-
-        x = self.downconv3_2( c3 )
-        x = activation_fn( x )
-        x = self.downconv3_1( x )
-        x = activation_fn( x )
-        x = self.downconv3_upsample( x )
-
-        orig = x.shape
-        x = x.permute(0, 2, 3, 1).view( orig[0], orig[2], orig[3], orig[1]//4, 2, 2)
-        x = x.permute(0, 1, 4, 2, 5, 3 ).contiguous().view( orig[0], orig[2]*2, orig[3]*2, orig[1]//4 )
-        x = x.permute( 0, 3, 1, 2 )
-
-        x = torch.cat( [ c2, x ], axis = 1 )
-        x = self.downconv2_2( x )
-        x = activation_fn( x )
-        x = self.downconv2_1( x )
-        x = activation_fn( x )
-        x = self.downconv2_upsample( x )
-
-        orig = x.shape
-        x = x.permute(0, 2, 3, 1).view( orig[0], orig[2], orig[3], orig[1]//4, 2, 2)
-        x = x.permute(0, 1, 4, 2, 5, 3 ).contiguous().view( orig[0], orig[2]*2, orig[3]*2, orig[1]//4 )
-        x = x.permute( 0, 3, 1, 2 )
-
-        x = torch.cat( [ c1, x ], axis = 1 )
-        x = self.downconv1_3( x )
-        x = activation_fn( x )
-        x = self.downconv1_2( x )
-        x = activation_fn( x )
-        x = self.downconv1_1( x )
-
-        return x
-
-def unet_parallel_cnn_fn1( dims, params_size ):
-    return unet1( dims, params_size )
