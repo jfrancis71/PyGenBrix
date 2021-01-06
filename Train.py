@@ -136,7 +136,7 @@ class PyGenBrixModel( nn.Module ):
         super( PyGenBrixModel, self ).__init__()
         self.cond_distribution = distribution
         self.dims = dims
-        self.conditionals = torch.nn.Parameter( torch.tensor( np.zeros( dims ).astype( np.float32 ) ), requires_grad=True )
+        self.conditionals = torch.nn.Parameter( torch.zeros( dims ), requires_grad=True )
         
     def log_prob( self, samples ):
         return self.cond_distribution( self.conditionals.expand( [ samples.shape[0], self.dims[0], self.dims[1], self.dims[2] ] ) ).log_prob( samples )
