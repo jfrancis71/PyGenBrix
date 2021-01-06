@@ -3,8 +3,6 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 
-from PyGenBrix import VAEModels as vae_models
-
 class IndependentNormalDistribution():
     def __init__( self, loc, scale ):
         self.dist = torch.distributions.Independent( torch.distributions.Normal( loc = loc, scale = scale ), reinterpreted_batch_ndims = 3 )
