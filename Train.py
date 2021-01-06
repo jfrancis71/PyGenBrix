@@ -129,22 +129,20 @@ class LightningTrainer( pl.LightningModule ):
 # To train a conditional distribution:
 # mydist = Train.PyGenBrixModel( 
 #     cnn.MultiStageParallelCNNLayer([ 1, 28, 28 ], vae.IndependentBernoulliLayer() ),
-#     [ 1, 28, 28 ],
-#    device )
-# Train.train( mydist, mnist, device, batch_size=32, sleep_time=0)
+#     [ 1, 28, 28 ] )
+# Train.train( mydist, mnist, batch_size=32, sleep_time=0)
 class PyGenBrixModel( nn.Module ):
-    def __init__( self, distribution, dims, device ):
+    def __init__( self, distribution, dims ):
         super( PyGenBrixModel, self ).__init__()
-        self.cond_distribution = distribution.to( device )
-        self.device = device
+        self.cond_distribution = distribution
         self.dims = dims
-        self.conditionals = torch.nn.Parameter( torch.tensor( np.zeros( dims ).astype( np.float32 ) ).to( device ), requires_grad=True )
+        self.conditionals = torch.nn.Parameter( torch.tensor( np.zeros( dims ).astype( np.float32 ) ), requires_grad=True )
         
     def log_prob( self, samples ):
         return self.cond_distribution( self.conditionals.expand( [ samples.shape[0], self.dims[0], self.dims[1], self.dims[2] ] ) ).log_prob( samples )
     
     def sample( self ):
-        return self.cond_distribution(  torch.tensor( np.array( [ self.conditionals.cpu().detach().numpy() ] ) ).to( self.device ) ).sample()
+        return self.cond_distribution(  torch.tensor( np.array( [ self.conditionals.cpu().detach().numpy() ] ) ) ).sample()
 
 def disp( model, validation_set ):
     samp = model.sample()

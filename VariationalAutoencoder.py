@@ -97,7 +97,7 @@ class VAE(nn.Module):
     or
     mymodel = vae.VAE( vae_models.MNISTVAEModel(), cnn.MultiStageParallelCNNLayer( [ 1, 28, 28 ], vae.QuantizedLayer() ) )
     to train:
-    Train.train( mydist, mnist, device, batch_size = 32 )
+    Train.train( mydist, mnist, batch_size = 32 )
     """
     def __init__( self, vae_model, output_distribution_layer ):
         super(VAE, self).__init__()
