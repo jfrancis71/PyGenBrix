@@ -5,91 +5,7 @@ import numpy as np
 
 from PyGenBrix import VAEModels as vae_models
 
-class IndependentNormalDistribution():
-    def __init__( self, loc, scale ):
-        self.dist = torch.distributions.Independent( torch.distributions.Normal( loc = loc, scale = scale ), reinterpreted_batch_ndims = 3 )
-    def log_prob( self, samples ):
-        return { "log_prob" : self.dist.log_prob( samples ) }
-
-    def sample( self ):
-        return self.dist.sample()
-
-class IndependentL2Distribution():
-    def __init__( self, loc ):
-        self.dist = torch.distributions.Independent( torch.distributions.Normal( loc = loc, scale = torch.ones( loc.shape ) ), reinterpreted_batch_ndims = 3 )
-
-    def log_prob( self, samples ):
-        return { "log_prob" : self.dist.log_prob( samples ) }
-
-    def sample( self ):
-#Note, not really sampling from prob distribution, but this is common in VAE literature,
-#where they return the mean as opposed to sampling from the normal distribution with variance 1.
-        return self.loc
-
-class IndependentBernoulliDistribution():
-    def __init__( self, logits ):
-        self.dist = torch.distributions.Independent( torch.distributions.Bernoulli( logits = logits ), reinterpreted_batch_ndims = 3 )
-    def log_prob( self, samples ):
-        return { "log_prob" : self.dist.log_prob( samples ) }
-
-    def sample( self ):
-        return self.dist.sample()
-
-#Quantizes real number in interval [0,1] into 10 buckets
-class IndependentQuantizedDistribution():
-    def __init__( self, logits ):
-        reshaped_logits = torch.reshape( logits, ( logits.shape[0], logits.shape[1]//10, 10, logits.shape[2], logits.shape[3] ) )
-        reshaped_logits = reshaped_logits.permute( ( 0, 1, 3, 4, 2 ) )
-        self.dist = torch.distributions.Independent( torch.distributions.Categorical( logits = reshaped_logits ), reinterpreted_batch_ndims = 3 )
-
-    def log_prob( self, samples ):
-        quantized_samples = torch.clamp( (samples*10.0).floor(), 0, 9 )
-        log_prob = self.dist.log_prob( quantized_samples )
-        return { "log_prob" : log_prob }
-
-    def sample( self ):
-        return self.dist.sample()/10.0 + .05
-
-class IndependentL2Layer( nn.Module ):
-
-    def forward( self, distribution_params ):
-        return IndependentL2Distribution( loc = distribution_params )
-
-    def params_size( self, channels ):
-        return 1*channels
-
-class IndependentBernoulliLayer( nn.Module ):
-
-    def forward( self, distribution_params ):
-        return IndependentBernoulliDistribution( logits = distribution_params )
-
-    def params_size( self, channels ):
-        return 1*channels
-
-class IndependentNormalLayer( nn.Module ):
-
-    def forward( self, distribution_params ):
-        if ( distribution_params.shape[1] % 2 != 0 ):
-            raise TypeError("channel size of logits must be an even number to encode means and scale, but it is of size {}"
-                            .format( distribution_params.shape[1] ) )
-        output_channels = distribution_params.shape[1] // 2
-        loc = distribution_params[:,:output_channels]
-        scale = .05 + torch.nn.Softplus()( distribution_params[:,output_channels:] )
-        return IndependentNormalDistribution( loc = loc, scale = scale )
-
-    def params_size( self, channels ):
-        return 2*channels
-
-class IndependentQuantizedLayer( nn.Module ):
-
-    def forward( self, distribution_params ):
-        return IndependentQuantizedDistribution( logits = distribution_params )
-
-    def params_size( self, channels ):
-        return 10*channels
-
-
-class VAE(nn.Module):
+class BaseVAE(nn.Module):
     """
     to build:
     mymodel = vae.VAE( vae_models.MNISTVAEModel(), vae.IndependentBernoulliLayer() )
@@ -98,20 +14,17 @@ class VAE(nn.Module):
     to train:
     Train.train( mydist, mnist, batch_size = 32 )
     """
-    def __init__( self, vae_model, output_distribution_layer ):
-        super(VAE, self).__init__()
+    def __init__( self, output_distribution_layer ):
+        super(BaseVAE, self).__init__()
         self.output_distribution_layer = output_distribution_layer
-        self.vae_model = vae_model
-        self.encoder = vae_model.encoder()
-        self.decoder = vae_model.decoder( output_distribution_layer.params_size( vae_model.dims[0] ) )
 
     def encode(self, x):
         params = self.encoder( x )
-        split = torch.reshape( params, ( x.shape[0], self.vae_model.latents, 2 ) )
+        split = torch.reshape( params, ( x.shape[0], self.latents, 2 ) )
         return split[...,0], split[...,1]
 
     def decode(self, z):
-        reshape_z = torch.reshape( z, ( z.shape[0], self.vae_model.latents, 1, 1 ) )
+        reshape_z = torch.reshape( z, ( z.shape[0], self.latents, 1, 1 ) )
         return self.decoder( reshape_z )
 
     def log_prob( self, cx ):
@@ -135,6 +48,106 @@ class VAE(nn.Module):
         if z is not None:
             sample_z = z
         else:
-            sample_z = torch.randn( 1, self.vae_model.latents )
+            sample_z = torch.randn( 1, self.latents )
         decode_params = self.decode( sample_z.to( device ) )
         return self.output_distribution_layer( decode_params ).sample()
+
+base_depth = 32
+
+
+#Model losely based on: https://colab.research.google.com/github/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_Layers_VAE.ipynb
+class MNISTVAE( BaseVAE ):
+    def __init__( self, output_distribution_layer ):
+        super( MNISTVAE, self ).__init__( output_distribution_layer )
+        self.latents = 16
+        self.dims = [ 1, 28, 28 ]
+        self.encoder = \
+            torch.nn.Sequential(
+                torch.nn.Conv2d( 1, base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.Conv2d( base_depth, base_depth, 5, stride=2, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.Conv2d( base_depth, 2 * base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.Conv2d( 2*base_depth, 2 * base_depth, 5, stride=2, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.Conv2d( 2*base_depth, 4 * self.latents, 7, stride=1, padding=0 ), torch.nn.LeakyReLU(),
+                torch.nn.Flatten(),
+                torch.nn.Linear( 4 * self.latents, self.latents * 2 )
+        )
+
+        self.decoder = \
+            torch.nn.Sequential(
+                #note below layer turns into 7x7x....
+                torch.nn.ConvTranspose2d( self.latents, 2 * base_depth, 7, stride=1, padding= 0 ), torch.nn.LeakyReLU(),
+                torch.nn.ConvTranspose2d( 2 * base_depth, 2 * base_depth, 5, stride=1, padding= 2 ), torch.nn.LeakyReLU(),
+                torch.nn.ConvTranspose2d( 2 * base_depth, 2 * base_depth, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(), #check padding 6
+                torch.nn.ConvTranspose2d( 2 * base_depth, base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.ConvTranspose2d( base_depth, base_depth, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.ConvTranspose2d( base_depth, base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.Conv2d( base_depth, output_distribution_layer.params_size( 1 ), kernel_size=5, stride=1, padding=2 )
+        )
+
+
+#Model losely based on: https://colab.research.google.com/github/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_Layers_VAE.ipynb
+class SmallRGBVAE( BaseVAE ):
+    def __init__( self, output_distribution_layer ):
+        super( SmallRGBVAE, self ).__init__( output_distribution_layer )
+        self.latents = 16
+        self.dims = [ 3, 32, 32 ]
+
+        self.encoder = \
+            torch.nn.Sequential(
+                torch.nn.Conv2d( 3, base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.Conv2d( base_depth, base_depth, 5, stride=2, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.Conv2d( base_depth, 2 * base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.Conv2d( 2*base_depth, 2 * base_depth, 5, stride=2, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.Conv2d( 2*base_depth, 4 * self.latents, 8, stride=1, padding=0 ), torch.nn.LeakyReLU(),
+                torch.nn.Flatten(),
+                torch.nn.Linear( 4 * self.latents, self.latents * 2 )
+            )
+
+        self.decoder = \
+            torch.nn.Sequential(
+                #note below layer turns into 8x8x....
+                torch.nn.ConvTranspose2d( self.latents, 2 * base_depth, 7, stride=1, padding= 0 ), torch.nn.LeakyReLU(),
+                torch.nn.ConvTranspose2d( 2 * base_depth, 2 * base_depth, 5, stride=1, padding= 2 ), torch.nn.LeakyReLU(),
+                torch.nn.ConvTranspose2d( 2 * base_depth, 2 * base_depth, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(), #check padding 6
+                torch.nn.ConvTranspose2d( 2 * base_depth, base_depth, 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.ConvTranspose2d( base_depth, base_depth, 6, stride=2, padding=2 ), torch.nn.LeakyReLU(),
+                torch.nn.ConvTranspose2d( base_depth, base_depth, 5, stride=1, padding=0 ), torch.nn.LeakyReLU(),
+                torch.nn.Conv2d( base_depth, output_distribution_layer.params_size( 3 ), kernel_size=5, stride=1, padding=2 )
+            )
+
+class reshape( torch.nn.Module ):
+    def __init__( self ):
+        super( reshape, self ).__init__()
+
+    def forward( self, x ):
+        shape = x.shape
+        return torch.reshape( x, ( shape[0], 256, 8, 8 ) )
+
+# 64x64x3 shaped model
+# Losely based on: https://github.com/yzwxx/vae-celebA/blob/master/model_vae.py
+class YZVAE( BaseVAE ):
+    def __init__( self, output_distribution_layer ):
+        super( YZVAE, self ).__init__( output_distribution_layer )
+        self.latents = 512
+        self.dims = [ 3, 64, 64 ]
+
+        self.encoder = \
+            torch.nn.Sequential(
+                torch.nn.Conv2d( 3, 64, kernel_size=5, padding=2, stride=2 ), torch.nn.ReLU(),
+                torch.nn.Conv2d( 64, 128, kernel_size=5, padding=2,stride=2 ), torch.nn.ReLU(),
+                torch.nn.Conv2d( 128, 256, kernel_size=5, padding=2,stride=2 ), torch.nn.ReLU(),
+                torch.nn.Conv2d( 256, 512, kernel_size=5, padding=2,stride=2 ), torch.nn.ReLU(),
+                torch.nn.Flatten(),
+                torch.nn.Linear( 512*4*4, self.latents * 2 )
+            )
+
+        self.decoder = \
+            torch.nn.Sequential(
+                torch.nn.Conv2d( self.latents, 64*4*8*8, 1, padding=0,stride=1 ), torch.nn.LeakyReLU(),
+                reshape(),
+                torch.nn.ConvTranspose2d( 256, 256, 5, stride=2, output_padding=1, padding= 2 ), torch.nn.LeakyReLU(), #256x16x16, h1
+                torch.nn.ConvTranspose2d( 256, 64*2, 5, stride=2, padding= 2, output_padding=1 ), torch.nn.LeakyReLU(), #128x32x32, h2
+                torch.nn.ConvTranspose2d( 64*2, 64//2, 5, stride=2, padding=2, output_padding = 1 ), torch.nn.LeakyReLU(), #32x64x64, h3
+                torch.nn.ConvTranspose2d( 64//2, output_distribution_layer.params_size( 3 ), 5, stride=1, padding=2, output_padding = 0 ), torch.nn.LeakyReLU(), #h4
+#               torch.nn.ConvTranspose2d( 64, output_distribution_layer.params_size( 3 ), 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+            )

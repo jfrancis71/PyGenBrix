@@ -142,7 +142,7 @@ class PyGenBrixModel( nn.Module ):
         return self.cond_distribution( self.conditionals.expand( [ samples.shape[0], self.dims[0], self.dims[1], self.dims[2] ] ) ).log_prob( samples )
     
     def sample( self ):
-        return self.cond_distribution(  torch.tensor( np.array( [ self.conditionals.cpu().detach().numpy() ] ) ) ).sample()
+        return self.cond_distribution(  torch.unsqueeze( self.conditionals, 0 ) ).sample()
 
 def disp( model, validation_set ):
     samp = model.sample()
