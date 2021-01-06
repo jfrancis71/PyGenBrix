@@ -40,13 +40,12 @@ class QuantizedDistribution():
     def __init__( self, logits ):
         reshaped_logits = torch.reshape( logits, ( logits.shape[0], logits.shape[1]//10, 10, logits.shape[2], logits.shape[3] ) )
         reshaped_logits = reshaped_logits.permute( ( 0, 1, 3, 4, 2 ) )
-        self.dist = torch.distributions.Categorical( logits = reshaped_logits )
+        self.dist = torch.distributions.Independent( torch.distributions.Categorical( logits = reshaped_logits ), reinterpreted_batch_ndims = 3 )
 
     def log_prob( self, samples ):
         quantized_samples = torch.clamp( (samples*10.0).floor(), 0, 9 )
         log_prob = self.dist.log_prob( quantized_samples )
-        log_prob_sum = torch.sum( log_prob, dim = ( 1, 2, 3 ) )
-        return { "log_prob" : log_prob_sum }
+        return { "log_prob" : log_prob }
 
     def sample( self ):
         return self.dist.sample()/10.0 + .05
