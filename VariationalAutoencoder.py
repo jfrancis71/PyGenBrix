@@ -6,11 +6,11 @@ import numpy as np
 class BaseVAE(nn.Module):
     """
     to build:
-    mymodel = vae.VAE( vae_models.MNISTVAEModel(), vae.IndependentBernoulliLayer() )
+    mymodel = vae.MNISTVAE( vae.IndependentBernoulliLayer() )
     or
-    mymodel = vae.VAE( vae_models.MNISTVAEModel(), cnn.MultiStageParallelCNNLayer( [ 1, 28, 28 ], vae.QuantizedLayer() ) )
+    mymodel = vae.MNISTVAE( cnn.MultiStageParallelCNNLayer( [ 1, 28, 28 ], vae.QuantizedLayer() ) )
     to train:
-    Train.train( mydist, mnist, batch_size = 32 )
+    Train.train( mymodel, mnist, batch_size = 32 )
     """
     def __init__( self, output_distribution_layer ):
         super(BaseVAE, self).__init__()
