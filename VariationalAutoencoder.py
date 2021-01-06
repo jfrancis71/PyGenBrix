@@ -135,6 +135,6 @@ class VAE(nn.Module):
         if z is not None:
             sample_z = z
         else:
-            sample_z = np.random.normal( size = [ 1, self.vae_model.latents ] ).astype( np.float32 )
-        decode_params = self.decode( torch.tensor( sample_z ).to( device ) )
+            sample_z = torch.randn( 1, self.vae_model.latents )
+        decode_params = self.decode( sample_z.to( device ) )
         return self.output_distribution_layer( decode_params ).sample()
