@@ -119,11 +119,10 @@ class VAE(nn.Module):
         z = torch.distributions.normal.Normal( mu, torch.exp( 0.5*logvar ) ).rsample()
         decode_params = self.decode( z )
         recons_log_prob_dict = self.output_distribution_layer( decode_params ).log_prob( cx )
-        device = cx.device
         kl_divergence = torch.sum(
             torch.distributions.kl.kl_divergence(
                 torch.distributions.Normal( loc = mu, scale = torch.exp( 0.5*logvar ) ),
-	        torch.distributions.Normal( loc = torch.tensor( 0.0 ).to( device ), scale = torch.tensor( 1.0 ).to( device ) ) ),
+	        torch.distributions.Normal( loc = torch.zeros_like( mu ), scale = torch.ones_like( logvar ) ) ),
             dim = ( 1 ) )
         total_log_prob = recons_log_prob_dict["log_prob"] - kl_divergence
 
