@@ -1,7 +1,5 @@
 import torch.nn as nn
 import torch
-import torch.nn.functional as F
-import numpy as np
 
 class IndependentNormalDistribution():
     def __init__( self, loc, scale ):
