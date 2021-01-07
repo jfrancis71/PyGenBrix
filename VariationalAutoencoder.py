@@ -112,14 +112,6 @@ class SmallRGBVAE( BaseVAE ):
                 torch.nn.Conv2d( base_depth, output_distribution_layer.params_size( 3 ), kernel_size=5, stride=1, padding=2 )
             )
 
-class reshape( torch.nn.Module ):
-    def __init__( self ):
-        super( reshape, self ).__init__()
-
-    def forward( self, x ):
-        shape = x.shape
-        return torch.reshape( x, ( shape[0], 256, 8, 8 ) )
-
 # 64x64x3 shaped model
 # Losely based on: https://github.com/yzwxx/vae-celebA/blob/master/model_vae.py
 class YZVAE( BaseVAE ):
@@ -140,8 +132,7 @@ class YZVAE( BaseVAE ):
 
         self.decoder = \
             torch.nn.Sequential(
-                torch.nn.Conv2d( self.latents, 64*4*8*8, 1, padding=0,stride=1 ), torch.nn.LeakyReLU(),
-                reshape(),
+                torch.nn.ConvTranspose2d( 512, 256, 8 ), torch.nn.LeakyReLU(), #256x8x8
                 torch.nn.ConvTranspose2d( 256, 256, 5, stride=2, output_padding=1, padding= 2 ), torch.nn.LeakyReLU(), #256x16x16, h1
                 torch.nn.ConvTranspose2d( 256, 64*2, 5, stride=2, padding= 2, output_padding=1 ), torch.nn.LeakyReLU(), #128x32x32, h2
                 torch.nn.ConvTranspose2d( 64*2, 64//2, 5, stride=2, padding=2, output_padding = 1 ), torch.nn.LeakyReLU(), #32x64x64, h3
