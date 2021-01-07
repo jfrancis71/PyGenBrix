@@ -25,12 +25,13 @@ class BaseVAE(nn.Module):
 
     def log_prob( self, cx ):
         mu, logvar = self.encode( cx )
-        z = torch.distributions.normal.Normal( mu, torch.exp( 0.5*logvar ) ).rsample()
+        sigma = torch.exp( 0.5 * logvar ) # or equivalently sqrt of exp(logvar)
+        z = torch.distributions.normal.Normal( loc = mu, scale = sigma ).rsample()
         decode_params = self.decode( z )
         recons_log_prob_dict = self.output_distribution_layer( decode_params ).log_prob( cx )
         kl_divergence = torch.sum(
             torch.distributions.kl.kl_divergence(
-                torch.distributions.Normal( loc = mu, scale = torch.exp( 0.5*logvar ) ),
+                torch.distributions.Normal( loc = mu, scale = sigma ),
 	        torch.distributions.Normal( loc = torch.zeros_like( mu ), scale = torch.ones_like( logvar ) ) ),
             dim = ( 1 ) )
         total_log_prob = recons_log_prob_dict["log_prob"] - kl_divergence
