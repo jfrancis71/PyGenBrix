@@ -36,8 +36,8 @@ class IndependentBernoulliDistribution():
 #Quantizes real number in interval [0,1] into 10 buckets
 class IndependentQuantizedDistribution():
     def __init__( self, logits ):
-        reshaped_logits = torch.reshape( logits, ( logits.shape[0], logits.shape[1]//10, 10, logits.shape[2], logits.shape[3] ) )
-        reshaped_logits = reshaped_logits.permute( ( 0, 1, 3, 4, 2 ) )
+        reshaped_logits = torch.reshape( logits, ( logits.shape[0], logits.shape[1]//10, 10, logits.shape[2], logits.shape[3] ) ) # [ B, C, 10, Y, X ]
+        reshaped_logits = reshaped_logits.permute( ( 0, 1, 3, 4, 2 ) ) # [ B, C, Y, X, 10 ]
         self.dist = torch.distributions.Independent( torch.distributions.Categorical( logits = reshaped_logits ), reinterpreted_batch_ndims = 3 )
 
     def log_prob( self, samples ):
