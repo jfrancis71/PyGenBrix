@@ -147,5 +147,5 @@ class YZVAE( BaseVAE ):
                 torch.nn.ConvTranspose2d( 256, 64*2, 5, stride=2, padding= 2, output_padding=1 ), torch.nn.LeakyReLU(), #128x32x32, h2
                 torch.nn.ConvTranspose2d( 64*2, 64//2, 5, stride=2, padding=2, output_padding = 1 ), torch.nn.LeakyReLU(), #32x64x64, h3
                 torch.nn.ConvTranspose2d( 64//2, output_distribution_layer.params_size( 3 ), 5, stride=1, padding=2, output_padding = 0 ), torch.nn.LeakyReLU(), #h4
-#               torch.nn.ConvTranspose2d( 64, output_distribution_layer.params_size( 3 ), 5, stride=1, padding=2 ), torch.nn.LeakyReLU(),
+#               torch.nn.ConvTranspose2d( 64, output_distribution_layer.params_size( 3 ), 5, stride=1, padding=2 )
             )
