@@ -64,25 +64,25 @@ class UpsamplerDistribution( nn.Module ):
 
         return logging_dict
 
+#Note, alters samples
+    def sample_block( self, samples, slice_h, slice_w ):
+        for channel in range( self.num_channels ):
+            network_input = torch.cat( ( samples, self.distribution_params ), dim = 1 )
+            output_distribution_params = self.parallelcnns[ channel ][ 0 ]( network_input )
+            samples[:,channel,slice_h,slice_w] = self.output_distribution( output_distribution_params ).sample()[:,0,slice_h,slice_w]
+
     def sample( self ):
         samples = torch.tensor( np.zeros( [ self.downsampled_images.shape[0], self.downsampled_images.shape[1], self.downsampled_images.shape[2]*2, self.downsampled_images.shape[3]*2 ] ).astype( np.float32 ) ).to( self.device )
         samples[:,:,::2,::2] += self.downsampled_images
-        no_channels = len( self.parallelcnns )
+
         #predict all odd pixels
-        for channel in range( no_channels ):
-            network_input = torch.cat( ( samples, self.distribution_params ), dim = 1 )
-            output_distribution_params = self.parallelcnns[ channel ][ 0 ]( network_input )
-            samples[:,channel,1::2,1::2] = self.output_distribution( output_distribution_params ).sample()[:,0,1::2,1::2]
+        self.sample_block( samples, slice( 1, None, 2), slice( 1, None, 2 ) )
+
         #predict all pixels even row, odd column
-        for channel in range( no_channels ):
-            network_input = torch.cat( ( samples, self.distribution_params ), dim = 1 )
-            output_distribution_params = self.parallelcnns[ channel ][ 1 ]( network_input )
-            samples[:,channel,::2,1::2] = self.output_distribution( output_distribution_params ).sample()[:,0,::2,1::2]
+        self.sample_block( samples, slice( 0, None, 2), slice( 1, None, 2 ) )
+
         #predict all pixels odd row, even column
-        for channel in range( no_channels ):
-            network_input = torch.cat( ( samples, self.distribution_params ), dim = 1 )
-            output_distribution_params = self.parallelcnns[ channel ][ 2 ]( network_input )
-            samples[:,channel,1::2,::2] = self.output_distribution( output_distribution_params ).sample()[:,0,1::2,::2]
+        self.sample_block( samples, slice( 1, None, 2), slice( 0, None, 2 ) )
 
         return samples
 
