@@ -11,6 +11,17 @@ class UpsamplerDistribution( nn.Module ):
         self.output_distribution = output_distribution
         self.downsampled_images = downsampled_images
         self.device = downsampled_images.device
+        self.num_channels = len( self.parallelcnns )
+
+#Note this will alter allowed_information
+    def log_prob_block( self, upsampled_images, allowed_information, slice_h, slice_w ):
+        block_log_prob = 0.0
+        for channel in range( self.num_channels ):
+            network_input = torch.cat( ( allowed_information, self.distribution_params ), dim = 1 )
+            output_distribution_params = self.parallelcnns[ channel ][ 0 ]( network_input )
+            block_log_prob += self.output_distribution( output_distribution_params[:,:,1::2,1::2] ).log_prob( upsampled_images[:,channel:channel+1,1::2,1::2] )["log_prob"]
+            allowed_information[:,channel,1::2,1::2] += upsampled_images[:,channel,1::2,1::2]
+        return block_log_prob
 
 #Compute the log prob of samples conditioned on even pixels (where pixels counts from 0)
 #but excluding the log prob of the even pixels themselves
@@ -33,35 +44,19 @@ class UpsamplerDistribution( nn.Module ):
         output_log_prob = 0.0
         allowed_information = 0.0 * upsampled_images
         allowed_information[:,:,::2,::2] += upsampled_images[:,:,::2,::2]
-        no_channels = len( self.parallelcnns )
 
         #predict all odd pixels
-        block_log_prob = 0.0
-        for channel in range( no_channels ):
-            network_input = torch.cat( ( allowed_information, self.distribution_params ), dim = 1 )
-            output_distribution_params = self.parallelcnns[ channel ][ 0 ]( network_input )
-            block_log_prob += self.output_distribution( output_distribution_params[:,:,1::2,1::2] ).log_prob( upsampled_images[:,channel:channel+1,1::2,1::2] )["log_prob"]
-            allowed_information[:,channel,1::2,1::2] += upsampled_images[:,channel,1::2,1::2]
+        block_log_prob = self.log_prob_block( upsampled_images, allowed_information, slice(1,None,2), slice(1,None,2) )
         logging_dict["block1_log_prob"] = block_log_prob
         output_log_prob += block_log_prob
 
         #predict all pixels even row, odd column
-        block_log_prob = 0.0
-        for channel in range( no_channels ):
-            network_input = torch.cat( ( allowed_information, self.distribution_params ), dim = 1 )
-            output_distribution_params = self.parallelcnns[ channel ][ 1 ]( network_input )
-            block_log_prob += self.output_distribution( output_distribution_params[:,:,::2,1::2] ).log_prob( upsampled_images[:,channel:channel+1,::2,1::2] )["log_prob"]
-            allowed_information[:,channel,::2,1::2] += upsampled_images[:,channel,::2,1::2]
+        block_log_prob = self.log_prob_block( upsampled_images, allowed_information, slice(0,None,2), slice(1,None,2) )
         logging_dict["block2_log_prob"] = block_log_prob
         output_log_prob += block_log_prob
 
         #predict all pixels odd row, even column
-        block_log_prob = 0.0
-        for channel in range( no_channels ):
-            network_input = torch.cat( ( allowed_information, self.distribution_params ), dim = 1 )
-            output_distribution_params = self.parallelcnns[ channel ][ 2 ]( network_input )
-            block_log_prob += self.output_distribution( output_distribution_params[:,:,1::2,::2] ).log_prob( upsampled_images[:,channel:channel+1,1::2,::2] )["log_prob"]
-            allowed_information[:,channel,1::2,::2] += upsampled_images[:,channel,1::2,::2]
+        block_log_prob = self.log_prob_block( upsampled_images, allowed_information, slice(1,None,2), slice(0,None,2) )
         logging_dict["block3_log_prob"] = block_log_prob
         output_log_prob += block_log_prob
 
