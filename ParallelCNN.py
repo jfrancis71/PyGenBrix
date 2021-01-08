@@ -4,64 +4,64 @@ import numpy as np
 import pl_bolts.models.vision.unet as plt_unet
 
 class UpsamplerDistribution( nn.Module ):
-    def __init__( self, output_distribution, input_low_res_image, logits, parallelcnns ):
+    def __init__( self, output_distribution, downsampled_images, distribution_params, parallelcnns ):
         super( UpsamplerDistribution, self ).__init__()
-        self.logits = logits
+        self.distribution_params = distribution_params
         self.parallelcnns = parallelcnns
         self.output_distribution = output_distribution
-        self.input_low_res_image = input_low_res_image
-        self.device = input_low_res_image.device
+        self.downsampled_images = downsampled_images
+        self.device = downsampled_images.device
 
 #Compute the log prob of samples conditioned on even pixels (where pixels counts from 0)
 #but excluding the log prob of the even pixels themselves
 #note samples will have double the spatial resolution of input_low_res_image
-    def log_prob( self, samples ):
-        assert( 2*self.input_low_res_image.shape[3] == samples.shape[3] )
-        if (samples.shape[0] != self.logits.shape[0]):
+    def log_prob( self, upsampled_images ):
+        assert( 2*self.downsampled_images.shape[3] == upsampled_images.shape[3] )
+        if (upsampled_images.shape[0] != self.distribution_params.shape[0]):
             raise TypeError("samples batch size {}, but logits has batch size {}"
-                            .format( samples.shape[0], self.logits.shape[0] ) )
-        if (samples.shape[2:4] != self.logits.shape[2:4]):
-            raise TypeError("samples spatial shape  {}, but logits has spatial shape {}"
-                            .format( samples.shape[2:4], self.logits.shape[2:4] ) )
-        if ( self.logits.shape[1] != 1 ):#MultiStateParallelConditionalCNN assumes logits has channel size 1
-            raise TypeError("conditional_inputs has channel size {}, but should be 1"
-                            .format( self.logits.shape[1] ) )
-        if ( samples[0,0,0,0] != self.input_low_res_image[0,0,0,0] ):
-            raise TypeError("The low res image doesn't appear to be the subsampled input sample")
+                            .format( upsampled_images.shape[0], self.distribution_params.shape[0] ) )
+        if (upsampled_images.shape[2:4] != self.distribution_params.shape[2:4]):
+            raise TypeError("upsampled_images spatial shape  {}, but distribution_params has spatial shape {}"
+                            .format( upsampled_images.shape[2:4], self.distribution_params.shape[2:4] ) )
+        if ( self.distribution_params.shape[1] != 1 ):#MultiStateParallelConditionalCNN assumes logits has channel size 1
+            raise TypeError("distribution_params has channel size {}, but should be 1"
+                            .format( self.distribution_params.shape[1] ) )
+        if ( upsampled_images[0,0,0,0] != self.downsampled_images[0,0,0,0] ):
+            raise TypeError("The downsampled image doesn't appear to be the subsampled upsampled image")
 
         logging_dict = {}
         output_log_prob = 0.0
-        allowed_information = 0.0 * samples
-        allowed_information[:,:,::2,::2] += samples[:,:,::2,::2]
+        allowed_information = 0.0 * upsampled_images
+        allowed_information[:,:,::2,::2] += upsampled_images[:,:,::2,::2]
         no_channels = len( self.parallelcnns )
 
         #predict all odd pixels
         block_log_prob = 0.0
         for channel in range( no_channels ):
-            network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
-            network_output_logits = self.parallelcnns[ channel ][ 0 ]( network_input )
-            block_log_prob += self.output_distribution( network_output_logits[:,:,1::2,1::2] ).log_prob( samples[:,channel:channel+1,1::2,1::2] )["log_prob"]
-            allowed_information[:,channel,1::2,1::2] += samples[:,channel,1::2,1::2]
+            network_input = torch.cat( ( allowed_information, self.distribution_params ), dim = 1 )
+            output_distribution_params = self.parallelcnns[ channel ][ 0 ]( network_input )
+            block_log_prob += self.output_distribution( output_distribution_params[:,:,1::2,1::2] ).log_prob( upsampled_images[:,channel:channel+1,1::2,1::2] )["log_prob"]
+            allowed_information[:,channel,1::2,1::2] += upsampled_images[:,channel,1::2,1::2]
         logging_dict["block1_log_prob"] = block_log_prob
         output_log_prob += block_log_prob
 
         #predict all pixels even row, odd column
         block_log_prob = 0.0
         for channel in range( no_channels ):
-            network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
-            network_output_logits = self.parallelcnns[ channel ][ 1 ]( network_input )
-            block_log_prob += self.output_distribution( network_output_logits[:,:,::2,1::2] ).log_prob( samples[:,channel:channel+1,::2,1::2] )["log_prob"]
-            allowed_information[:,channel,::2,1::2] += samples[:,channel,::2,1::2]
+            network_input = torch.cat( ( allowed_information, self.distribution_params ), dim = 1 )
+            output_distribution_params = self.parallelcnns[ channel ][ 1 ]( network_input )
+            block_log_prob += self.output_distribution( output_distribution_params[:,:,::2,1::2] ).log_prob( upsampled_images[:,channel:channel+1,::2,1::2] )["log_prob"]
+            allowed_information[:,channel,::2,1::2] += upsampled_images[:,channel,::2,1::2]
         logging_dict["block2_log_prob"] = block_log_prob
         output_log_prob += block_log_prob
 
         #predict all pixels odd row, even column
         block_log_prob = 0.0
         for channel in range( no_channels ):
-            network_input = torch.cat( ( allowed_information, self.logits ), dim = 1 )
-            network_output_logits = self.parallelcnns[ channel ][ 2 ]( network_input )
-            block_log_prob += self.output_distribution( network_output_logits[:,:,1::2,::2] ).log_prob( samples[:,channel:channel+1,1::2,::2] )["log_prob"]
-            allowed_information[:,channel,1::2,::2] += samples[:,channel,1::2,::2]
+            network_input = torch.cat( ( allowed_information, self.distribution_params ), dim = 1 )
+            output_distribution_params = self.parallelcnns[ channel ][ 2 ]( network_input )
+            block_log_prob += self.output_distribution( output_distribution_params[:,:,1::2,::2] ).log_prob( upsampled_images[:,channel:channel+1,1::2,::2] )["log_prob"]
+            allowed_information[:,channel,1::2,::2] += upsampled_images[:,channel,1::2,::2]
         logging_dict["block3_log_prob"] = block_log_prob
         output_log_prob += block_log_prob
 
@@ -70,24 +70,24 @@ class UpsamplerDistribution( nn.Module ):
         return logging_dict
 
     def sample( self ):
-        samples = torch.tensor( np.zeros( [ self.input_low_res_image.shape[0], self.input_low_res_image.shape[1], self.input_low_res_image.shape[2]*2, self.input_low_res_image.shape[3]*2 ] ).astype( np.float32 ) ).to( self.device )
-        samples[:,:,::2,::2] += self.input_low_res_image
+        samples = torch.tensor( np.zeros( [ self.downsampled_images.shape[0], self.downsampled_images.shape[1], self.downsampled_images.shape[2]*2, self.downsampled_images.shape[3]*2 ] ).astype( np.float32 ) ).to( self.device )
+        samples[:,:,::2,::2] += self.downsampled_images
         no_channels = len( self.parallelcnns )
         #predict all odd pixels
         for channel in range( no_channels ):
-            network_input = torch.cat( ( samples, self.logits ), dim = 1 )
-            network_output_logits = self.parallelcnns[ channel ][ 0 ]( network_input )
-            samples[:,channel,1::2,1::2] = self.output_distribution( network_output_logits ).sample()[:,0,1::2,1::2]
+            network_input = torch.cat( ( samples, self.distribution_params ), dim = 1 )
+            output_distribution_params = self.parallelcnns[ channel ][ 0 ]( network_input )
+            samples[:,channel,1::2,1::2] = self.output_distribution( output_distribution_params ).sample()[:,0,1::2,1::2]
         #predict all pixels even row, odd column
         for channel in range( no_channels ):
-            network_input = torch.cat( ( samples, self.logits ), dim = 1 )
-            network_output_logits = self.parallelcnns[ channel ][ 1 ]( network_input )
-            samples[:,channel,::2,1::2] = self.output_distribution( network_output_logits ).sample()[:,0,::2,1::2]
+            network_input = torch.cat( ( samples, self.distribution_params ), dim = 1 )
+            output_distribution_params = self.parallelcnns[ channel ][ 1 ]( network_input )
+            samples[:,channel,::2,1::2] = self.output_distribution( output_distribution_params ).sample()[:,0,::2,1::2]
         #predict all pixels odd row, even column
         for channel in range( no_channels ):
-            network_input = torch.cat( ( samples, self.logits ), dim = 1 )
-            network_output_logits = self.parallelcnns[ channel ][ 2 ]( network_input )
-            samples[:,channel,1::2,::2] = self.output_distribution( network_output_logits ).sample()[:,0,1::2,::2]
+            network_input = torch.cat( ( samples, self.distribution_params ), dim = 1 )
+            output_distribution_params = self.parallelcnns[ channel ][ 2 ]( network_input )
+            samples[:,channel,1::2,::2] = self.output_distribution( output_distribution_params ).sample()[:,0,1::2,::2]
 
         return samples
 
