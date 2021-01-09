@@ -14,13 +14,13 @@ class UpsamplerDistribution( nn.Module ):
         self.num_channels = len( self.parallelcnns )
 
 #Note this will alter allowed_information
-    def log_prob_block( self, upsampled_images, allowed_information, slice_h, slice_w ):
+    def log_prob_block( self, upsampled_images, allowed_information, block, slice_h, slice_w ):
         block_log_prob = 0.0
         for channel in range( self.num_channels ):
             network_input = torch.cat( ( allowed_information, self.distribution_params ), dim = 1 )
-            output_distribution_params = self.parallelcnns[ channel ][ 0 ]( network_input )
-            block_log_prob += self.output_distribution( output_distribution_params[:,:,1::2,1::2] ).log_prob( upsampled_images[:,channel:channel+1,1::2,1::2] )["log_prob"]
-            allowed_information[:,channel,1::2,1::2] += upsampled_images[:,channel,1::2,1::2]
+            output_distribution_params = self.parallelcnns[ channel ][ block ]( network_input )
+            block_log_prob += self.output_distribution( output_distribution_params[:,:,slice_h,slice_w] ).log_prob( upsampled_images[:,channel:channel+1,slice_h,slice_w] )["log_prob"]
+            allowed_information[:,channel,slice_h,slice_w] += upsampled_images[:,channel,slice_h,slice_w]
         return block_log_prob
 
 #Compute the log prob of samples conditioned on even pixels (where pixels counts from 0)
@@ -46,17 +46,17 @@ class UpsamplerDistribution( nn.Module ):
         allowed_information[:,:,::2,::2] += upsampled_images[:,:,::2,::2]
 
         #predict all odd pixels
-        block_log_prob = self.log_prob_block( upsampled_images, allowed_information, slice(1,None,2), slice(1,None,2) )
+        block_log_prob = self.log_prob_block( upsampled_images, allowed_information, 0, slice(1,None,2), slice(1,None,2) )
         logging_dict["block1_log_prob"] = block_log_prob
         output_log_prob += block_log_prob
 
         #predict all pixels even row, odd column
-        block_log_prob = self.log_prob_block( upsampled_images, allowed_information, slice(0,None,2), slice(1,None,2) )
+        block_log_prob = self.log_prob_block( upsampled_images, allowed_information, 1, slice(0,None,2), slice(1,None,2) )
         logging_dict["block2_log_prob"] = block_log_prob
         output_log_prob += block_log_prob
 
         #predict all pixels odd row, even column
-        block_log_prob = self.log_prob_block( upsampled_images, allowed_information, slice(1,None,2), slice(0,None,2) )
+        block_log_prob = self.log_prob_block( upsampled_images, allowed_information, 2, slice(1,None,2), slice(0,None,2) )
         logging_dict["block3_log_prob"] = block_log_prob
         output_log_prob += block_log_prob
 
@@ -65,10 +65,10 @@ class UpsamplerDistribution( nn.Module ):
         return logging_dict
 
 #Note, alters samples
-    def sample_block( self, samples, slice_h, slice_w ):
+    def sample_block( self, samples, block, slice_h, slice_w ):
         for channel in range( self.num_channels ):
             network_input = torch.cat( ( samples, self.distribution_params ), dim = 1 )
-            output_distribution_params = self.parallelcnns[ channel ][ 0 ]( network_input )
+            output_distribution_params = self.parallelcnns[ channel ][ block ]( network_input )
             samples[:,channel,slice_h,slice_w] = self.output_distribution( output_distribution_params ).sample()[:,0,slice_h,slice_w]
 
     def sample( self ):
@@ -76,13 +76,13 @@ class UpsamplerDistribution( nn.Module ):
         samples[:,:,::2,::2] += self.downsampled_images
 
         #predict all odd pixels
-        self.sample_block( samples, slice( 1, None, 2), slice( 1, None, 2 ) )
+        self.sample_block( samples, 0, slice( 1, None, 2), slice( 1, None, 2 ) )
 
         #predict all pixels even row, odd column
-        self.sample_block( samples, slice( 0, None, 2), slice( 1, None, 2 ) )
+        self.sample_block( samples, 1, slice( 0, None, 2), slice( 1, None, 2 ) )
 
         #predict all pixels odd row, even column
-        self.sample_block( samples, slice( 1, None, 2), slice( 0, None, 2 ) )
+        self.sample_block( samples, 2, slice( 1, None, 2), slice( 0, None, 2 ) )
 
         return samples
 
