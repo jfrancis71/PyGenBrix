@@ -1,7 +1,6 @@
 import torch.nn as nn
 import torch
 import numpy as np
-import torch.nn.functional as F
 import pl_bolts.models.vision.unet as plt_unet
 
 class UpsamplerDistribution( nn.Module ):
