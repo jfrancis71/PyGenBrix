@@ -25,7 +25,8 @@ def tank( speed, wheel ):
     global motord
     global wheel_status
 
-    print( " Start tank ", flush=True )
+    print( " Start tank, wheel =  ", wheel, " speed = ", speed, flush=True )
+    print( "Wheel ", wheel, " wheel_status ", wheel_status )
     if ( wheel != wheel_status ):
         if ( wheel == 1 ):
             print( "Starting wheel right", flush = True )
@@ -35,9 +36,12 @@ def tank( speed, wheel ):
             motorb.run_to_rel_pos( position_sp = -400, speed_sp = 400, stop_action = "hold" )
 
     print( "Completed wheel start", flush = True )
-    print( " Start  A", flush=True )
+    a_start = motora.position
+    a_start_sp = motora.position_sp
+    print( " Start  A current_pos = ", a_start, "sp=", a_start_sp, flush=True )
     motora.run_to_rel_pos( position_sp = -90*speed, speed_sp = 100, stop_action = "hold" )
-    print( " Finished  A Start", flush=True )
+    a_start_sp = motora.position_sp
+    print( " Finished  A Start", a_start_sp, flush=True )
     print( " Start  D", flush=True )
     motord.run_to_rel_pos( position_sp = -45 - 90*speed, speed_sp = 100, stop_action = "hold" )
     print( " Finished  D Start", flush=True )
