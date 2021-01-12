@@ -31,18 +31,19 @@ class IndependentBernoulliDistribution():
     def sample( self ):
         return self.dist.sample()
 
-#Quantizes real number in interval [0,1] into 10 buckets
+#Quantizes real number in interval [0,1] into Q buckets
 class IndependentQuantizedDistribution():
-    def __init__( self, logits ): #[ B, C, Y, X, 10 ]
+    def __init__( self, logits ): #[ B, C, Y, X, Q ]
         self.dist = torch.distributions.Independent( torch.distributions.Categorical( logits = logits ), reinterpreted_batch_ndims = 3 )
+        self.num_buckets = logits.shape[4]
 
     def log_prob( self, samples ):
-        quantized_samples = torch.clamp( (samples*10.0).floor(), 0, 9 )
+        quantized_samples = torch.clamp( ( samples*self.num_buckets ).floor(), 0, self.num_buckets-1 )
         log_prob = self.dist.log_prob( quantized_samples )
         return { "log_prob" : log_prob }
 
     def sample( self ):
-        return self.dist.sample()/10.0 + .05
+        return self.dist.sample()/self.num_buckets + 1.0/(self.num_buckets*2.0)
 
 class IndependentL2Layer( nn.Module ):
 
@@ -75,11 +76,14 @@ class IndependentNormalLayer( nn.Module ):
         return 2*channels
 
 class IndependentQuantizedLayer( nn.Module ):
+    def __init__( self, num_buckets = 8 ):
+        super( IndependentQuantizedLayer, self ).__init__()
+        self.num_buckets = num_buckets
 
     def forward( self, distribution_params ):
-        reshaped_logits = torch.reshape( distribution_params, ( distribution_params.shape[0], distribution_params.shape[1]//10, 10, distribution_params.shape[2], distribution_params.shape[3] ) ) # [ B, C, 10, Y, X ]
-        reshaped_logits = reshaped_logits.permute( ( 0, 1, 3, 4, 2 ) ) # [ B, C, Y, X, 10 ]
+        reshaped_logits = torch.reshape( distribution_params, ( distribution_params.shape[0], distribution_params.shape[1]//self.num_buckets, self.num_buckets, distribution_params.shape[2], distribution_params.shape[3] ) ) # [ B, C, 10, Y, X ]
+        reshaped_logits = reshaped_logits.permute( ( 0, 1, 3, 4, 2 ) ) # [ B, C, Y, X, Q ]
         return IndependentQuantizedDistribution( logits = reshaped_logits )
 
     def params_size( self, channels ):
-        return 10*channels
+        return self.num_buckets*channels
