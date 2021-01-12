@@ -126,7 +126,7 @@ class LightningTrainer( pl.LightningModule ):
 #To run a training session:
 #pl.Trainer( fast_dev_run = False, gpus=1 ).fit( Train.LightningTrainer( mymodel, dataset, Train.disp, batch_size = 16 ) )
 #To restore a training session:
-_ = Train.LightningTrainer.load_from_checkpoint("~/PyGenBrixProj/CelebA/lightning_logs/version_7/checkpoints/epoch=1-step=22793.ckpt", model = mymodel, dataset=celeba_dataset)
+#_ = Train.LightningTrainer.load_from_checkpoint("~/PyGenBrixProj/CelebA/lightning_logs/version_7/checkpoints/epoch=1-step=22793.ckpt", model = mymodel, dataset=celeba_dataset)
 
 # To train a conditional distribution:
 # mydist = Train.PyGenBrixModel( 
