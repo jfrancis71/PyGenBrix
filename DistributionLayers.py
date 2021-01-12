@@ -33,10 +33,8 @@ class IndependentBernoulliDistribution():
 
 #Quantizes real number in interval [0,1] into 10 buckets
 class IndependentQuantizedDistribution():
-    def __init__( self, logits ):
-        reshaped_logits = torch.reshape( logits, ( logits.shape[0], logits.shape[1]//10, 10, logits.shape[2], logits.shape[3] ) ) # [ B, C, 10, Y, X ]
-        reshaped_logits = reshaped_logits.permute( ( 0, 1, 3, 4, 2 ) ) # [ B, C, Y, X, 10 ]
-        self.dist = torch.distributions.Independent( torch.distributions.Categorical( logits = reshaped_logits ), reinterpreted_batch_ndims = 3 )
+    def __init__( self, logits ): #[ B, C, Y, X, 10 ]
+        self.dist = torch.distributions.Independent( torch.distributions.Categorical( logits = logits ), reinterpreted_batch_ndims = 3 )
 
     def log_prob( self, samples ):
         quantized_samples = torch.clamp( (samples*10.0).floor(), 0, 9 )
@@ -79,7 +77,9 @@ class IndependentNormalLayer( nn.Module ):
 class IndependentQuantizedLayer( nn.Module ):
 
     def forward( self, distribution_params ):
-        return IndependentQuantizedDistribution( logits = distribution_params )
+        reshaped_logits = torch.reshape( distribution_params, ( distribution_params.shape[0], distribution_params.shape[1]//10, 10, distribution_params.shape[2], distribution_params.shape[3] ) ) # [ B, C, 10, Y, X ]
+        reshaped_logits = reshaped_logits.permute( ( 0, 1, 3, 4, 2 ) ) # [ B, C, Y, X, 10 ]
+        return IndependentQuantizedDistribution( logits = reshaped_logits )
 
     def params_size( self, channels ):
         return 10*channels
