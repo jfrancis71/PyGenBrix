@@ -89,10 +89,10 @@ class UpsamplerDistribution( nn.Module ):
         return samples
 
 class MultiStageParallelCNNDistribution( nn.Module ):
-    def __init__( self, output_distribution, dims, base_parallel_nets, upsample_parallel_nets, num_upsampling_stages, distribution_params ):
+    def __init__( self, output_distribution, dims, base_parallel_nets, upsample_parallel_nets, distribution_params ):
         super( MultiStageParallelCNNDistribution, self ).__init__()
         self.output_distribution = output_distribution
-        self.num_upsampling_stages = num_upsampling_stages
+        self.num_upsampling_stages = len( upsample_parallel_nets, )
         self.distribution_params = distribution_params
         self.base_parallel_nets = base_parallel_nets
         self.upsample_parallel_nets = upsample_parallel_nets
@@ -164,7 +164,7 @@ class MultiStageParallelCNNLayer( nn.Module ):
         self.upsampler_nets = nn.ModuleList( upsampler_nets )
     
     def forward( self, x ):
-        return MultiStageParallelCNNDistribution( self.output_distribution, self.dims, self.base_nets, self.upsampler_nets, self.num_upsampling_stages, x )
+        return MultiStageParallelCNNDistribution( self.output_distribution, self.dims, self.base_nets, self.upsampler_nets, x )
 
     def params_size( self, channels ):
         return 1
