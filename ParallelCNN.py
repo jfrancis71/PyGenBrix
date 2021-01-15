@@ -157,7 +157,7 @@ class MultiStageParallelCNNLayer( nn.Module ):
             unet_num_layers = int( min( math.log( output_width ) + 1, max_unet_layers ) )
             upsampler_nets.append(
                 nn.ModuleList( [
-                    nn.ModuleList( [ plt_unet.UNet( num_distribution_params, input_channels = 1 + dims[0], num_layers = unet_num_layers ) for c in range(3) ] ) for s in range(dims[0]) ] ) )
+                    nn.ModuleList( [ plt_unet.UNet( num_distribution_params, input_channels = 1 + dims[0], num_layers = unet_num_layers ) for c in range(dims[0]) ] ) for s in range(3) ] ) )
         self.num_upsampling_stages = num_upsampling_stages
         self.output_distribution = output_distribution
         self.dims = dims
