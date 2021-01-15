@@ -30,7 +30,6 @@ class UpsamplerDistribution( nn.Module ):
         self.output_distribution = output_distribution
         self.downsampled_images = downsampled_images
         self.device = downsampled_images.device
-        self.num_channels = len( self.parallel_nets )
 
 #Compute the log prob of samples conditioned on even pixels (where pixels counts from 0)
 #but excluding the log prob of the even pixels themselves
@@ -50,26 +49,22 @@ class UpsamplerDistribution( nn.Module ):
             raise TypeError("The downsampled image doesn't appear to be the subsampled upsampled image")
 
         logging_dict = {}
-        log_prob = 0.0
         masked_value = torch.zeros_like( upsampled_images )
         masked_value[:,:,::2,::2] = upsampled_images[:,:,::2,::2]
 
         #predict all odd pixels
-        block_log_prob = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, masked_value, self.parallel_nets[0], slice(1,None,2), slice(1,None,2) )
-        logging_dict["block1_log_prob"] = block_log_prob
-        log_prob += block_log_prob
+        block_log_prob1 = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, masked_value, self.parallel_nets[0], slice(1,None,2), slice(1,None,2) )
+        logging_dict["block1_log_prob"] = block_log_prob1
 
         #predict all pixels even row, odd column
-        block_log_prob = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, masked_value, self.parallel_nets[1], slice(0,None,2), slice(1,None,2) )
-        logging_dict["block2_log_prob"] = block_log_prob
-        log_prob += block_log_prob
+        block_log_prob2 = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, masked_value, self.parallel_nets[1], slice(0,None,2), slice(1,None,2) )
+        logging_dict["block2_log_prob"] = block_log_prob2
 
         #predict all pixels odd row, even column
-        block_log_prob = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, masked_value, self.parallel_nets[2], slice(1,None,2), slice(0,None,2) )
-        logging_dict["block3_log_prob"] = block_log_prob
-        log_prob += block_log_prob
+        block_log_prob3 = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, masked_value, self.parallel_nets[2], slice(1,None,2), slice(0,None,2) )
+        logging_dict["block3_log_prob"] = block_log_prob3
 
-        logging_dict["log_prob"] = log_prob
+        logging_dict["log_prob"] = block_log_prob1 + block_log_prob2 + block_log_prob3
 
         return logging_dict
 
@@ -106,9 +101,8 @@ class ParallelCNNDistribution( nn.Module ):
         
         log_prob = 0.0
         masked_value = torch.zeros_like( base_samples )
-        num_channels = len( self.base_parallel_nets )
-        #predict all even pixels
 
+        #predict all even pixels
         log_prob = log_prob_block( base_samples, self.output_distribution, base_distribution_params, masked_value, self.base_parallel_nets, slice( 0, None, 2), slice( 0, None, 2 ) )
         logging_dict["base_log_prob"] = log_prob.clone()
             
@@ -129,7 +123,6 @@ class ParallelCNNDistribution( nn.Module ):
         return logging_dict
     
     def sample( self ):
-        num_channels = len( self.base_parallel_nets )
         sample = torch.zeros( [ self.distribution_params.shape[0], self.dims[0], self.dims[1]//2**self.num_upsampling_stages, self.dims[2]//2**self.num_upsampling_stages ], device = self.distribution_params.device )
         base_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
         sample_block( sample, self.output_distribution, base_distribution_params, self.base_parallel_nets, slice( 0, None, 2), slice( 0, None, 2 ) )
