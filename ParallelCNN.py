@@ -5,14 +5,14 @@ import numpy as np
 import pl_bolts.models.vision.unet as plt_unet
 
 
-#Note this will alter allowed_information
-def log_prob_block( upsampled_images, output_distribution, distribution_params, allowed_information, block_parallel_cnns, slice_h, slice_w ):
+#Note this will alter masked_value
+def log_prob_block( upsampled_images, output_distribution, distribution_params, masked_value, block_parallel_cnns, slice_h, slice_w ):
     block_log_prob = 0.0
     for channel in range( len( block_parallel_cnns ) ):
-        network_input = torch.cat( ( allowed_information, distribution_params ), dim = 1 )
+        network_input = torch.cat( ( masked_value, distribution_params ), dim = 1 )
         output_distribution_params = block_parallel_cnns[ channel ]( network_input )
         block_log_prob += output_distribution( output_distribution_params[:,:,slice_h,slice_w] ).log_prob( upsampled_images[:,channel:channel+1,slice_h,slice_w] )["log_prob"]
-        allowed_information[:,channel,slice_h,slice_w] = upsampled_images[:,channel,slice_h,slice_w]
+        masked_value[:,channel,slice_h,slice_w] = upsampled_images[:,channel,slice_h,slice_w]
     return block_log_prob
 
 #Note, alters samples
@@ -23,14 +23,14 @@ def sample_block( samples, output_distribution, distribution_params, block_paral
         samples[:,channel,slice_h,slice_w] = output_distribution( output_distribution_params ).sample()[:,0,slice_h,slice_w]
 
 class UpsamplerDistribution( nn.Module ):
-    def __init__( self, output_distribution, downsampled_images, distribution_params, parallelcnns ):
+    def __init__( self, output_distribution, downsampled_images, distribution_params, parallel_nets ):
         super( UpsamplerDistribution, self ).__init__()
         self.distribution_params = distribution_params
-        self.parallelcnns = parallelcnns
+        self.parallel_nets = parallel_nets
         self.output_distribution = output_distribution
         self.downsampled_images = downsampled_images
         self.device = downsampled_images.device
-        self.num_channels = len( self.parallelcnns )
+        self.num_channels = len( self.parallel_nets )
 
 #Compute the log prob of samples conditioned on even pixels (where pixels counts from 0)
 #but excluding the log prob of the even pixels themselves
@@ -51,21 +51,21 @@ class UpsamplerDistribution( nn.Module ):
 
         logging_dict = {}
         log_prob = 0.0
-        allowed_information = 0.0 * upsampled_images
-        allowed_information[:,:,::2,::2] = upsampled_images[:,:,::2,::2]
+        masked_value = torch.zeros_like( upsampled_images )
+        masked_value[:,:,::2,::2] = upsampled_images[:,:,::2,::2]
 
         #predict all odd pixels
-        block_log_prob = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, allowed_information, self.parallelcnns[0], slice(1,None,2), slice(1,None,2) )
+        block_log_prob = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, masked_value, self.parallel_nets[0], slice(1,None,2), slice(1,None,2) )
         logging_dict["block1_log_prob"] = block_log_prob
         log_prob += block_log_prob
 
         #predict all pixels even row, odd column
-        block_log_prob = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, allowed_information, self.parallelcnns[1], slice(0,None,2), slice(1,None,2) )
+        block_log_prob = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, masked_value, self.parallel_nets[1], slice(0,None,2), slice(1,None,2) )
         logging_dict["block2_log_prob"] = block_log_prob
         log_prob += block_log_prob
 
         #predict all pixels odd row, even column
-        block_log_prob = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, allowed_information, self.parallelcnns[2], slice(1,None,2), slice(0,None,2) )
+        block_log_prob = log_prob_block( upsampled_images, self.output_distribution, self.distribution_params, masked_value, self.parallel_nets[2], slice(1,None,2), slice(0,None,2) )
         logging_dict["block3_log_prob"] = block_log_prob
         log_prob += block_log_prob
 
@@ -74,51 +74,50 @@ class UpsamplerDistribution( nn.Module ):
         return logging_dict
 
     def sample( self ):
-        samples = torch.zeros( [ self.downsampled_images.shape[0], self.downsampled_images.shape[1], self.downsampled_images.shape[2]*2, self.downsampled_images.shape[3]*2 ] ).to( self.device )
+        samples = torch.zeros( [ self.downsampled_images.shape[0], self.downsampled_images.shape[1], self.downsampled_images.shape[2]*2, self.downsampled_images.shape[3]*2 ], device = self.device )
         samples[:,:,::2,::2] = self.downsampled_images
 
         #predict all odd pixels
-        sample_block( samples, self.output_distribution, self.distribution_params, self.parallelcnns[0], slice( 1, None, 2), slice( 1, None, 2 ) )
+        sample_block( samples, self.output_distribution, self.distribution_params, self.parallel_nets[0], slice( 1, None, 2), slice( 1, None, 2 ) )
 
         #predict all pixels even row, odd column
-        sample_block( samples, self.output_distribution, self.distribution_params, self.parallelcnns[1], slice( 0, None, 2), slice( 1, None, 2 ) )
+        sample_block( samples, self.output_distribution, self.distribution_params, self.parallel_nets[1], slice( 0, None, 2), slice( 1, None, 2 ) )
 
         #predict all pixels odd row, even column
-        sample_block( samples, self.output_distribution, self.distribution_params, self.parallelcnns[2], slice( 1, None, 2), slice( 0, None, 2 ) )
+        sample_block( samples, self.output_distribution, self.distribution_params, self.parallel_nets[2], slice( 1, None, 2), slice( 0, None, 2 ) )
 
         return samples
 
 class MultiStageParallelCNNDistribution( nn.Module ):
-    def __init__( self, output_distribution, dims, bottom_parallelcnns, upsample_parallelcnns, num_upsampling_stages, distribution_params ):
+    def __init__( self, output_distribution, dims, base_parallel_nets, upsample_parallel_nets, num_upsampling_stages, distribution_params ):
         super( MultiStageParallelCNNDistribution, self ).__init__()
         self.output_distribution = output_distribution
         self.num_upsampling_stages = num_upsampling_stages
         self.distribution_params = distribution_params
-#        self.bottom_level_dims = 2*dims[1]//(2**num_upsampling_stages)
-        self.bottom_parallelcnns = bottom_parallelcnns
-        self.upsample_parallelcnns = upsample_parallelcnns
+        self.base_parallel_nets = base_parallel_nets
+        self.upsample_parallel_nets = upsample_parallel_nets
         self.dims = dims
 
-    def log_prob( self, samples ):
-        bottom_samples = samples[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
-        bottom_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
+    def log_prob( self, value ):
+        base_samples = value[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
+        base_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
 
         logging_dict = {}
         
         log_prob = 0.0
-        allowed_information = 0.0 * bottom_samples
-        num_channels = len( self.bottom_parallelcnns )
+        masked_value = torch.zeros_like( base_samples )
+        num_channels = len( self.base_parallel_nets )
         #predict all even pixels
 
-        log_prob = log_prob_block( bottom_samples, self.output_distribution, bottom_distribution_params, allowed_information, self.bottom_parallelcnns, slice( 0, None, 2), slice( 0, None, 2 ) )
+        log_prob = log_prob_block( base_samples, self.output_distribution, base_distribution_params, masked_value, self.base_parallel_nets, slice( 0, None, 2), slice( 0, None, 2 ) )
         logging_dict["base_log_prob"] = log_prob.clone()
             
         for level in range( self.num_upsampling_stages ):
             upsample_log_prob_dict = UpsamplerDistribution(
                 self.output_distribution,
-                samples[:,:,::2**(self.num_upsampling_stages-level),::2**(self.num_upsampling_stages-level)],
+                value[:,:,::2**(self.num_upsampling_stages-level),::2**(self.num_upsampling_stages-level)],
                 self.distribution_params[:,:,::2**(self.num_upsampling_stages-level-1),::2**(self.num_upsampling_stages-level-1)],
-                self.upsample_parallelcnns[ level ] ).log_prob( samples[:,:,::2**(self.num_upsampling_stages-level-1),::2**(self.num_upsampling_stages-level-1)] )
+                self.upsample_parallel_nets[ level ] ).log_prob( value[:,:,::2**(self.num_upsampling_stages-level-1),::2**(self.num_upsampling_stages-level-1)] )
             logging_dict["upsample_level_"+str(level)+"/block1_log_prob"] = upsample_log_prob_dict["block1_log_prob"]
             logging_dict["upsample_level_"+str(level)+"/block2_log_prob"] = upsample_log_prob_dict["block2_log_prob"]
             logging_dict["upsample_level_"+str(level)+"/block3_log_prob"] = upsample_log_prob_dict["block3_log_prob"]
@@ -130,31 +129,31 @@ class MultiStageParallelCNNDistribution( nn.Module ):
         return logging_dict
     
     def sample( self ):
-        num_channels = len( self.bottom_parallelcnns )
-        sample = torch.zeros( [ self.distribution_params.shape[0], self.dims[0], self.dims[1]//2**self.num_upsampling_stages, self.dims[2]//2**self.num_upsampling_stages ] ).to( self.distribution_params.device )
-        bottom_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
-        sample_block( sample, self.output_distribution, bottom_distribution_params, self.bottom_parallelcnns, slice( 0, None, 2), slice( 0, None, 2 ) )
+        num_channels = len( self.base_parallel_nets )
+        sample = torch.zeros( [ self.distribution_params.shape[0], self.dims[0], self.dims[1]//2**self.num_upsampling_stages, self.dims[2]//2**self.num_upsampling_stages ], device = self.distribution_params.device )
+        base_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
+        sample_block( sample, self.output_distribution, base_distribution_params, self.base_parallel_nets, slice( 0, None, 2), slice( 0, None, 2 ) )
             
         for level in range( self.num_upsampling_stages ):
             sample = UpsamplerDistribution(
                 self.output_distribution,
                 sample,
                 self.distribution_params[:,:,::2**(self.num_upsampling_stages-level-1),::2**(self.num_upsampling_stages-level-1)],
-                self.upsample_parallelcnns[ level ] ).sample()
+                self.upsample_parallel_nets[ level ] ).sample()
             
         return sample
 
 class MultiStageParallelCNNLayer( nn.Module ):
     def __init__( self, dims, output_distribution, num_upsampling_stages, max_unet_layers = 3 ):
         super( MultiStageParallelCNNLayer, self ).__init__()
-        bottom_width = dims[1]/2**num_upsampling_stages
+        base_width = dims[1]/2**num_upsampling_stages
         num_distribution_params = output_distribution.params_size( 1 )
-        unet_num_layers = int( min( math.log( bottom_width ) + 1, max_unet_layers ) )
-        self.bottom_net = nn.ModuleList( [ 
+        unet_num_layers = int( min( math.log( base_width ) + 1, max_unet_layers ) )
+        self.base_nets = nn.ModuleList( [ 
             plt_unet.UNet( num_classes = num_distribution_params, input_channels = 1 + dims[0], num_layers = unet_num_layers ) for c in range( dims[0] ) ] )
         upsampler_nets = []
         for l in range( num_upsampling_stages ):
-            output_width = bottom_width * 2**(l+1)
+            output_width = base_width * 2**(l+1)
             unet_num_layers = int( min( math.log( output_width ) + 1, max_unet_layers ) )
             upsampler_nets.append(
                 nn.ModuleList( [
@@ -164,8 +163,8 @@ class MultiStageParallelCNNLayer( nn.Module ):
         self.dims = dims
         self.upsampler_nets = nn.ModuleList( upsampler_nets )
     
-    def forward( self, distribution_params ):
-        return MultiStageParallelCNNDistribution( self.output_distribution, self.dims, self.bottom_net, self.upsampler_nets, self.num_upsampling_stages, distribution_params )
+    def forward( self, x ):
+        return MultiStageParallelCNNDistribution( self.output_distribution, self.dims, self.base_nets, self.upsampler_nets, self.num_upsampling_stages, x )
 
     def params_size( self, channels ):
         return 1
