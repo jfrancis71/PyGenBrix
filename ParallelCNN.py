@@ -92,10 +92,9 @@ class ParallelCNNDistribution( nn.Module ):
                 self.distribution_params[:,:,::level_subsample_rate,::level_subsample_rate],
                 self.upsample_parallel_nets[ level ] )
 
+            for k, v in upsample_log_prob_dict.items():
+                logging_dict["upsample_level_"+str(level)+"/"+k] = upsample_log_prob_dict[k]
 
-            for s in range(3):
-                logging_dict["upsample_level_"+str(level)+"/block"+str(s)+"_log_prob"] = upsample_log_prob_dict["block"+str(s)+"_log_prob"]
-            logging_dict["upsample_level_"+str(level)+"/log_prob"] = upsample_log_prob_dict["log_prob"]
             log_prob += upsample_log_prob_dict["log_prob"]
 
         logging_dict["log_prob"] = log_prob
