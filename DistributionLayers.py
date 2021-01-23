@@ -45,6 +45,49 @@ class IndependentQuantizedDistribution():
     def sample( self ):
         return self.dist.sample()/self.num_buckets + 1.0/(self.num_buckets*2.0)
 
+class IndependentQuantizedRealDistribution():
+    def __init__( self, logits ):
+        self.logits = logits
+
+    def base_log_prob( self, samples ):
+        logits_length = self.logits.shape[4]
+#        b1 = self.logits[:,:,:,:,0] * (samples > 0.5) + -self.logits[:,:,:,:,0] * ( samples <= 0.5 )
+        b1 = self.logits[:,:,:,:,0]
+        s = (samples > 0.5).float()
+        bit_log_prob = torch.distributions.Independent( torch.distributions.Bernoulli( logits = b1 ),
+            reinterpreted_batch_ndims = 3 ).log_prob( s )
+        if ( logits_length > 1):
+            rem = ( (samples <= 0.5)*samples + (samples > 0.5)*(samples-0.5) ) * 2.0
+            next_logits = torch.unsqueeze( ( samples <= 0.5 ), 4 )*self.logits[:,:,:,:,1:((logits_length-1)//2)+1] + \
+                torch.unsqueeze( ( samples > 0.5 ), 4 )*self.logits[:,:,:,:,((logits_length-1)//2)+1:]
+            bit_log_prob += IndependentQuantizedRealDistribution( next_logits ).base_log_prob( rem )
+        return bit_log_prob
+
+    def log_prob( self, samples ):
+        return { "log_prob" : self.base_log_prob( samples ) }
+
+    def base_sample( self ):
+        logits_length = self.logits.shape[4]
+        b1 = self.logits[:,:,:,:,0]
+        bit = torch.distributions.Independent( torch.distributions.Bernoulli( logits = b1 ),
+            reinterpreted_batch_ndims = 3 ).sample()
+#        print( "bit=", bit )
+        rem = 0.0
+        if ( logits_length > 1):
+            next_logits = torch.unsqueeze( ( bit < 0.5 ), 4 )*self.logits[:,:,:,:,1:((logits_length-1)//2)+1] + \
+                torch.unsqueeze( ( bit >= 0.5 ), 4 )*self.logits[:,:,:,:,((logits_length-1)//2)+1:]
+            rem = IndependentQuantizedRealDistribution( next_logits ).base_sample()
+#            print("received ", rem )
+        pow = bit * ((logits_length+1)//2)
+#        print( " pow = ", pow )
+        tot =  pow + rem
+#        print( " tot = ", tot )
+        return tot
+
+    def sample( self ):
+        #place our sample in the center of the bucket
+        return ( self.base_sample() / ( self.logits.shape[4] + 1 ) ) + 0.5 / ( self.logits.shape[4] + 1 )
+
 class IndependentL2Layer( nn.Module ):
 
     def forward( self, distribution_params ):
@@ -81,9 +124,22 @@ class IndependentQuantizedLayer( nn.Module ):
         self.num_buckets = num_buckets
 
     def forward( self, distribution_params ):
-        reshaped_logits = torch.reshape( distribution_params, ( distribution_params.shape[0], distribution_params.shape[1]//self.num_buckets, self.num_buckets, distribution_params.shape[2], distribution_params.shape[3] ) ) # [ B, C, 10, Y, X ]
+        reshaped_logits = torch.reshape( distribution_params, ( distribution_params.shape[0], distribution_params.shape[1]//self.num_buckets, self.num_buckets, distribution_params.shape[2], distribution_params.shape[3] ) ) # [ B, C, Q, Y, X ]
         reshaped_logits = reshaped_logits.permute( ( 0, 1, 3, 4, 2 ) ) # [ B, C, Y, X, Q ]
         return IndependentQuantizedDistribution( logits = reshaped_logits )
+
+    def params_size( self, channels ):
+        return self.num_buckets*channels
+
+class IndependentQuantizedRealLayer( nn.Module ):
+    def __init__( self, num_buckets = 8 ):
+        super( IndependentQuantizedRealLayer, self ).__init__()
+        self.num_buckets = num_buckets - 1#Consider renaming
+
+    def forward( self, distribution_params ):
+        reshaped_logits = torch.reshape( distribution_params, ( distribution_params.shape[0], distribution_params.shape[1]//self.num_buckets, self.num_buckets, distribution_params.shape[2], distribution_params.shape[3] ) ) # [ B, C, Q, Y, X ]
+        reshaped_logits = reshaped_logits.permute( ( 0, 1, 3, 4, 2 ) ) # [ B, C, Y, X, Q ]
+        return IndependentQuantizedRealDistribution( logits = reshaped_logits )
 
     def params_size( self, channels ):
         return self.num_buckets*channels
