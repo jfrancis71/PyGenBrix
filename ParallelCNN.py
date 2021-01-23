@@ -21,7 +21,7 @@ def delete_batch_norm_unet( unet ):
 
 
 class ParallelCNNDistribution( nn.Module ):
-    def __init__( self, output_distribution, dims, base_parallel_nets, upsample_parallel_nets, distribution_params ):
+    def __init__( self, output_distribution, event_shape, base_parallel_nets, upsample_parallel_nets, distribution_params ):
         super( ParallelCNNDistribution, self ).__init__()
         if ( distribution_params.shape[1] != 1 ):
             raise RuntimeError("distribution_params has channel size {}, but should be 1"
@@ -31,7 +31,7 @@ class ParallelCNNDistribution( nn.Module ):
         self.distribution_params = distribution_params
         self.base_parallel_nets = base_parallel_nets
         self.upsample_parallel_nets = upsample_parallel_nets
-        self.dims = dims
+        self.event_shape = event_shape
 
 
 #Note this will alter masked_value
@@ -80,9 +80,9 @@ class ParallelCNNDistribution( nn.Module ):
         if (value.size()[0] != self.distribution_params.size()[0]):
             raise RuntimeError("value batch size {}, but distribution_params has batch size {}"
                             .format( value.shape[0], self.distribution_params.shape[0] ) )
-        if (value.size()[1:4] != torch.Size( self.dims) ):
-            raise RuntimeError("value shape  {}, but dims has shape {}"
-                            .format( value.shape[1:4], self.dims ) )
+        if (value.size()[1:4] != torch.Size( self.event_shape) ):
+            raise RuntimeError("value shape  {}, but event_shape has shape {}"
+                            .format( value.shape[1:4], self.event_shape ) )
         base_samples = value[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
         base_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
 
@@ -112,7 +112,7 @@ class ParallelCNNDistribution( nn.Module ):
         return logging_dict
     
     def sample( self ):
-        sample = torch.zeros( [ self.distribution_params.shape[0], self.dims[0], self.dims[1]//2**self.num_upsampling_stages, self.dims[2]//2**self.num_upsampling_stages ], device = self.distribution_params.device )
+        sample = torch.zeros( [ self.distribution_params.shape[0], self.event_shape[0], self.event_shape[1]//2**self.num_upsampling_stages, self.event_shape[2]//2**self.num_upsampling_stages ], device = self.distribution_params.device )
         base_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
         self.sample_block( sample, base_distribution_params, self.base_parallel_nets, base_slice )
             
@@ -127,35 +127,35 @@ class ParallelCNNDistribution( nn.Module ):
         return sample
 
 class ParallelCNNLayer( nn.Module ):
-    def __init__( self, dims, output_distribution, num_upsampling_stages, max_unet_layers = 3, batch = True ):
+    def __init__( self, event_shape, output_distribution, num_upsampling_stages, max_unet_layers = 3, batch = True ):
         super( ParallelCNNLayer, self ).__init__()
-        base_width = dims[1]/2**num_upsampling_stages
+        base_width = event_shape[1]/2**num_upsampling_stages
         num_distribution_params = output_distribution.params_size( 1 )
         unet_num_layers = int( min( math.log( base_width ) + 1, max_unet_layers ) )
         self.base_nets = nn.ModuleList( [ 
-            plt_unet.UNet( num_classes = num_distribution_params, input_channels = 1 + dims[0], num_layers = unet_num_layers ) for c in range( dims[0] ) ] )
+            plt_unet.UNet( num_classes = num_distribution_params, input_channels = 1 + event_shape[0], num_layers = unet_num_layers ) for c in range( event_shape[0] ) ] )
         upsampler_nets = []
         for l in range( num_upsampling_stages ):
             output_width = base_width * 2**(l+1)
             unet_num_layers = int( min( math.log( output_width ) + 1, max_unet_layers ) )
             upsampler_nets.append(
                 nn.ModuleList( [
-                    nn.ModuleList( [ plt_unet.UNet( num_distribution_params, input_channels = 1 + dims[0], num_layers = unet_num_layers ) for c in range(dims[0]) ] ) for s in range(3) ] ) )
+                    nn.ModuleList( [ plt_unet.UNet( num_distribution_params, input_channels = 1 + event_shape[0], num_layers = unet_num_layers ) for c in range(event_shape[0]) ] ) for s in range(3) ] ) )
         self.num_upsampling_stages = num_upsampling_stages
         self.output_distribution = output_distribution
-        self.dims = dims
         self.upsampler_nets = nn.ModuleList( upsampler_nets )
+        self.event_shape = event_shape
         if batch == False:
-            for c in range(dims[0]):
+            for c in range(event_shape[0]):
                 delete_batch_norm_unet( self.base_nets[c] )
             for l in range( num_upsampling_stages ):
-                for c in range( dims[0] ):
+                for c in range( event_shape[0] ):
                     for s in range( 3 ):
                         delete_batch_norm_unet( self.upsampler_nets[l][s][c] )
 
     
     def forward( self, x ):
-        return ParallelCNNDistribution( self.output_distribution, self.dims, self.base_nets, self.upsampler_nets, x )
+        return ParallelCNNDistribution( self.output_distribution, self.event_shape, self.base_nets, self.upsampler_nets, x )
 
     def params_size( self, channels ):
         return 1
