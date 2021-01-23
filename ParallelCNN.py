@@ -9,6 +9,16 @@ upsampling_slices = [ ( slice(1,None,2), slice(1,None,2) ),
     ( slice(0,None,2), slice(1,None,2) ),
     ( slice( 1, None, 2), slice( 0, None, 2 ) ) ]
 
+def delete_batch_norm_unet( unet ):
+    del unet.layers[0].net[1]
+    del unet.layers[0].net[3]
+    for l in range( 1, len( unet.layers )//2 ):
+        del unet.layers[l].net[1].net[1]
+        del unet.layers[l].net[1].net[3]
+    for l in range( (len( unet.layers )+1)//2, len( unet.layers )-1 ):
+        del unet.layers[l].conv.net[1]
+        del unet.layers[l].conv.net[3]       
+
 
 class ParallelCNNDistribution( nn.Module ):
     def __init__( self, output_distribution, dims, base_parallel_nets, upsample_parallel_nets, distribution_params ):
@@ -117,7 +127,7 @@ class ParallelCNNDistribution( nn.Module ):
         return sample
 
 class ParallelCNNLayer( nn.Module ):
-    def __init__( self, dims, output_distribution, num_upsampling_stages, max_unet_layers = 3 ):
+    def __init__( self, dims, output_distribution, num_upsampling_stages, max_unet_layers = 3, batch = True ):
         super( ParallelCNNLayer, self ).__init__()
         base_width = dims[1]/2**num_upsampling_stages
         num_distribution_params = output_distribution.params_size( 1 )
@@ -135,6 +145,14 @@ class ParallelCNNLayer( nn.Module ):
         self.output_distribution = output_distribution
         self.dims = dims
         self.upsampler_nets = nn.ModuleList( upsampler_nets )
+        if batch == False:
+            for c in range(dims[0]):
+                delete_batch_norm_unet( self.base_nets[c] )
+            for l in range( num_upsampling_stages ):
+                for c in range( dims[0] ):
+                    for s in range( 3 ):
+                        delete_batch_norm_unet( self.upsampler_nets[l][s][c] )
+
     
     def forward( self, x ):
         return ParallelCNNDistribution( self.output_distribution, self.dims, self.base_nets, self.upsampler_nets, x )
