@@ -46,12 +46,11 @@ class IndependentQuantizedDistribution():
         return self.dist.sample()/self.num_buckets + 1.0/(self.num_buckets*2.0)
 
 class IndependentQuantizedRealDistribution():
-    def __init__( self, logits ):
+    def __init__( self, logits ): #[ B, C, Y, X, Q ]
         self.logits = logits
 
     def base_log_prob( self, samples ):
         logits_length = self.logits.shape[4]
-#        b1 = self.logits[:,:,:,:,0] * (samples > 0.5) + -self.logits[:,:,:,:,0] * ( samples <= 0.5 )
         b1 = self.logits[:,:,:,:,0]
         s = (samples > 0.5).float()
         bit_log_prob = torch.distributions.Independent( torch.distributions.Bernoulli( logits = b1 ),
@@ -71,17 +70,13 @@ class IndependentQuantizedRealDistribution():
         b1 = self.logits[:,:,:,:,0]
         bit = torch.distributions.Independent( torch.distributions.Bernoulli( logits = b1 ),
             reinterpreted_batch_ndims = 3 ).sample()
-#        print( "bit=", bit )
         rem = 0.0
         if ( logits_length > 1):
             next_logits = torch.unsqueeze( ( bit < 0.5 ), 4 )*self.logits[:,:,:,:,1:((logits_length-1)//2)+1] + \
                 torch.unsqueeze( ( bit >= 0.5 ), 4 )*self.logits[:,:,:,:,((logits_length-1)//2)+1:]
             rem = IndependentQuantizedRealDistribution( next_logits ).base_sample()
-#            print("received ", rem )
         pow = bit * ((logits_length+1)//2)
-#        print( " pow = ", pow )
         tot =  pow + rem
-#        print( " tot = ", tot )
         return tot
 
     def sample( self ):
