@@ -21,9 +21,9 @@ def delete_batch_norm_unet( unet ):
 
 
 class ParallelCNNDistribution( nn.Module ):
-    def __init__( self, output_distribution, event_shape, base_parallel_nets, upsample_parallel_nets, distribution_params ):
+    def __init__( self, output_distribution_layer, event_shape, base_parallel_nets, upsample_parallel_nets, distribution_params ):
         super( ParallelCNNDistribution, self ).__init__()
-        self.output_distribution = output_distribution
+        self.output_distribution_layer = output_distribution_layer
         self.num_upsampling_stages = len( upsample_parallel_nets, )
         self.distribution_params = distribution_params
         self.base_parallel_nets = base_parallel_nets
@@ -37,7 +37,7 @@ class ParallelCNNDistribution( nn.Module ):
         for channel in range( len( block_parallel_cnns ) ):
             network_input = torch.cat( ( masked_value, distribution_params ), dim = 1 )
             output_distribution_params = block_parallel_cnns[ channel ]( network_input )
-            block_log_prob += self.output_distribution( output_distribution_params[:,:,slice[0],slice[1]] ).log_prob( upsampled_images[:,channel:channel+1,slice[0],slice[1]] )["log_prob"]
+            block_log_prob += self.output_distribution_layer( output_distribution_params[:,:,slice[0],slice[1]] ).log_prob( upsampled_images[:,channel:channel+1,slice[0],slice[1]] )["log_prob"]
             masked_value[:,channel,slice[0],slice[1]] = upsampled_images[:,channel,slice[0],slice[1]]
         return block_log_prob
 
@@ -46,7 +46,7 @@ class ParallelCNNDistribution( nn.Module ):
         for channel in range( len( block_parallel_cnns ) ):
             network_input = torch.cat( ( samples, distribution_params ), dim = 1 )
             output_distribution_params = block_parallel_cnns[ channel ]( network_input )
-            samples[:,channel,slice[0],slice[1]] = self.output_distribution( output_distribution_params ).sample()[:,0,slice[0],slice[1]]
+            samples[:,channel,slice[0],slice[1]] = self.output_distribution_layer( output_distribution_params ).sample()[:,0,slice[0],slice[1]]
 
     def upsampler_log_prob( self, value, distribution_params, parallel_cnns ):
 
@@ -124,10 +124,10 @@ class ParallelCNNDistribution( nn.Module ):
         return sample
 
 class ParallelCNNLayer( nn.Module ):
-    def __init__( self, event_shape, output_distribution, num_upsampling_stages, max_unet_layers = 3, params_size = 1, add_ones = True, batch = True ):
+    def __init__( self, event_shape, output_distribution_layer, num_upsampling_stages, max_unet_layers = 3, params_size = 1, add_ones = True, batch = True ):
         super( ParallelCNNLayer, self ).__init__()
         base_width = event_shape[1]/2**num_upsampling_stages
-        num_distribution_params = output_distribution.params_size( 1 )
+        num_distribution_params = output_distribution_layer.params_size( 1 )
         unet_num_layers = int( min( math.log( base_width ) + 1, max_unet_layers ) )
         input_channels = params_size + event_shape[0]
         if add_ones:
@@ -142,7 +142,7 @@ class ParallelCNNLayer( nn.Module ):
                 nn.ModuleList( [
                     nn.ModuleList( [ plt_unet.UNet( num_distribution_params, input_channels = input_channels, num_layers = unet_num_layers ) for c in range(event_shape[0]) ] ) for s in range(3) ] ) )
         self.num_upsampling_stages = num_upsampling_stages
-        self.output_distribution = output_distribution
+        self.output_distribution_layer = output_distribution_layer
         self.upsampler_nets = nn.ModuleList( upsampler_nets )
         self.event_shape = event_shape
         self.params_size = params_size
@@ -162,7 +162,7 @@ class ParallelCNNLayer( nn.Module ):
                             .format( x.shape[1], self.params_size ) )
         if ( self.add_ones ):
             x = torch.cat( [ torch.ones( [ x.shape[0], 1, x.shape[2], x.shape[3] ], device = x.device ), x ], dim = 1 )
-        return ParallelCNNDistribution( self.output_distribution, self.event_shape, self.base_nets, self.upsampler_nets, x )
+        return ParallelCNNDistribution( self.output_distribution_layer, self.event_shape, self.base_nets, self.upsampler_nets, x )
 
     def params_size( self, channels ):
         return self.params_size
