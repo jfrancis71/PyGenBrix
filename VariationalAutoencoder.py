@@ -1,5 +1,6 @@
-import torch.nn as nn
 import torch
+import torch.nn as nn
+
 
 class BaseVAE(nn.Module):
     """
@@ -10,6 +11,7 @@ class BaseVAE(nn.Module):
     to train:
     Train.train( mymodel, mnist, batch_size = 32 )
     """
+
     def __init__( self, output_distribution_layer ):
         super(BaseVAE, self).__init__()
         self.output_distribution_layer = output_distribution_layer
@@ -54,6 +56,7 @@ base_depth = 32
 
 #Model losely based on: https://colab.research.google.com/github/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_Layers_VAE.ipynb
 class MNISTVAE( BaseVAE ):
+
     def __init__( self, output_distribution_layer ):
         super( MNISTVAE, self ).__init__( output_distribution_layer )
         self.latents = 16
@@ -84,6 +87,7 @@ class MNISTVAE( BaseVAE ):
 
 #Model losely based on: https://colab.research.google.com/github/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_Layers_VAE.ipynb
 class SmallRGBVAE( BaseVAE ):
+
     def __init__( self, output_distribution_layer ):
         super( SmallRGBVAE, self ).__init__( output_distribution_layer )
         self.latents = 16
@@ -112,9 +116,11 @@ class SmallRGBVAE( BaseVAE ):
                 nn.Conv2d( base_depth, output_distribution_layer.params_size( 3 ), kernel_size=5, stride=1, padding=2 )
             )
 
+
 # 64x64x3 shaped model
 # Losely based on: https://github.com/yzwxx/vae-celebA/blob/master/model_vae.py
 class YZVAE( BaseVAE ):
+
     def __init__( self, output_distribution_layer ):
         super( YZVAE, self ).__init__( output_distribution_layer )
         self.latents = 512

@@ -1,13 +1,16 @@
 import math
-import torch.nn as nn
-import torch
+
 import numpy as np
+import torch
+import torch.nn as nn
 import pl_bolts.models.vision.unet as plt_unet
+
 
 base_slice = ( slice( 0, None, 2), slice( 0, None, 2 ) )
 upsampling_slices = [ ( slice(1,None,2), slice(1,None,2) ),
     ( slice(0,None,2), slice(1,None,2) ),
     ( slice( 1, None, 2), slice( 0, None, 2 ) ) ]
+
 
 def delete_batch_norm_unet( unet ):
     del unet.layers[0].net[1]
@@ -21,6 +24,7 @@ def delete_batch_norm_unet( unet ):
 
 
 class ParallelCNNDistribution( nn.Module ):
+
     def __init__( self, output_distribution_layer, event_shape, base_parallel_nets, upsample_parallel_nets, distribution_params ):
         super( ParallelCNNDistribution, self ).__init__()
         self.output_distribution_layer = output_distribution_layer
@@ -29,7 +33,6 @@ class ParallelCNNDistribution( nn.Module ):
         self.base_parallel_nets = base_parallel_nets
         self.upsample_parallel_nets = upsample_parallel_nets
         self.event_shape = event_shape
-
 
 #Note this will alter masked_value
     def log_prob_block( self, upsampled_images, distribution_params, masked_value, block_parallel_cnns, slice ):
@@ -49,7 +52,6 @@ class ParallelCNNDistribution( nn.Module ):
             samples[:,channel,slice[0],slice[1]] = self.output_distribution_layer( output_distribution_params ).sample()[:,0,slice[0],slice[1]]
 
     def upsampler_log_prob( self, value, distribution_params, parallel_cnns ):
-
         logging_dict = {}
         masked_value = torch.zeros_like( value )
         masked_value[:,:,base_slice[0],base_slice[1]] = value[:,:,base_slice[0],base_slice[1]]
@@ -58,20 +60,15 @@ class ParallelCNNDistribution( nn.Module ):
             block_log_prob = self.log_prob_block( value, distribution_params, masked_value, parallel_cnns[s], upsampling_slices[s] )
             logging_dict["block"+str(s)+"_log_prob"] = block_log_prob
             log_prob += block_log_prob
-
         logging_dict["log_prob"] = log_prob
-
         return logging_dict
 
     def upsampler_sample( self, downsampled_images, distribution_params, parallel_nets ):
         samples = torch.zeros( [ downsampled_images.shape[0], downsampled_images.shape[1], downsampled_images.shape[2]*2, downsampled_images.shape[3]*2 ], device = downsampled_images.device )
         samples[:,:,base_slice[0],base_slice[1]] = downsampled_images
-
         for s in range(3):
             self.sample_block( samples, distribution_params, parallel_nets[s], upsampling_slices[s] )
-
         return samples
-
 
     def log_prob( self, value ):
         if (value.size()[0] != self.distribution_params.size()[0]):
@@ -82,48 +79,40 @@ class ParallelCNNDistribution( nn.Module ):
                             .format( value.shape[1:4], self.event_shape ) )
         base_samples = value[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
         base_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
-
         logging_dict = {}
-        
         log_prob = 0.0
         masked_value = torch.zeros_like( base_samples )
 
         #predict all base pixels
         log_prob = self.log_prob_block( base_samples, base_distribution_params, masked_value, self.base_parallel_nets, base_slice )
         logging_dict["base_log_prob"] = log_prob.clone()
-            
         for level in range( self.num_upsampling_stages ):
             level_subsample_rate = 2**(self.num_upsampling_stages-level - 1)
             upsample_log_prob_dict = self.upsampler_log_prob(
                 value[:,:,::level_subsample_rate,::level_subsample_rate],
                 self.distribution_params[:,:,::level_subsample_rate,::level_subsample_rate],
                 self.upsample_parallel_nets[ level ] )
-
             for k, v in upsample_log_prob_dict.items():
                 logging_dict["upsample_level_"+str(level)+"/"+k] = upsample_log_prob_dict[k]
-
             log_prob += upsample_log_prob_dict["log_prob"]
-
         logging_dict["log_prob"] = log_prob
-            
         return logging_dict
     
     def sample( self ):
         sample = torch.zeros( [ self.distribution_params.shape[0], self.event_shape[0], self.event_shape[1]//2**self.num_upsampling_stages, self.event_shape[2]//2**self.num_upsampling_stages ], device = self.distribution_params.device )
         base_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
         self.sample_block( sample, base_distribution_params, self.base_parallel_nets, base_slice )
-            
         for level in range( self.num_upsampling_stages ):
-
             level_subsample_rate = 2**(self.num_upsampling_stages-level - 1)
             sample = self.upsampler_sample(
                 sample,
                 self.distribution_params[:,:,::level_subsample_rate,::level_subsample_rate],
                 self.upsample_parallel_nets[ level ] )
-            
         return sample
 
+
 class ParallelCNNLayer( nn.Module ):
+
     def __init__( self, event_shape, output_distribution_layer, num_upsampling_stages, max_unet_layers = 3, params_size = 1, add_ones = True, batch = True ):
         super( ParallelCNNLayer, self ).__init__()
         base_width = event_shape[1]/2**num_upsampling_stages
@@ -155,7 +144,6 @@ class ParallelCNNLayer( nn.Module ):
                     for s in range( 3 ):
                         delete_batch_norm_unet( self.upsampler_nets[l][s][c] )
 
-    
     def forward( self, x ):
         if ( x.shape[1] != self.params_size ):
             raise RuntimeError("distribution_params has channel size {}, but should be {}"

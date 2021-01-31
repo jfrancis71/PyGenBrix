@@ -1,16 +1,21 @@
-import torch.nn as nn
 import torch
+import torch.nn as nn
+
 
 class IndependentNormalDistribution():
+
     def __init__( self, loc, scale ):
         self.dist = torch.distributions.Independent( torch.distributions.Normal( loc = loc, scale = scale ), reinterpreted_batch_ndims = 3 )
+
     def log_prob( self, samples ):
         return { "log_prob" : self.dist.log_prob( samples ) }
 
     def sample( self ):
         return self.dist.sample()
 
+
 class IndependentL2Distribution():
+
     def __init__( self, loc ):
         self.dist = torch.distributions.Independent( torch.distributions.Normal( loc = loc, scale = torch.ones( loc.shape ) ), reinterpreted_batch_ndims = 3 )
 
@@ -22,17 +27,22 @@ class IndependentL2Distribution():
 #where they return the mean as opposed to sampling from the normal distribution with variance 1.
         return self.loc
 
+
 class IndependentBernoulliDistribution():
+
     def __init__( self, logits ):
         self.dist = torch.distributions.Independent( torch.distributions.Bernoulli( logits = logits ), reinterpreted_batch_ndims = 3 )
+
     def log_prob( self, samples ):
         return { "log_prob" : self.dist.log_prob( samples ) }
 
     def sample( self ):
         return self.dist.sample()
 
+
 #Quantizes real number in interval [0,1] into Q buckets
 class IndependentQuantizedDistribution():
+
     def __init__( self, logits ): #[ B, C, Y, X, Q ]
         self.dist = torch.distributions.Independent( torch.distributions.Categorical( logits = logits ), reinterpreted_batch_ndims = 3 )
         self.num_buckets = logits.shape[4]
@@ -45,6 +55,7 @@ class IndependentQuantizedDistribution():
     def sample( self ):
         return self.dist.sample()/self.num_buckets + 1.0/(self.num_buckets*2.0)
 
+
 class IndependentL2Layer( nn.Module ):
 
     def forward( self, distribution_params ):
@@ -53,6 +64,7 @@ class IndependentL2Layer( nn.Module ):
     def params_size( self, channels ):
         return 1*channels
 
+
 class IndependentBernoulliLayer( nn.Module ):
 
     def forward( self, distribution_params ):
@@ -60,6 +72,7 @@ class IndependentBernoulliLayer( nn.Module ):
 
     def params_size( self, channels ):
         return 1*channels
+
 
 class IndependentNormalLayer( nn.Module ):
 
@@ -75,7 +88,9 @@ class IndependentNormalLayer( nn.Module ):
     def params_size( self, channels ):
         return 2*channels
 
+
 class IndependentQuantizedLayer( nn.Module ):
+
     def __init__( self, num_buckets = 8 ):
         super( IndependentQuantizedLayer, self ).__init__()
         self.num_buckets = num_buckets

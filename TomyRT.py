@@ -1,5 +1,6 @@
 import time
 import random
+
 import numpy as np
 import rpyc
 import torch
@@ -11,12 +12,12 @@ from PyGenBrix import DataSetUtils as ds_utils
 #my_tomy.main()
 
 class TomyRT():
+
     def __init__( self ):
         self.conn = rpyc.classic.connect("192.168.0.9" )
         self.conn._config['sync_request_timeout'] = 100000
         self.tomy = self.conn.modules['PyGenBrix.TomyRT_ev3dev2_server']
         self.replay_buffer = []
-
         self.qnet = torch.nn.Sequential(
             torch.nn.Conv2d( 3, 16, 5, stride=1, padding=2 ), torch.nn.Tanh(),
             torch.nn.Conv2d( 16, 32, 5, stride=2, padding=2 ), torch.nn.Tanh(),
@@ -70,7 +71,6 @@ class TomyRT():
         loss = torch.mean( lossT )
         loss.backward()
         self.optimizer.step()
-
 
     def training_steps( self ):
         for x in range(1500):

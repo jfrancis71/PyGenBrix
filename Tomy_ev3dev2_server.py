@@ -1,11 +1,12 @@
 #Server code running on Raspberry Pi with Dexter industries BrickPi3, OS=ev3dev
 #Controlled by PC client over rpyc
 
+import time
 from ev3dev2.motor import LargeMotor, OUTPUT_A, OUTPUT_D, OUTPUT_B
 import ev3dev2.sensor
 import ev3dev2.port
 import ev3dev2.sensor.lego
-import time
+
 
 # info from
 # https://github.com/ev3dev/ev3dev-lang-python-demo/blob/stretch/platform/brickpi3-motor-and-sensor.py
@@ -18,6 +19,7 @@ p3 = ev3dev2.port.LegoPort(ev3dev2.sensor.INPUT_3)
 p3.mode = 'ev3-uart'
 p3.set_device = 'lego-ev3-color'
 ls = ev3dev2.sensor.lego.ColorSensor( ev3dev2.sensor.INPUT_3 )
+
 
 def tank( speed, wheel ):
     global motora
@@ -34,7 +36,6 @@ def tank( speed, wheel ):
         else:
             print( "Starting wheel left", flush = True )
             motorb.run_to_rel_pos( position_sp = -400, speed_sp = 400, stop_action = "hold" )
-
     print( "Completed wheel start", flush = True )
     a_start = motora.position
     a_start_sp = motora.position_sp
@@ -55,10 +56,8 @@ def tank( speed, wheel ):
     motorb.wait_while( "running" )
     print( "Wheel finished" )
     wheel_status = wheel
-
     print( "Getting color", flush=True )
     col = ls.color
-
     print( "Finished color", flush = True )
     print( "Finshed Tank", flush=True )
     return col

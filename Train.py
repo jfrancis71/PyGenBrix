@@ -1,14 +1,16 @@
-import torch.optim as optim
-import torch
 import time
+
 import numpy as np
-import torch.nn as nn
 import matplotlib.pyplot as plt
-import pytorch_lightning as pl
+import torch
+import torch.nn as nn
+import torch.optim as optim
 import torchvision
-from IPython import display
+import pytorch_lightning as pl
+
 
 class Forwarder( nn.Module ):
+
     def __init__( self, model ):
         super( Forwarder, self ).__init__()
         self.model = model
@@ -16,7 +18,9 @@ class Forwarder( nn.Module ):
     def forward( self, x ):
         return self.model.log_prob( x )["log_prob"]
 
+
 class LightningTrainer( pl.LightningModule ):
+
     def __init__( self, model, dataset, callback = None, learning_rate = .001, batch_size = 32 ):
         super( LightningTrainer, self ).__init__()
         self.model = model
@@ -37,7 +41,6 @@ class LightningTrainer( pl.LightningModule ):
         x, _ = batch
         result = self.model.log_prob( x )
         log_prob = torch.mean( result["log_prob"] )
-        
         logs = { key : torch.mean( value ) for key, value in result.items() }
         return {"loss": -log_prob, "log": logs, "f":result}
     
@@ -45,9 +48,7 @@ class LightningTrainer( pl.LightningModule ):
         mean_loss = torch.stack([x["loss"] for x in outputs]).mean()
         tensorboard_logs = { key+"/train" :
             torch.tensor( [ x["log"][key] for x in outputs ] ).mean() for key in outputs[0]["log"].keys() if key != "step" }
-        
         tensorboard_logs["step"] = self.current_epoch
-
         epoch_dictionary = {
             "loss": mean_loss,
             "log": tensorboard_logs
@@ -63,20 +64,16 @@ class LightningTrainer( pl.LightningModule ):
         mean_val_loss = torch.tensor( [ x['loss'] for x in val_step_outputs ] ).mean()
         tensorboard_logs = { key + "/validation" :
             torch.tensor( [ x["log"][key] for x in val_step_outputs ] ).mean() for key in val_step_outputs[0]["log"].keys() if key != "step" }
-        
         tensorboard_logs["step"] = self.current_epoch
-
         epoch_dictionary = {
             "loss": mean_val_loss,
             "log": tensorboard_logs
         }
         if self.callback is not None:
             self.callback( self.model, [] )
-        
         #self.logger.experiment.add_image( "my_image", mymodel.sample()[0], self.current_epoch, dataformats="CHW")
         imglist = [ self.model.sample()[0] for _ in range(16) ]
         self.logger.experiment.add_image( "my_image", torchvision.utils.make_grid( imglist, padding = 10, nrow = 4 ), self.current_epoch, dataformats="CHW" )
-        
         print( "Validation loss", mean_val_loss)
         return epoch_dictionary
     
@@ -89,6 +86,7 @@ class LightningTrainer( pl.LightningModule ):
     def val_dataloader( self ):
         return torch.utils.data.DataLoader( self.val_set, batch_size = self.batch_size )
 
+
 #To run a training session:
 #pl.Trainer( fast_dev_run = False, gpus=1 ).fit( Train.LightningTrainer( mymodel, dataset, Train.disp, batch_size = 16 ) )
 #To restore a training session:
@@ -100,6 +98,7 @@ class LightningTrainer( pl.LightningModule ):
 #     [ 1, 28, 28 ] )
 # Train.train( mydist, mnist, batch_size=32, sleep_time=0)
 class PyGenBrixModel( nn.Module ):
+
     def __init__( self, distribution, dims ):
         super( PyGenBrixModel, self ).__init__()
         self.cond_distribution = distribution
