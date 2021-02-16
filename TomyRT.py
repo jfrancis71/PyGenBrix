@@ -14,7 +14,7 @@ from PyGenBrix import DataSetUtils as ds_utils
 class TomyRT():
 
     def __init__( self ):
-        self.conn = rpyc.classic.connect("192.168.0.9" )
+        self.conn = rpyc.classic.connect("192.168.0.6" )
         self.conn._config['sync_request_timeout'] = 100000
         self.tomy = self.conn.modules['PyGenBrix.TomyRT_ev3dev2_server']
         self.replay_buffer = []
@@ -102,7 +102,7 @@ class TomyRT():
         for t in range(50):
             for f in range(100):
                 current_image = np.transpose( np.array( ds_utils.import_camera_image().resize( ( 32, 32 ) ) ).astype( np.float32 ), [ 2, 0, 1 ] )/255.
-                ( current_action, color ) = self.exec_step( current_image )
+                ( current_action, color ) = self.exec_step( current_image, epsilon = 0.2 )
                 if f > 0:
                     self.add_replay_buffer( time.time(), previous_image, current_image, previous_action, color )
                 time.sleep( 0.6 )
