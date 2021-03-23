@@ -21,12 +21,14 @@ class Forwarder(nn.Module):
 
 class LightningTrainer(pl.LightningModule):
 
-    def __init__(self, model, dataset, callback=None, learning_rate=.001, batch_size=32):
+    def __init__(self, model, dataset, callback=None, add_graph=False, learning_rate=.001, batch_size=32, log_every=None):
         super(LightningTrainer, self).__init__()
         self.model = model
         self.callback = callback
         self.learning_rate = learning_rate
         self.batch_size = batch_size
+        self.log_every = log_every
+        self.add_graph = add_graph
         dataset_size = len(dataset)
         training_size = np.round(dataset_size*0.9).astype(int)
         self.train_set, self.val_set = torch.utils.data.random_split(
@@ -34,16 +36,31 @@ class LightningTrainer(pl.LightningModule):
             generator=torch.Generator().manual_seed(42) ) 
 
     def on_fit_start(self):
-        img = self.train_set[0][0].to(self.device)
-        self.logger.experiment.add_graph(Forwarder(self.model), torch.unsqueeze(img, dim=0))
-        
-    def training_step(self, batch, batch_indx):
+        if self.add_graph:
+            img = self.train_set[0][0].to(self.device)
+            self.logger.experiment.add_graph(Forwarder(self.model), torch.unsqueeze(img, dim=0))
+
+    def step(self, batch, batch_indx):
         x, _ = batch
         result = self.model.log_prob(x)
         log_prob = torch.mean( result["log_prob"] )
         logs = {key: torch.mean(value) for key, value in result.items()}
         return {"loss": -log_prob, "log": logs}
+
+    def save_images( self ):#seperate function to ensure cuda memory released
+        imglist = [self.model.sample() for _ in range(16)]
+        imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
+        self.logger.experiment.add_image("train_image", torchvision.utils.make_grid(imglist, padding=10, nrow=4 ), self.global_step, dataformats="CHW")
+
+    def training_step(self, batch, batch_indx):
+        if self.log_every is not None:
+            if batch_indx % self.log_every == 0:
+                self.save_images()
+        return self.step(batch, batch_indx)
     
+    def validation_step(self, batch, batch_indx):
+        return self.step(batch, batch_indx)
+
     def training_epoch_end(self, outputs):
         mean_loss = torch.stack([x["loss"] for x in outputs]).mean()
         tensorboard_logs = {key+"/train":
@@ -57,9 +74,6 @@ class LightningTrainer(pl.LightningModule):
         print("epoch", self.current_epoch)
         return epoch_dictionary
         
-    def validation_step(self, batch, batch_indx):
-        return self.training_step(batch, batch_indx)
-    
     def validation_epoch_end(self, val_step_outputs):
         mean_val_loss = torch.tensor([x['loss'] for x in val_step_outputs]).mean()
         tensorboard_logs = {key+"/validation":
@@ -71,8 +85,9 @@ class LightningTrainer(pl.LightningModule):
         }
         if self.callback is not None:
             self.callback(self.model, [])
-        imglist = [self.model.sample()[0] for _ in range(16)]
-        self.logger.experiment.add_image("my_image", torchvision.utils.make_grid(imglist, padding=10, nrow=4 ), self.current_epoch, dataformats="CHW")
+        imglist = [self.model.sample() for _ in range(16)]
+        imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
+        self.logger.experiment.add_image("epoch_image", torchvision.utils.make_grid(imglist, padding=10, nrow=4 ), self.current_epoch, dataformats="CHW")
         print("Validation loss", mean_val_loss)
         return epoch_dictionary
     
@@ -80,10 +95,10 @@ class LightningTrainer(pl.LightningModule):
         return torch.optim.Adam(self.model.parameters(), lr = self.learning_rate)
     
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True)
+        return torch.utils.data.DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True, num_workers=4)
     
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.val_set, batch_size = self.batch_size)
+        return torch.utils.data.DataLoader(self.val_set, batch_size = self.batch_size, num_workers=4)
 
 
 #To run a training session:
