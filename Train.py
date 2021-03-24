@@ -48,7 +48,8 @@ class LightningTrainer(pl.LightningModule):
         return {"loss": -log_prob, "log": logs}
 
     def save_images( self ):#seperate function to ensure cuda memory released
-        imglist = [self.model.sample() for _ in range(16)]
+        with torch.no_grad():
+            imglist = [self.model.sample() for _ in range(16)]
         imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
         self.logger.experiment.add_image("train_image", torchvision.utils.make_grid(imglist, padding=10, nrow=4 ), self.global_step, dataformats="CHW")
 
@@ -85,7 +86,8 @@ class LightningTrainer(pl.LightningModule):
         }
         if self.callback is not None:
             self.callback(self.model, [])
-        imglist = [self.model.sample() for _ in range(16)]
+        with torch.no_grad():
+            imglist = [self.model.sample() for _ in range(16)]
         imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
         self.logger.experiment.add_image("epoch_image", torchvision.utils.make_grid(imglist, padding=10, nrow=4 ), self.current_epoch, dataformats="CHW")
         print("Validation loss", mean_val_loss)
