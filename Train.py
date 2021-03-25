@@ -19,9 +19,9 @@ class Forwarder(nn.Module):
         return self.model.log_prob(x)["log_prob"]
 
 
-class _LightningTrainer(pl.LightningModule):
+class LightningTrainer(pl.LightningModule):
     def __init__(self, model, dataset, add_graph=False, learning_rate=.001, batch_size=32):
-        super(_LightningTrainer, self).__init__()
+        super(LightningTrainer, self).__init__()
         self.model = model
         self.learning_rate = learning_rate
         self.batch_size = batch_size
@@ -83,7 +83,7 @@ class _LightningTrainer(pl.LightningModule):
     def val_dataloader(self):
         return torch.utils.data.DataLoader(self.val_set, batch_size = self.batch_size, num_workers=4)
 
-class LightningDistributionTrainer(_LightningTrainer):
+class LightningDistributionTrainer(LightningTrainer):
     def __init__(self, model, dataset, add_graph=False, learning_rate=.001, batch_size=32):
         super(LightningDistributionTrainer, self).__init__( model, dataset, add_graph, learning_rate, batch_size)
     def step(self, batch):
@@ -96,21 +96,29 @@ def distribution_sample(model):
     return torchvision.utils.make_grid(imglist, padding=10, nrow=4 )
 
 class LogDistributionSamplesPerEpoch(pl.Callback):
-    def __init__(self):
+    def __init__(self, filename=None):
         super(LogDistributionSamplesPerEpoch, self).__init__()
+        self.filename = filename
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        pl_module.logger.experiment.add_image("epoch_image", distribution_sample(pl_module.model), pl_module.current_epoch, dataformats="CHW")
+        samples = distribution_sample(pl_module.model)
+        pl_module.logger.experiment.add_image("epoch_image", pl_module.current_epoch, dataformats="CHW")
+        if self.filename is not None:
+            torchvision.utils.save_image(samples, self.filename)
 
 
 class LogDistributionSamplesPerTraining(pl.Callback):
-    def __init__(self, every_global_step=1000):
+    def __init__(self, every_global_step=1000, filename=None):
         super(LogDistributionSamplesPerTraining, self).__init__()
         self.every_global_step = every_global_step
+        self.filename = filename
 
     def on_train_batch_end(self, trainer, pl_module):
         if pl_module.global_step % self.every_global_step == 0:
-            pl_module.logger.experiment.add_image("train_image", distribution_sample(pl_module.model), pl_module.global_step, dataformats="CHW")
+            samples = distribution_sample(pl_module.model)
+            pl_module.logger.experiment.add_image("train_image", pl_module.global_step, dataformats="CHW")
+            if self.filename is not None:
+                torchvision.utils.save_image(samples, self.filename)
 
 
 #To run a training session:
