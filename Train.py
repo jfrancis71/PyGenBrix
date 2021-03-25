@@ -19,15 +19,12 @@ class Forwarder(nn.Module):
         return self.model.log_prob(x)["log_prob"]
 
 
-class LightningTrainer(pl.LightningModule):
-
-    def __init__(self, model, dataset, callback=None, add_graph=False, learning_rate=.001, batch_size=32, log_every=None):
-        super(LightningTrainer, self).__init__()
+class _LightningTrainer(pl.LightningModule):
+    def __init__(self, model, dataset, add_graph=False, learning_rate=.001, batch_size=32):
+        super(_LightningTrainer, self).__init__()
         self.model = model
-        self.callback = callback
         self.learning_rate = learning_rate
         self.batch_size = batch_size
-        self.log_every = log_every
         self.add_graph = add_graph
         dataset_size = len(dataset)
         training_size = np.round(dataset_size*0.9).astype(int)
@@ -40,27 +37,17 @@ class LightningTrainer(pl.LightningModule):
             img = self.train_set[0][0].to(self.device)
             self.logger.experiment.add_graph(Forwarder(self.model), torch.unsqueeze(img, dim=0))
 
-    def step(self, batch, batch_indx):
-        x, _ = batch
-        result = self.model.log_prob(x)
+    def mean_step(self, batch, batch_indx):
+        result = self.step(batch)
         log_prob = torch.mean( result["log_prob"] )
         logs = {key: torch.mean(value) for key, value in result.items()}
         return {"loss": -log_prob, "log": logs}
 
-    def save_images( self ):#seperate function to ensure cuda memory released
-        with torch.no_grad():
-            imglist = [self.model.sample() for _ in range(16)]
-        imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
-        self.logger.experiment.add_image("train_image", torchvision.utils.make_grid(imglist, padding=10, nrow=4 ), self.global_step, dataformats="CHW")
-
     def training_step(self, batch, batch_indx):
-        if self.log_every is not None:
-            if batch_indx % self.log_every == 0:
-                self.save_images()
-        return self.step(batch, batch_indx)
+        return self.mean_step(batch, batch_indx)
     
     def validation_step(self, batch, batch_indx):
-        return self.step(batch, batch_indx)
+        return self.mean_step(batch, batch_indx)
 
     def training_epoch_end(self, outputs):
         mean_loss = torch.stack([x["loss"] for x in outputs]).mean()
@@ -84,12 +71,6 @@ class LightningTrainer(pl.LightningModule):
             "loss": mean_val_loss,
             "log": tensorboard_logs
         }
-        if self.callback is not None:
-            self.callback(self.model, [])
-        with torch.no_grad():
-            imglist = [self.model.sample() for _ in range(16)]
-        imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
-        self.logger.experiment.add_image("epoch_image", torchvision.utils.make_grid(imglist, padding=10, nrow=4 ), self.current_epoch, dataformats="CHW")
         print("Validation loss", mean_val_loss)
         return epoch_dictionary
     
@@ -101,6 +82,35 @@ class LightningTrainer(pl.LightningModule):
     
     def val_dataloader(self):
         return torch.utils.data.DataLoader(self.val_set, batch_size = self.batch_size, num_workers=4)
+
+class LightningDistributionTrainer(_LightningTrainer):
+    def __init__(self, model, dataset, add_graph=False, learning_rate=.001, batch_size=32):
+        super(LightningDistributionTrainer, self).__init__( model, dataset, add_graph, learning_rate, batch_size)
+    def step(self, batch):
+        x, _ = batch
+        return self.model.log_prob(x)
+
+def distribution_sample(model):
+    imglist = [model.sample() for _ in range(16)]
+    imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
+    return torchvision.utils.make_grid(imglist, padding=10, nrow=4 )
+
+class LogDistributionSamplesPerEpoch(pl.Callback):
+    def __init__(self):
+        super(LogDistributionSamplesPerEpoch, self).__init__()
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        pl_module.logger.experiment.add_image("epoch_image", distribution_sample(pl_module.model), pl_module.current_epoch, dataformats="CHW")
+
+
+class LogDistributionSamplesPerTraining(pl.Callback):
+    def __init__(self, every_global_step=1000):
+        super(LogDistributionSamplesPerTraining, self).__init__()
+        self.every_global_step = every_global_step
+
+    def on_train_batch_end(self, trainer, pl_module):
+        if pl_module.global_step % self.every_global_step == 0:
+            pl_module.logger.experiment.add_image("train_image", distribution_sample(pl_module.model), pl_module.global_step, dataformats="CHW")
 
 
 #To run a training session:
