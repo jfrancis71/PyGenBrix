@@ -102,7 +102,7 @@ class LogDistributionSamplesPerEpoch(pl.Callback):
 
     def on_validation_epoch_end(self, trainer, pl_module):
         samples = distribution_sample(pl_module.model)
-        pl_module.logger.experiment.add_image("epoch_image", pl_module.current_epoch, dataformats="CHW")
+        pl_module.logger.experiment.add_image("epoch_image", samples, pl_module.current_epoch, dataformats="CHW")
         if self.filename is not None:
             torchvision.utils.save_image(samples, self.filename)
 
@@ -116,7 +116,7 @@ class LogDistributionSamplesPerTraining(pl.Callback):
     def on_train_batch_end(self, trainer, pl_module):
         if pl_module.global_step % self.every_global_step == 0:
             samples = distribution_sample(pl_module.model)
-            pl_module.logger.experiment.add_image("train_image", pl_module.global_step, dataformats="CHW")
+            pl_module.logger.experiment.add_image("train_image", samples, pl_module.global_step, dataformats="CHW")
             if self.filename is not None:
                 torchvision.utils.save_image(samples, self.filename)
 
