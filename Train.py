@@ -38,7 +38,8 @@ class LightningTrainer(pl.LightningModule):
             self.logger.experiment.add_graph(Forwarder(self.model), torch.unsqueeze(img, dim=0))
 
     def mean_step(self, batch, batch_indx):
-        result = self.step(batch)
+        x, y = batch
+        result = self.get_distribution(y).log_prob(x)
         log_prob = torch.mean( result["log_prob"] )
         logs = {key: torch.mean(value) for key, value in result.items()}
         return {"loss": -log_prob, "log": logs}
@@ -78,17 +79,16 @@ class LightningTrainer(pl.LightningModule):
         return torch.optim.Adam(self.model.parameters(), lr = self.learning_rate)
     
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True, num_workers=4)
+        return torch.utils.data.DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True, num_workers=4, drop_last=True)
     
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.val_set, batch_size = self.batch_size, num_workers=4)
+        return torch.utils.data.DataLoader(self.val_set, batch_size = self.batch_size, num_workers=4, drop_last=True)
 
 class LightningDistributionTrainer(LightningTrainer):
     def __init__(self, model, dataset, add_graph=False, learning_rate=.001, batch_size=32):
         super(LightningDistributionTrainer, self).__init__( model, dataset, add_graph, learning_rate, batch_size)
-    def step(self, batch):
-        x, _ = batch
-        return self.model.log_prob(x)
+    def get_distribution(self, y):
+        return self.model
 
 def distribution_sample(model):
     imglist = [model.sample() for _ in range(16)]
@@ -106,17 +106,18 @@ class LogDistributionSamplesPerEpoch(pl.Callback):
         if self.filename is not None:
             torchvision.utils.save_image(samples, self.filename)
 
-
+#Potential issue with batch_indx wrapping around epoch.
+#using global_step could result in multiple samples if accumulate_grads > 1
 class LogDistributionSamplesPerTraining(pl.Callback):
-    def __init__(self, every_global_step=1000, filename=None):
+    def __init__(self, every_batch_step=1000, filename=None):
         super(LogDistributionSamplesPerTraining, self).__init__()
-        self.every_global_step = every_global_step
+        self.every_batch_step = every_batch_step
         self.filename = filename
 
-    def on_train_batch_end(self, trainer, pl_module):
-        if pl_module.global_step % self.every_global_step == 0:
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+        if batch_idx % self.every_batch_step == 0:
             samples = distribution_sample(pl_module.model)
-            pl_module.logger.experiment.add_image("train_image", samples, pl_module.global_step, dataformats="CHW")
+            pl_module.logger.experiment.add_image("train_image", samples, batch_idx, dataformats="CHW")
             if self.filename is not None:
                 torchvision.utils.save_image(samples, self.filename)
 
