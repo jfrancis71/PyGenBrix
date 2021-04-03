@@ -109,15 +109,17 @@ class LogDistributionSamplesPerEpoch(pl.Callback):
 #Potential issue with batch_indx wrapping around epoch.
 #using global_step could result in multiple samples if accumulate_grads > 1
 class LogDistributionSamplesPerTraining(pl.Callback):
-    def __init__(self, every_batch_step=1000, filename=None):
+    def __init__(self, every_global_step=1000, filename=None):
         super(LogDistributionSamplesPerTraining, self).__init__()
-        self.every_batch_step = every_batch_step
+        self.every_global_step = every_global_step
         self.filename = filename
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
-        if batch_idx % self.every_batch_step == 0:
+        if (pl_module.global_step % self.every_global_step == 0) and (batch_idx % trainer.accumulate_grad_batches == 0):
+            pl_module.eval()
             samples = distribution_sample(pl_module.model)
-            pl_module.logger.experiment.add_image("train_image", samples, batch_idx, dataformats="CHW")
+            pl_module.train()
+            pl_module.logger.experiment.add_image("train_image", samples, pl_module.global_step, dataformats="CHW")
             if self.filename is not None:
                 torchvision.utils.save_image(samples, self.filename)
 
