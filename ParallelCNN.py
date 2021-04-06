@@ -99,15 +99,16 @@ class ParallelCNNDistribution(nn.Module):
         return logging_dict
     
     def sample(self):
-        sample = torch.zeros([self.distribution_params.shape[0], self.event_shape[0], self.event_shape[1]//2**self.num_upsampling_stages, self.event_shape[2]//2**self.num_upsampling_stages ], device=self.distribution_params.device)
-        base_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
-        self.sample_block(sample, base_distribution_params, self.base_parallel_nets, base_slice)
-        for level in range(self.num_upsampling_stages):
-            level_subsample_rate = 2**(self.num_upsampling_stages-level-1)
-            sample = self.upsampler_sample(
-                sample,
-                self.distribution_params[:,:,::level_subsample_rate,::level_subsample_rate],
-                self.upsample_parallel_nets[ level ])
+        with torch.no_grad():
+            sample = torch.zeros([self.distribution_params.shape[0], self.event_shape[0], self.event_shape[1]//2**self.num_upsampling_stages, self.event_shape[2]//2**self.num_upsampling_stages ], device=self.distribution_params.device)
+            base_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
+            self.sample_block(sample, base_distribution_params, self.base_parallel_nets, base_slice)
+            for level in range(self.num_upsampling_stages):
+                level_subsample_rate = 2**(self.num_upsampling_stages-level-1)
+                sample = self.upsampler_sample(
+                    sample,
+                    self.distribution_params[:,:,::level_subsample_rate,::level_subsample_rate],
+                    self.upsample_parallel_nets[ level ])
         return sample
 
 
