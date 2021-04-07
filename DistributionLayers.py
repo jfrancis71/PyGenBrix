@@ -102,3 +102,38 @@ class IndependentQuantizedLayer(nn.Module):
 
     def params_size(self, channels):
         return self.num_buckets*channels
+
+
+class Distribution(nn.Module):
+    def __init__(self):
+        super(Distribution, self).__init__()
+        self.distribution = None
+
+    def log_prob(self, samples):
+        return self.distribution.log_prob(samples)
+
+    def sample(self):
+        return self.distribution.sample()
+
+
+class LayerDistribution(nn.Module):
+    def __init__(self, distribution, params):
+        super(LayerDistribution, self).__init__()
+        self.distribution = distribution
+        self.params = params
+
+    def log_prob(self, samples):
+        return self.distribution.log_prob(samples, self.params)
+
+    def sample(self):
+        with torch.no_grad():
+            return self.distribution.sample(self.params)
+
+
+class Layer(nn.Module):
+    def __init__(self, distribution):
+        super(Layer, self).__init__()
+        self.distribution = distribution
+
+    def forward(self, x):
+        return LayerDistribution(self.distribution, x)

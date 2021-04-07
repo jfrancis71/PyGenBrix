@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import pl_bolts.models.vision.unet as plt_unet
 
+from PyGenBrix import DistributionLayers as dl
+
 
 base_slice = (slice(0, None, 2), slice(0, None, 2))
 upsampling_slices = [(slice(1, None, 2), slice(1, None, 2)),
@@ -63,7 +65,10 @@ class _ParallelCNNDistribution(nn.Module):
 #Note, alters samples
     def sample_block(self, samples, distribution_params, block_parallel_cnns, slice):
         for channel in range(len(block_parallel_cnns)):
-            network_input = torch.cat((samples, distribution_params), dim=1)
+            if distribution_params is not None:
+                network_input = torch.cat((samples, distribution_params), dim=1 )
+            else:
+                network_input = torch.cat([samples], dim=1)
             output_distribution_params = block_parallel_cnns[channel](network_input)
             samples[:,channel,slice[0],slice[1]] = self.output_distribution_layer(output_distribution_params).sample()[:,0,slice[0],slice[1]]
 
@@ -122,48 +127,27 @@ class _ParallelCNNDistribution(nn.Module):
         logging_dict["log_prob"] = log_prob
         return logging_dict
     
-    def sample(self):
+    def sample(self, conditionals=None):
         with torch.no_grad():
-            sample = torch.zeros([self.distribution_params.shape[0], self.event_shape[0], self.event_shape[1]//2**self.num_upsampling_stages, self.event_shape[2]//2**self.num_upsampling_stages ], device=self.distribution_params.device)
-            base_distribution_params = self.distribution_params[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages]
-            self.sample_block(sample, base_distribution_params, self.base_parallel_nets, base_slice)
+            sample = torch.zeros([1, self.event_shape[0], self.event_shape[1]//2**self.num_upsampling_stages, self.event_shape[2]//2**self.num_upsampling_stages ], device=next(self.parameters()).device)
+            base_conditionals = conditionals[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages] if conditionals is not None else None
+            self.sample_block(sample, base_conditionals, self.base_nets, base_slice)
             for level in range(self.num_upsampling_stages):
                 level_subsample_rate = 2**(self.num_upsampling_stages-level-1)
+                upsample_conditionals = conditionals[:,:,::level_subsample_rate,::level_subsample_rate] if conditionals is not None else None
                 sample = self.upsampler_sample(
                     sample,
-                    self.distribution_params[:,:,::level_subsample_rate,::level_subsample_rate],
-                    self.upsample_parallel_nets[ level ])
+                    upsample_conditionals,
+                    self.upsampler_nets[ level ])
         return sample
 
-class ParallelCNNDistribution(nn.Module):
+
+class ParallelCNNDistribution(dl.Distribution):
     def __init__(self, event_shape, output_distribution_layer, num_upsampling_stages, max_unet_layers=3):
         super(ParallelCNNDistribution, self).__init__()
-        self.distribution = ParallelCNNDistribution(event_shape, output_distribution_layer, num_upsampling_stages, max_unet_layers=3)
-
-    def log_prob(self, samples):
-        return self.distribution.log_prob(samples)
-
-    def sample(self):
-        return self.distribution.sample()
-
-class _ParallelCNNLayerDistribution(nn.Module):
-    def __init__(self, distribution, params):
-        super(_ParallelCNNLayerDistribution, self).__init__()
-        self.distribution = distribution
-        self.params = params
-
-    def log_prob(self, samples):
-        return self.distribution.log_prob(samples, self.params)
-
-    def sample(self):
-        with torch.no_grad():
-            return self.distribution.sample(self.params)
+        self.distribution = _ParallelCNNDistribution(event_shape, output_distribution_layer, num_upsampling_stages, max_unet_layers=3)
 
 
-class ParallelCNNLayer(nn.Module):
+class ParallelCNNLayer(dl.Layer):
     def __init__(self, event_shape, output_distribution_layer, num_upsampling_stages, max_unet_layers, num_conditional_channels):
-        super(ParallelCNNLayer, self).__init__()
-        self.distribution = _ParallelCNNDistribution(event_shape, output_distribution_layer, num_upsampling_stages, max_unet_layers=3, num_conditional_channels=num_conditional_channels)
-
-    def forward(self, x):
-        return _ParallelCNNLayerDistribution(self.distribution, x)
+        super(ParallelCNNLayer, self).__init__(_ParallelCNNDistribution(event_shape, output_distribution_layer, num_upsampling_stages, max_unet_layers=3, num_conditional_channels=num_conditional_channels))

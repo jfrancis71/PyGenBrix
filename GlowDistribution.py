@@ -8,6 +8,8 @@ import torch.nn as nn
 
 from glow_pytorch import model as glow
 
+from PyGenBrix import DistributionLayers as dl
+
 class _GlowDistribution(nn.Module):
     def __init__(self, n_flow=32, n_block=4, num_conditional=None):
         super(_GlowDistribution, self).__init__()
@@ -27,7 +29,7 @@ class _GlowDistribution(nn.Module):
         z_sample = []
         for z in self.z_shapes:
             z_new = torch.randn(1, z[0], z[1], z[2]) * 0.7
-            z_sample.append(z_new.to("cuda"))
+            z_sample.append(z_new.to(next(self.glow_net.parameters()).device))
         return self.glow_net.reverse(z_sample, conditional=conditional) + 0.5
 
     def calc_z_shapes(self, n_channel, input_size, n_flow, n_block):
@@ -36,36 +38,12 @@ class _GlowDistribution(nn.Module):
         return z_shapes
 
 
-class GlowDistribution(nn.Module):
+class GlowDistribution(dl.Distribution):
     def __init__(self):
         super(GlowDistribution, self).__init__()
         self.distribution = _GlowDistribution()
 
-    def log_prob(self, samples):
-        return self.distribution.log_prob(samples)
 
-    def sample(self):
-        return self.distribution.sample()
-
-
-class _GlowLayerDistribution(nn.Module):
-    def __init__(self, distribution, params):
-        super(_GlowLayerDistribution, self).__init__()
-        self.distribution = distribution
-        self.params = params
-
-    def log_prob(self, samples):
-        return self.distribution.log_prob(samples, self.params)
-
-    def sample(self):
-        with torch.no_grad():
-            return self.distribution.sample(self.params)
-
-
-class GlowLayer(nn.Module):
+class GlowLayer(dl.Layer):
     def __init__(self, num_conditional):
-        super(GlowLayer, self).__init__()
-        self.distribution = _GlowDistribution(num_conditional=num_conditional)
-
-    def forward(self, x):
-        return _GlowLayerDistribution(self.distribution, x)
+        super(GlowLayer, self).__init__(_GlowDistribution(num_conditional=num_conditional))
