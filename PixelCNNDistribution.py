@@ -7,6 +7,8 @@
 import torch
 import torch.nn as nn
 
+from PyGenBrix import DistributionLayers as dl
+
 from pixelcnn_pp import model as pixelcnn_model
 from pixelcnn_pp import utils as pixelcnn_utils
 
@@ -53,35 +55,12 @@ class _PixelCNNDistribution(nn.Module):
         return sampl
 
 
-class PixelCNNDistribution(nn.Module):
+class PixelCNNDistribution(dl.Distribution):
     def __init__(self, event_shape, output_distribution_layer=PixelCNNDiscreteMixLayer()):
         super(PixelCNNDistribution, self).__init__()
         self.distribution = _PixelCNNDistribution(event_shape, output_distribution_layer)
 
-    def log_prob(self, samples):
-        return self.distribution.log_prob(samples)
 
-    def sample(self):
-        return self.distribution.sample()
-
-
-class _PixelCNNLayerDistribution(nn.Module):
-    def __init__(self, distribution, params):
-        super(_PixelCNNLayerDistribution, self).__init__()
-        self.distribution = distribution
-        self.params = params
-
-    def log_prob(self, samples):
-        return self.distribution.log_prob(samples, self.params)
-
-    def sample(self):
-        return self.distribution.sample(self.params)
-
-
-class PixelCNNLayer(nn.Module):
+class PixelCNNLayer(dl.Layer):
     def __init__(self, event_shape, num_conditional, output_distribution_layer=PixelCNNDiscreteMixLayer()):
-        super(PixelCNNLayer, self).__init__()
-        self.distribution = _PixelCNNDistribution(event_shape, output_distribution_layer, num_conditional)
-
-    def forward(self, x):
-        return _PixelCNNLayerDistribution(self.distribution, x)
+        super(PixelCNNLayer, self).__init__(_PixelCNNDistribution(event_shape, output_distribution_layer, num_conditional))
