@@ -45,7 +45,7 @@ class _ParallelCNNDistribution(nn.Module):
                 nn.ModuleList([
                     nn.ModuleList([plt_unet.UNet(num_output_distribution_params, input_channels=input_channels, num_layers=unet_num_layers) for c in range(event_shape[0])]) for s in range(3)]))
         self.num_upsampling_stages = len(upsampler_nets)
-        self.upsampler_nets = upsampler_nets
+        self.upsampler_nets = nn.ModuleList(upsampler_nets)
         self.event_shape = event_shape
         self.num_conditional_channels = num_conditional_channels
 
