@@ -59,21 +59,3 @@ class SpatialIndependentDistributionLayer(dl.Layer):
 
     def params_size(self, channels):
         return 16*channels
-
-
-#class SpatialIndependentQuantizedLayer(nn.Module):
-
-#    def __init__(self, num_buckets=8):
-#        super(SpatialIndependentQuantizedLayer, self).__init__()
-#        self.num_buckets = num_buckets
-
-#    def forward(self, distribution_params):
-#        reshaped_logits = torch.reshape(distribution_params, (distribution_params.shape[0], distribut
-#ion_params.shape[1]//self.num_buckets, self.num_buckets, distribution_params.shape[2], distribution_p
-#arams.shape[3])) # [ B, C, 10, Y, X ]
-#        reshaped_logits = reshaped_logits.permute((0, 1, 3, 4, 2)) # [ B, C, Y, X, Q ]
-#        return SpatialIndependentQuantizedDistribution(logits=reshaped_logits)
-
-#    def params_size(self, channels):
-#        return self.num_buckets*channels
-
