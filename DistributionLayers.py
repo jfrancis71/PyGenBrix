@@ -17,7 +17,8 @@ class IndependentNormalDistribution():
 class IndependentL2Distribution():
 
     def __init__(self, loc):
-        self.dist = torch.distributions.Independent(torch.distributions.Normal(loc=loc, scale=torch.ones(loc.shape)), reinterpreted_batch_ndims=3 )
+        self.dist = torch.distributions.Independent(torch.distributions.Normal(loc=loc, scale=torch.ones_like(loc)), reinterpreted_batch_ndims=3 )
+        self.loc = loc
 
     def log_prob(self, samples):
         return {"log_prob": self.dist.log_prob(samples)}
