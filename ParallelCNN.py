@@ -8,7 +8,8 @@ import pl_bolts.models.vision.unet as plt_unet
 from PyGenBrix import DistributionLayers as dl
 
 
-base_slice = (slice(0, None, 2), slice(0, None, 2))
+base_slice = (slice(0, None, 1), slice(0, None, 1))
+ground_slice = (slice(0, None, 2), slice(0, None, 2))
 upsampling_slices = [(slice(1, None, 2), slice(1, None, 2)),
     (slice(0, None, 2), slice(1, None, 2)),
     (slice( 1, None, 2), slice(0, None, 2))]
@@ -75,7 +76,7 @@ class _ParallelCNNDistribution(nn.Module):
     def upsampler_log_prob(self, value, distribution_params, parallel_cnns):
         logging_dict = {}
         masked_value = torch.zeros_like(value)
-        masked_value[:,:,base_slice[0],base_slice[1]] = value[:,:,base_slice[0],base_slice[1]]
+        masked_value[:,:,ground_slice[0],ground_slice[1]] = value[:,:,ground_slice[0],ground_slice[1]]
         log_prob = 0.0
         for s in range(3):
             block_log_prob = self.log_prob_block(value, distribution_params, masked_value, parallel_cnns[s], upsampling_slices[s])
@@ -86,7 +87,7 @@ class _ParallelCNNDistribution(nn.Module):
 
     def upsampler_sample(self, downsampled_images, distribution_params, parallel_nets):
         samples = torch.zeros([downsampled_images.shape[0], downsampled_images.shape[1], downsampled_images.shape[2]*2, downsampled_images.shape[3]*2], device=downsampled_images.device)
-        samples[:,:,base_slice[0],base_slice[1]] = downsampled_images
+        samples[:,:,ground_slice[0],ground_slice[1]] = downsampled_images
         for s in range(3):
             self.sample_block(samples, distribution_params, parallel_nets[s], upsampling_slices[s])
         return samples
