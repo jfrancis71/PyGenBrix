@@ -47,6 +47,7 @@ class IndependentQuantizedDistribution():
     def __init__(self, logits): #[ B, C, Y, X, Q ]
         self.dist = torch.distributions.Independent(torch.distributions.Categorical(logits=logits), reinterpreted_batch_ndims=3 )
         self.num_buckets = logits.shape[4]
+        self.logits = logits
 
     def log_prob(self, samples):
         quantized_samples = torch.clamp((samples*self.num_buckets).floor(), 0, self.num_buckets-1)
@@ -55,6 +56,14 @@ class IndependentQuantizedDistribution():
 
     def sample(self):
         return self.dist.sample()/self.num_buckets + 1.0/(self.num_buckets*2.0)
+
+    def mode(self):
+        return torch.argmax(self.logits, dim=4)/self.num_buckets + 1.0/(self.num_buckets*2.0)
+
+    def mean(self):
+        val = torch.ones_like(self.logits)
+        val[:,:,:,:] = torch.range(start=0, end=self.num_buckets-1)/self.num_buckets + 1.0/(self.num_buckets*2.0)
+        return torch.sum(val*torch.softmax(self.logits, dim=4), dim=4)
 
 
 class IndependentL2Layer(nn.Module):
