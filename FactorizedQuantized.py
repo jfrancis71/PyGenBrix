@@ -26,7 +26,7 @@ class FactorizedQuantizedDistribution(nn.Module):
         self.num_bits = int(math.log(self.num_buckets,2))
         
     def log_prob(self, sample):
-        bin_sample = binary((sample*self.num_buckets).type(torch.uint8),self.num_bits)
+        bin_sample = dec2bin((sample*self.num_buckets).type(torch.uint8),self.num_bits)
         log_prob = 0.0
         for x in range(self.num_bits):
             param_indx = 2**x -1 + bin2dec(bin_sample[:,:,:,:x],x)
@@ -37,7 +37,7 @@ class FactorizedQuantizedDistribution(nn.Module):
     
     def sample(self):
         sample = torch.zeros(self.params.shape[0], self.params.shape[2], self.params.shape[3], device=self.params.device)
-        bin_sample = binary((sample*self.num_buckets).type(torch.uint8), self.num_bits)
+        bin_sample = dec2bin((sample*self.num_buckets).type(torch.uint8), self.num_bits)
         for x in range(self.num_bits):
             param_indx= 2**x - 1 + bin2dec(bin_sample[:,:,:,:x],x)
             logits = torch.gather( self.params, 1, torch.unsqueeze(param_indx,1) )[:,0]
