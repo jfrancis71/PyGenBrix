@@ -33,12 +33,16 @@ class IndependentBernoulliDistribution():
 
     def __init__(self, logits):
         self.dist = torch.distributions.Independent(torch.distributions.Bernoulli(logits=logits), reinterpreted_batch_ndims=3)
+        self.logits = logits #PyTorch Independent loses information on the distribution, and therefore the logits as well.
 
     def log_prob(self, samples):
         return {"log_prob": self.dist.log_prob(samples)}
 
     def sample(self):
         return self.dist.sample()
+
+    def mode(self):
+        return (self.logits>0.0).float()
 
 
 #Quantizes real number in interval [0,1] into Q buckets
@@ -139,6 +143,13 @@ class LayerDistribution(nn.Module):
         with torch.no_grad():
             return self.distribution.sample(self.params)
 
+    def mean(self):
+        with torch.no_grad():
+            return self.distribution.mean(self.params)
+
+    def mode(self):
+        with torch.no_grad():
+            return self.distribution.mode(self.params)
 
 class Layer(nn.Module):
     def __init__(self, distribution):
