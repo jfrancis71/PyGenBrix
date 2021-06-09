@@ -147,3 +147,6 @@ class PyGenBrixModel(nn.Module):
     
     def sample(self):
         return self.cond_distribution(torch.unsqueeze(self.conditionals, 0)).sample()
+
+    def mode(self):
+        return self.cond_distribution(torch.unsqueeze(self.conditionals, 0)).mode()
