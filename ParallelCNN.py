@@ -73,6 +73,16 @@ class _ParallelCNNDistribution(nn.Module):
             output_distribution_params = block_parallel_cnns[channel](network_input)
             samples[:,channel,slice[0],slice[1]] = self.output_distribution_layer(output_distribution_params).sample()[:,0,slice[0],slice[1]]
 
+#Note, alters samples
+    def mode_block(self, samples, distribution_params, block_parallel_cnns, slice):
+        for channel in range(len(block_parallel_cnns)):
+            if distribution_params is not None:
+                network_input = torch.cat((samples, distribution_params), dim=1 )
+            else:
+                network_input = torch.cat([samples], dim=1)
+            output_distribution_params = block_parallel_cnns[channel](network_input)
+            samples[:,channel,slice[0],slice[1]] = self.output_distribution_layer(output_distribution_params).mode()[:,0,slice[0],slice[1]]
+
     def upsampler_log_prob(self, value, distribution_params, parallel_cnns):
         logging_dict = {}
         masked_value = torch.zeros_like(value)
@@ -90,6 +100,13 @@ class _ParallelCNNDistribution(nn.Module):
         samples[:,:,ground_slice[0],ground_slice[1]] = downsampled_images
         for s in range(3):
             self.sample_block(samples, distribution_params, parallel_nets[s], upsampling_slices[s])
+        return samples
+
+    def upsampler_mode(self, downsampled_images, distribution_params, parallel_nets):
+        samples = torch.zeros([downsampled_images.shape[0], downsampled_images.shape[1], downsampled_images.shape[2]*2, downsampled_images.shape[3]*2], device=downsampled_images.device)
+        samples[:,:,ground_slice[0],ground_slice[1]] = downsampled_images
+        for s in range(3):
+            self.mode_block(samples, distribution_params, parallel_nets[s], upsampling_slices[s])
         return samples
 
     def log_prob(self, value, conditionals=None):
@@ -137,6 +154,20 @@ class _ParallelCNNDistribution(nn.Module):
                 level_subsample_rate = 2**(self.num_upsampling_stages-level-1)
                 upsample_conditionals = conditionals[:,:,::level_subsample_rate,::level_subsample_rate] if conditionals is not None else None
                 sample = self.upsampler_sample(
+                    sample,
+                    upsample_conditionals,
+                    self.upsampler_nets[ level ])
+        return sample
+
+    def mode(self, conditionals=None):
+        with torch.no_grad():
+            sample = torch.zeros([1, self.event_shape[0], self.event_shape[1]//2**self.num_upsampling_stages, self.event_shape[2]//2**self.num_upsampling_stages ], device=next(self.parameters()).device)
+            base_conditionals = conditionals[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages] if conditionals is not None else None
+            self.mode_block(sample, base_conditionals, self.base_nets, base_slice)
+            for level in range(self.num_upsampling_stages):
+                level_subsample_rate = 2**(self.num_upsampling_stages-level-1)
+                upsample_conditionals = conditionals[:,:,::level_subsample_rate,::level_subsample_rate] if conditionals is not None else None
+                sample = self.upsampler_mode(
                     sample,
                     upsample_conditionals,
                     self.upsampler_nets[ level ])
