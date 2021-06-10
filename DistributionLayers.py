@@ -2,6 +2,11 @@ import torch
 import torch.nn as nn
 
 
+def quantize(x, num_buckets):
+    quantized_samples = torch.clamp((x*num_buckets).floor(), 0, num_buckets-1)
+    return quantized_samples/num_buckets + 1.0/(num_buckets*2.0)
+
+
 class IndependentNormalDistribution():
 
     def __init__(self, loc, scale):
