@@ -43,8 +43,8 @@ class IndependentBernoulliDistribution():
     def log_prob(self, samples):
         return {"log_prob": self.dist.log_prob(samples)}
 
-    def sample(self):
-        return self.dist.sample()
+    def sample(self, temperature=1.0):
+        return torch.distributions.Independent(torch.distributions.Bernoulli(logits=self.logits/temperature), reinterpreted_batch_ndims=3).sample()
 
     def mode(self):
         return (self.logits>0.0).float()
@@ -63,8 +63,9 @@ class IndependentQuantizedDistribution():
         log_prob = self.dist.log_prob(quantized_samples)
         return {"log_prob": log_prob}
 
-    def sample(self):
-        return self.dist.sample()/self.num_buckets + 1.0/(self.num_buckets*2.0)
+    def sample(self, temperature=1.0):
+        qsample = torch.distributions.Independent(torch.distributions.Categorical(logits=self.logits/temperature), reinterpreted_batch_ndims=3 )
+        return qsample.sample()/self.num_buckets + 1.0/(self.num_buckets*2.0)
 
     def mode(self):
         return torch.argmax(self.logits, dim=4)/self.num_buckets + 1.0/(self.num_buckets*2.0)
@@ -123,6 +124,10 @@ class IndependentQuantizedLayer(nn.Module):
         return self.num_buckets*channels
 
 
+#Helper classes.
+#
+#Distribution object provides a Distribution interface, it assumes the passed in object has interface:
+#log_prob(samples, conditionals) and sample(conditionals) and passes in None for conditionals
 class Distribution(nn.Module):
     def __init__(self):
         super(Distribution, self).__init__()
@@ -131,10 +136,15 @@ class Distribution(nn.Module):
     def log_prob(self, samples):
         return self.distribution.log_prob(samples)
 
-    def sample(self):
-        return self.distribution.sample()
+    def sample(self, temperature=1.0):
+        return self.distribution.sample(conditionals=None, temperature=temperature)
+
+    def mode(self):
+        return self.distribution.mode(conditionals=None)
 
 
+#LayerDistribution object provides a Distribution interface, it assumes the passed in object has interface:
+#log_prob(samples, conditionals) and sample(conditionals) and passes in the forwarded tensor.
 class LayerDistribution(nn.Module):
     def __init__(self, distribution, params):
         super(LayerDistribution, self).__init__()
@@ -144,9 +154,9 @@ class LayerDistribution(nn.Module):
     def log_prob(self, samples):
         return self.distribution.log_prob(samples, self.params)
 
-    def sample(self):
+    def sample(self, temperature=1.0):
         with torch.no_grad():
-            return self.distribution.sample(self.params)
+            return self.distribution.sample(self.params, temperature)
 
     def mean(self):
         with torch.no_grad():
@@ -156,6 +166,9 @@ class LayerDistribution(nn.Module):
         with torch.no_grad():
             return self.distribution.mode(self.params)
 
+#Layer object provides a forward method and returns a distribution object.
+#It assumes the passed in object has interface:
+#log_prob(samples, conditionals) and sample(conditionals)
 class Layer(nn.Module):
     def __init__(self, distribution):
         super(Layer, self).__init__()
