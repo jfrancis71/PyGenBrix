@@ -106,8 +106,6 @@ class LogDistributionSamplesPerEpoch(pl.Callback):
         if self.filename is not None:
             torchvision.utils.save_image(samples, self.filename)
 
-#Potential issue with batch_indx wrapping around epoch.
-#using global_step could result in multiple samples if accumulate_grads > 1
 class LogDistributionSamplesPerTraining(pl.Callback):
     def __init__(self, every_global_step=1000, filename=None, temperature = 1.0):
         super(LogDistributionSamplesPerTraining, self).__init__()
@@ -118,11 +116,26 @@ class LogDistributionSamplesPerTraining(pl.Callback):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
         if (pl_module.global_step % self.every_global_step == 0) and (batch_idx % trainer.accumulate_grad_batches == 0):
             pl_module.eval()
-            samples = distribution_sample(pl_module.model)
+            samples = distribution_sample(pl_module.model, self.temperature)
             pl_module.train()
             pl_module.logger.experiment.add_image("training_loop T"+str(self.temperature), samples, pl_module.global_step, dataformats="CHW")
             if self.filename is not None:
                 torchvision.utils.save_image(samples, self.filename)
+
+class LogDistributionModePerTraining(pl.Callback):
+    def __init__(self, every_global_step=1000, filename=None):
+        super(LogDistributionModePerTraining, self).__init__()
+        self.every_global_step = every_global_step
+        self.filename = filename
+
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+        if (pl_module.global_step % self.every_global_step == 0) and (batch_idx % trainer.accumulate_grad_batches == 0):
+            pl_module.eval()
+            sample = torch.clip(pl_module.model.mode(),0.0,1.0)
+            pl_module.train()
+            pl_module.logger.experiment.add_image("train_mode", sample[0], pl_module.global_step, dataformats="CHW")
+            if self.filename is not None:
+                torchvision.utils.save_image(sample, self.filename)
 
 
 #To run a training session:
