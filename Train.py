@@ -96,15 +96,29 @@ def distribution_sample(model, temperature=1.0):
     return torchvision.utils.make_grid(imglist, padding=10, nrow=4 )
 
 class LogDistributionSamplesPerEpoch(pl.Callback):
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, temperature=1.0):
         super(LogDistributionSamplesPerEpoch, self).__init__()
+        self.filename = filename
+        self.temperature = temperature
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        samples = distribution_sample(pl_module.model, self.temperature)
+        pl_module.logger.experiment.add_image("epoch_sample T"+str(self.temperature), samples, pl_module.current_epoch, dataformats="CHW")
+        if self.filename is not None:
+            torchvision.utils.save_image(samples, self.filename)
+
+
+class LogDistributionModePerEpoch(pl.Callback):
+    def __init__(self, filename=None):
+        super(LogDistributionModePerEpoch, self).__init__()
         self.filename = filename
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        samples = distribution_sample(pl_module.model)
-        pl_module.logger.experiment.add_image("epoch_image", samples, pl_module.current_epoch, dataformats="CHW")
+        samples = pl_module.model.mode()
+        pl_module.logger.experiment.add_image("epoch_mode", samples[0], pl_module.current_epoch, dataformats="CHW")
         if self.filename is not None:
             torchvision.utils.save_image(samples, self.filename)
+
 
 class LogDistributionSamplesPerTraining(pl.Callback):
     def __init__(self, every_global_step=1000, filename=None, temperature = 1.0):
@@ -118,9 +132,10 @@ class LogDistributionSamplesPerTraining(pl.Callback):
             pl_module.eval()
             samples = distribution_sample(pl_module.model, self.temperature)
             pl_module.train()
-            pl_module.logger.experiment.add_image("training_loop T"+str(self.temperature), samples, pl_module.global_step, dataformats="CHW")
+            pl_module.logger.experiment.add_image("train_sample T"+str(self.temperature), samples, pl_module.global_step, dataformats="CHW")
             if self.filename is not None:
                 torchvision.utils.save_image(samples, self.filename)
+
 
 class LogDistributionModePerTraining(pl.Callback):
     def __init__(self, every_global_step=1000, filename=None):
