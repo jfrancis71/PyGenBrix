@@ -90,8 +90,8 @@ class LightningDistributionTrainer(LightningTrainer):
     def get_distribution(self, y):
         return self.model
 
-def distribution_sample(model):
-    imglist = [model.sample() for _ in range(16)]
+def distribution_sample(model, temperature=1.0):
+    imglist = [model.sample(temperature) for _ in range(16)]
     imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
     return torchvision.utils.make_grid(imglist, padding=10, nrow=4 )
 
@@ -109,17 +109,18 @@ class LogDistributionSamplesPerEpoch(pl.Callback):
 #Potential issue with batch_indx wrapping around epoch.
 #using global_step could result in multiple samples if accumulate_grads > 1
 class LogDistributionSamplesPerTraining(pl.Callback):
-    def __init__(self, every_global_step=1000, filename=None):
+    def __init__(self, every_global_step=1000, filename=None, temperature = 1.0):
         super(LogDistributionSamplesPerTraining, self).__init__()
         self.every_global_step = every_global_step
         self.filename = filename
+        self.temperature = temperature
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
         if (pl_module.global_step % self.every_global_step == 0) and (batch_idx % trainer.accumulate_grad_batches == 0):
             pl_module.eval()
             samples = distribution_sample(pl_module.model)
             pl_module.train()
-            pl_module.logger.experiment.add_image("train_image", samples, pl_module.global_step, dataformats="CHW")
+            pl_module.logger.experiment.add_image("training_loop T"+str(self.temperature), samples, pl_module.global_step, dataformats="CHW")
             if self.filename is not None:
                 torchvision.utils.save_image(samples, self.filename)
 
@@ -145,8 +146,8 @@ class PyGenBrixModel(nn.Module):
     def log_prob(self, samples):
         return self.cond_distribution(self.conditionals.expand([samples.shape[0], self.dims[0], self.dims[1], self.dims[2]])).log_prob(samples)
     
-    def sample(self):
-        return self.cond_distribution(torch.unsqueeze(self.conditionals, 0)).sample()
+    def sample(self, temperature=1.0):
+        return self.cond_distribution(torch.unsqueeze(self.conditionals, 0)).sample(temperature)
 
     def mode(self):
         return self.cond_distribution(torch.unsqueeze(self.conditionals, 0)).mode()
