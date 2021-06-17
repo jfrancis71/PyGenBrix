@@ -18,3 +18,9 @@ def import_http_image( location ):
     image = imageio.imread( location )
     pil_image = Image.fromarray( image )
     return pil_image
+
+def get_image( ipaddress ):
+    image = imageio.imread("http://"+ipaddress+":8080?action=snapshot")
+    pil_image = Image.fromarray( image )
+    resize = pil_image.resize( (32,32) )
+    return resize
