@@ -45,36 +45,17 @@ class LightningTrainer(pl.LightningModule):
         return {"loss": -log_prob, "log": logs}
 
     def training_step(self, batch, batch_indx):
-        return self.mean_step(batch, batch_indx)
+        logs = self.mean_step(batch, batch_indx)
+        for key, value in logs["log"].items():
+            self.log(key, value, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return logs["loss"]
     
     def validation_step(self, batch, batch_indx):
-        return self.mean_step(batch, batch_indx)
+        logs = self.mean_step(batch, batch_indx)
+        for key, value in logs["log"].items():
+            self.log("validation_"+key, value, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        return logs["loss"]
 
-    def training_epoch_end(self, outputs):
-        mean_loss = torch.stack([x["loss"] for x in outputs]).mean()
-        tensorboard_logs = {key+"/train":
-            torch.tensor([x["log"][key] for x in outputs]).mean() for key in outputs[0]["log"].keys() if key != "step"}
-        tensorboard_logs["step"] = self.current_epoch
-        epoch_dictionary = {
-            "loss": mean_loss,
-            "log": tensorboard_logs
-        }
-        print("Training Loss ", mean_loss, end='')
-        print("epoch", self.current_epoch)
-        return epoch_dictionary
-        
-    def validation_epoch_end(self, val_step_outputs):
-        mean_val_loss = torch.tensor([x['loss'] for x in val_step_outputs]).mean()
-        tensorboard_logs = {key+"/validation":
-            torch.tensor([x["log"][key] for x in val_step_outputs]).mean() for key in val_step_outputs[0]["log"].keys() if key != "step"}
-        tensorboard_logs["step"] = self.current_epoch
-        epoch_dictionary = {
-            "loss": mean_val_loss,
-            "log": tensorboard_logs
-        }
-        print("Validation loss", mean_val_loss)
-        return epoch_dictionary
-    
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr = self.learning_rate)
     
