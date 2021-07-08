@@ -26,11 +26,16 @@ class LightningTrainer(pl.LightningModule):
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.add_graph = add_graph
-        dataset_size = len(dataset)
+        self.dataset = dataset
+        self.train_set, self.val_set = self.get_datasets()
+
+    def get_datasets(self):
+        dataset_size = len(self.dataset)
         training_size = np.round(dataset_size*0.9).astype(int)
-        self.train_set, self.val_set = torch.utils.data.random_split(
-            dataset, [training_size, dataset_size-training_size],
+        train_set, val_set = torch.utils.data.random_split(
+            self.dataset, [training_size, dataset_size-training_size],
             generator=torch.Generator().manual_seed(42) ) 
+        return (train_set, val_set)
 
     def on_fit_start(self):
         if self.add_graph:
