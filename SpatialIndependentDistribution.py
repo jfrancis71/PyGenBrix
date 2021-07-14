@@ -5,9 +5,9 @@ from PyGenBrix import DistributionLayers as dl
 
 
 class SpatialNN(nn.Module):
-    def __init__(self, input_channels, output_channels, num_params=None):
+    def __init__(self, input_channels, output_channels, num_params=None, net_size=16):
         super(SpatialNN, self).__init__()
-        self.net_size = 16
+        self.net_size = net_size
         self.c1 = nn.Conv2d(input_channels, self.net_size, kernel_size=1)
         self.c2 = nn.Conv2d(self.net_size, self.net_size, kernel_size=1)
         self.c3 = nn.Conv2d(self.net_size, output_channels, kernel_size=1)
@@ -32,10 +32,10 @@ class SpatialNN(nn.Module):
 
 
 class _SpatialIndependentDistribution(nn.Module):
-    def __init__(self, event_shape, base_distribution_layer, num_params=None):
+    def __init__(self, event_shape, base_distribution_layer, num_params=None, net_size=16):
         super(_SpatialIndependentDistribution, self).__init__()
-        self.n1 = SpatialNN(1, base_distribution_layer.params_size(1), num_params)
-        self.n = nn.ModuleList([ SpatialNN(i+1, base_distribution_layer.params_size(1), num_params) for i in range(event_shape[0]-1) ])
+        self.n1 = SpatialNN(1, base_distribution_layer.params_size(1), num_params, net_size)
+        self.n = nn.ModuleList([ SpatialNN(i+1, base_distribution_layer.params_size(1), num_params, net_size) for i in range(event_shape[0]-1) ])
         self.base_distribution_layer = base_distribution_layer
         self.event_shape = event_shape
 
@@ -61,8 +61,8 @@ class _SpatialIndependentDistribution(nn.Module):
 
 
 class SpatialIndependentDistributionLayer(dl.Layer):
-    def __init__(self, event_shape, base_distribution_layer, num_params):
-        super(SpatialIndependentDistributionLayer, self).__init__(_SpatialIndependentDistribution(event_shape, base_distribution_layer, num_params=num_params))
+    def __init__(self, event_shape, base_distribution_layer, num_params, net_size=16):
+        super(SpatialIndependentDistributionLayer, self).__init__(_SpatialIndependentDistribution(event_shape, base_distribution_layer, num_params=num_params, net_size=net_size))
         self.num_params = num_params
 
     def params_size(self, channels):
