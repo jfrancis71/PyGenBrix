@@ -1,4 +1,6 @@
-#Achieves about -8 after an hour of training
+#1 Frame: 7.41, 15.1
+#2 Frame: 18, 15.7
+#4 Frame: 17.3, 17.2
 
 import gym
 
@@ -41,6 +43,6 @@ env = gym.make("PongNoFrameskip-v4")
 env.seed(42)
 env = MaxAndSkipEnv(env, skip=4)
 env = WarpFrame(env)
-env = StackFramesWrapper(env, 2, np.uint8)
-model = DQN('CnnPolicy', env, verbose=1)
-model.learn(total_timesteps=2500000)
+env = StackFramesWrapper(env, 4, np.uint8)
+model = DQN('CnnPolicy', env, verbose=1, buffer_size=10000, learning_rate=.0001, learning_starts=100000, target_update_interval=1000)
+model.learn(total_timesteps=2000000)
