@@ -42,8 +42,11 @@ class _SpatialIndependentDistribution(nn.Module):
     def log_prob(self, samples, params=None):
         init1 = torch.zeros_like(samples)
         prob1 = self.base_distribution_layer(self.n1(init1[:,:1], params)).log_prob(samples[:,:1])
-        probs = torch.stack([ self.base_distribution_layer(self.n[i](samples[:,:i+1], params)).log_prob(samples[:,i+1:i+2])["log_prob"] for i in range(self.event_shape[0]-1) ])
-        return {"log_prob": prob1["log_prob"]+torch.sum(probs, dim=0)}
+        remain_probs = 0.0
+        if self.event_shape[0] > 1:
+            remain_probs = torch.stack([ self.base_distribution_layer(self.n[i](samples[:,:i+1], params)).log_prob(samples[:,i+1:i+2])["log_prob"] for i in range(self.event_shape[0]-1) ])
+            remain_probs = torch.sum(remain_probs, dim=0)
+        return {"log_prob": prob1["log_prob"]+remain_probs}
 
     def sample(self, params=None, temperature=1.0):
         init1 = torch.zeros([1] + self.event_shape, device="cuda")
