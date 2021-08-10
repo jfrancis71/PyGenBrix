@@ -1,3 +1,4 @@
+import argparse
 import torchvision
 import pytorch_lightning as pl
 
@@ -5,7 +6,11 @@ import PyGenBrix.dist_layers.parallelcnn as cnn
 import PyGenBrix.Train as Train
 import PyGenBrix.dist_layers.common_layers as dl
 
-mymodel = cnn.ParallelCNNDistribution([ 3, 32, 32 ], dl.IndependentQuantizedLayer( num_buckets = 8),max_unet_layers=3, num_upsampling_stages=5 )
+ap = argparse.ArgumentParser(description="ParallelCNN")
+ap.add_argument("--num_upsampling_stages", default=1)
+ns = ap.parse_args()
+
+mymodel = cnn.ParallelCNNDistribution([ 3, 32, 32 ], dl.IndependentQuantizedLayer( num_buckets = 8),max_unet_layers=3, num_upsampling_stages=int(ns.num_upsampling_stages))
 
 celeba_dataset = torchvision.datasets.ImageFolder(
     root="/home/julian/ImageDataSets/celeba/",
