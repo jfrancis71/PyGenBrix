@@ -51,19 +51,15 @@ class _PixelCNNDistribution(nn.Module):
             for y in range(self.event_shape[1]):
                 for x in range(self.event_shape[2]):
                     params=self.pixelcnn_net((sampl*2)-1, sample=True, conditional=conditionals)
-                    s = self.output_distribution_layer(params).sample(temperature)
+                    if temperature > .01:
+                        s = self.output_distribution_layer(params).sample(temperature)
+                    else:
+                        s = self.output_distribution_layer(params).mode()
                     sampl[0,:,y,x] = s[0,:,y,x]
         return sampl
 
     def mode(self, conditionals=None):
-        with torch.no_grad():
-            sampl = torch.zeros([1]+self.event_shape, device="cuda")
-            for y in range(self.event_shape[1]):
-                for x in range(self.event_shape[2]):
-                    params=self.pixelcnn_net((sampl*2)-1, sample=True, conditional=conditionals)
-                    s = self.output_distribution_layer(params).mode()
-                    sampl[0,:,y,x] = s[0,:,y,x]
-        return sampl
+        self.sample(conditionals, temperature=0.0)
 
 
 class PixelCNNDistribution(dl.Distribution):
