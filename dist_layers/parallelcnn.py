@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import pl_bolts.models.vision.unet as plt_unet
 
-from PyGenBrix import DistributionLayers as dl
+import PyGenBrix.dist_layers.common_layers as dl
 
 
 base_slice = (slice(0, None, 1), slice(0, None, 1))

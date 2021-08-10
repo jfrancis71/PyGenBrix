@@ -5,14 +5,13 @@ import torch
 import torchvision
 import numpy as np
 import matplotlib.pyplot as plt
-from IPython import display
 import pytorch_lightning as pl
 
-from PyGenBrix import ParallelCNN as cnn
-from PyGenBrix import Train as Train
-from PyGenBrix import DistributionLayers as dl
-from PyGenBrix import SpatialIndependentDistribution as sp
-from PyGenBrix import FactorizedQuantized as fq
+import PyGenBrix.dist_layers.parallelcnn as cnn
+import PyGenBrix.Train as Train
+import PyGenBrix.dist_layers.common_layers as dl
+import PyGenBrix.dist_layers.spatial_independent as sp
+import PyGenBrix.dist_layers.bitwise_factorize as fq
 
 class PixelCNN_Bitwise_Distribution(nn.Module):
     def __init__(self):

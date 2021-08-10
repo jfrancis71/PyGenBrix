@@ -5,10 +5,10 @@ import itertools
 
 from matplotlib import pyplot as plt
 
-from PyGenBrix import PixelCNNDistribution as cnn
-from PyGenBrix import Train as Train
-from PyGenBrix import DistributionLayers as dl
-from PyGenBrix import SpatialIndependentDistribution as sp
+import PyGenBrix.dist_layers.pixelcnn as cnn
+import PyGenBrix.Train as Train
+import PyGenBrix.dist_layers.common_layers as dl
+import PyGenBrix.dist_layers.spatial_independent as sp
 
 import LBAE.models5
 import LBAE.parameters

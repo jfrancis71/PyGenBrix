@@ -7,10 +7,11 @@
 import torch
 import torch.nn as nn
 
-from PyGenBrix import DistributionLayers as dl
+import PyGenBrix.dist_layers.common_layers as dl
 
 from pixelcnn_pp import model as pixelcnn_model
 from pixelcnn_pp import utils as pixelcnn_utils
+
 
 class PixelCNNDiscreteMixDistribution():
     def __init__(self, params):

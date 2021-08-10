@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 from IPython import display
 import pytorch_lightning as pl
 
-from PyGenBrix import PixelCNNDistribution as cnn
-from PyGenBrix import Train as Train
-from PyGenBrix import DistributionLayers as dl
-from PyGenBrix import SpatialIndependentDistribution as sp
+import PyGenBrix.dist_layers.pixelcnn as cnn
+import PyGenBrix.Train as Train
+import PyGenBrix.dist_layers.common_layers as dl
+import PyGenBrix.dist_layers.spatial_independent as sp
 
 mymodel = cnn.PixelCNNDistribution([ 3, 32, 32 ], sp.SpatialIndependentDistributionLayer( [3, 32, 32], dl.IndependentQuantizedLayer( num_buckets = 8), num_params=30 ) )
 

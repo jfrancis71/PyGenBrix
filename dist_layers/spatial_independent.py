@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from PyGenBrix import DistributionLayers as dl
+import PyGenBrix.dist_layers.common_layers as dl
 
 
 class SpatialNN(nn.Module):
@@ -52,18 +52,20 @@ class _SpatialIndependentDistribution(nn.Module):
         init1 = torch.zeros([1] + self.event_shape, device="cuda")
         init1[0,0] = self.base_distribution_layer(self.n1(init1[:,:1], params)).sample(temperature)
         for i in range(self.event_shape[0]-1):
-            init1[0,i+1] = self.base_distribution_layer(self.n[i](init1[:,:i+1], params)).sample(temperature)
+            if temperature >= 0.01:
+                init1[0,i+1] = self.base_distribution_layer(self.n[i](init1[:,:i+1], params)).sample(temperature)
+            else:
+                init1[0,i+1] = self.base_distribution_layer(self.n[i](init1[:,:i+1], params)).mode()
         return init1
 
     def mode(self, params=None):
-        init1 = torch.zeros([1] + self.event_shape, device="cuda")
-        init1[0,0] = self.base_distribution_layer(self.n1(init1[:,:1], params)).mode()
-        for i in range(self.event_shape[0]-1):
-            init1[0,i+1] = self.base_distribution_layer(self.n[i](init1[:,:i+1], params)).mode()
-        return init1
+        return self.sample(params, temperature=0.0)
 
 
 class SpatialIndependentDistributionLayer(dl.Layer):
+    """SpatialIndependentDistributionLayer defines a forward method which returns a base distribution
+       Variables in spatial neighbourhood are assumed independent, but channel dependence is assumed
+       and modelled using a neural network"""
     def __init__(self, event_shape, base_distribution_layer, num_params, net_size=16):
         super(SpatialIndependentDistributionLayer, self).__init__(_SpatialIndependentDistribution(event_shape, base_distribution_layer, num_params=num_params, net_size=net_size))
         self.num_params = num_params
