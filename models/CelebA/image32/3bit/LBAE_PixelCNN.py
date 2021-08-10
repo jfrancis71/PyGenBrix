@@ -3,8 +3,6 @@ from torch import nn as nn
 import torchvision
 import itertools
 
-from matplotlib import pyplot as plt
-
 import PyGenBrix.dist_layers.pixelcnn as cnn
 import PyGenBrix.Train as Train
 import PyGenBrix.dist_layers.common_layers as dl
