@@ -1,5 +1,16 @@
+import time
 import numpy as np
 import gym
+
+class SleepWrapper(gym.Wrapper):
+    def __init__(self, env, sleep=0.02):
+        super(SleepWrapper, self).__init__(env)
+        self.sleep = sleep
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        time.sleep(self.sleep)
+        return obs, reward, done, info
 
 
 #altered from Deep Reinforcement Learning Hands-On, Maxim Lapan, 2nd edition
