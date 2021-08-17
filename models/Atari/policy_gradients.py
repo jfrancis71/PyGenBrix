@@ -19,7 +19,7 @@ class Policy(nn.Module):
             nn.Conv2d(1, 16, kernel_size=5, stride=2) , nn.BatchNorm2d(16), nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
             nn.Conv2d(32, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
-            nn.Flatten(start_dim=0), nn.Linear(1568, 6))
+            nn.Flatten(start_dim=0), nn.Linear(1568, env.action_space.n))
         self.optimizer = optim.RMSprop(self.parameters(), lr=1e-4)
         self.env = env
         if tensorboard_log is not None:
@@ -112,12 +112,13 @@ def discount_rewards(r, gamma=0.99):
     return discounted_r
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description="Pong PG")
+    ap = argparse.ArgumentParser(description="Policy Gradients")
+    ap.add_argument("--env", default="PongNoFrameskip-v4")
     ap.add_argument("--max_episodes", default=1000, type=int)
     ap.add_argument("--save_filename")
     ap.add_argument("--tensorboard_log", default=None)
     ns = ap.parse_args()
-    env = gym.make("PongNoFrameskip-v4")
+    env = gym.make(ns.env)
     env.seed(42)
     env = sb3_wrappers.MaxAndSkipEnv(env, skip=4)
     env = sb3_wrappers.WarpFrame(env)
