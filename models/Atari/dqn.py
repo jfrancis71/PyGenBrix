@@ -10,13 +10,14 @@ from stable_baselines3.common.atari_wrappers import *
 import PyGenBrix.models.Atari.wrappers as wrappers
 
 
-ap = argparse.ArgumentParser(description="Pong DQN")
+ap = argparse.ArgumentParser(description="DQN")
+ap.add_argument("--env", default="PongNoFrameskip-v4")
 ap.add_argument("--frame_stacks", default=4)
 ap.add_argument("--save_path")
 ap.add_argument("--tensorboard_log")
 ns = ap.parse_args()
 
-env = gym.make("PongNoFrameskip-v4")
+env = gym.make(ns.env)
 env.seed(42)
 env = MaxAndSkipEnv(env, skip=4)
 env = WarpFrame(env)
