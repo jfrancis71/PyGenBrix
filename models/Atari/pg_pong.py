@@ -35,10 +35,13 @@ class Policy(nn.Module):
         probs = self(observation)
         return Categorical(probs)
 
-    def predict(self, observation):
-        action_distribution = self.get_action_distribution(observation)
+#Note, this assumes a vectorized environment, for use by evaluate_policy
+    def predict(self, observation, state=None, deterministic=None):
+        observation = np.transpose(observation[0]/255.0 - 0.5, (2,0,1)).astype(np.float32)
+        observation_tensor = torch.tensor(observation).unsqueeze(0)
+        action_distribution = self.get_action_distribution(observation_tensor)
         action = action_distribution.sample()
-        return action.item()
+        return [action.item()], None
     
     def train_iter(self, episode):
         observations, rewards, actions, log_probs = self.collect_rollout()
