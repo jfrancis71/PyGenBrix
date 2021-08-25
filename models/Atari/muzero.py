@@ -42,7 +42,7 @@ class RNN(nn.Module):
 
 
 class Rollout(nn.Module):
-    def __init__(self):
+    def __init__(self, length):
         super(Rollout, self).__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=5, stride=2) , nn.BatchNorm2d(16), nn.ReLU(),
@@ -51,27 +51,27 @@ class Rollout(nn.Module):
             nn.Flatten(start_dim=0), nn.Linear(1568, 128))
         self.rnn = RNN()
         self.decoder = nn.Linear(128,1)
+        self.length = length
 
 #Compute sum of reward 
     def forward(self, observation, actions):
-        h0 = self.encoder(observation)
-        h1 = self.rnn(h0, actions[0])
-        h2 = self.rnn(h1, actions[1])
-        h3 = self.rnn(h2, actions[2])
-
-        return self.decoder(h3)
+        h = self.encoder(observation)
+        for _ in range(self.length):
+            h = self.rnn(h, actions[0])
+            actions = actions[1:]
+        return self.decoder(h)
 
 
 class Policy(nn.Module):
     """Pytorch CNN implementing a Policy"""
-    def __init__(self, env, tensorboard_log=None, device="cpu"):
+    def __init__(self, env, tensorboard_log=None, device="cpu", rollout_length=3):
         super(Policy, self).__init__()
         self.env = env
         if tensorboard_log is not None:
             self.writer = SummaryWriter(tensorboard_log)
         else:
             self.writer = None
-        self.rollout = Rollout().to(device)
+        self.rollout = Rollout(rollout_length).to(device)
         self.optimizer = optim.RMSprop(self.parameters(), lr=1e-4)
         self.device = device
 
@@ -87,7 +87,7 @@ class Policy(nn.Module):
         observations, rewards, actions = self.collect_rollout(episode=episode)
         losses = []
         for t in range(0,len(observations)-10):
-            total_next_few_rewards = self.rollout(torch.unsqueeze(torch.tensor(observations[t], device=self.device), 0), actions[t:t+4])
+            total_next_few_rewards = self.rollout(torch.unsqueeze(torch.tensor(observations[t], device=self.device), 0), actions[t:t+1+self.rollout.length])
             actual_next_few_rewards = np.sum(rewards[t:t+15])
             diff = total_next_few_rewards - actual_next_few_rewards
             losses.append(diff*diff)
@@ -114,7 +114,7 @@ class Policy(nn.Module):
 
     def value(self, hidden_state, k):
         value = 0.0
-        if k == 3:
+        if k == self.rollout.length:
             value = self.rollout.decoder(hidden_state)
         else:
             left_value = self.value(self.rollout.rnn(hidden_state, torch.tensor(2)), k+1)
@@ -183,13 +183,14 @@ if __name__ == "__main__":
     ap.add_argument("--save_filename")
     ap.add_argument("--tensorboard_log", default=None)
     ap.add_argument("--device", default="cpu")
+    ap.add_argument("--rollout_length", default=3, type=int)
     ns = ap.parse_args()
     env = gym.make(ns.env)
     env.seed(42)
     env = sb3_wrappers.MaxAndSkipEnv(env, skip=4)
     env = sb3_wrappers.WarpFrame(env)
     env = wrappers.StackFramesWrapper(env, 1, np.uint8)
-    model = Policy(env, tensorboard_log=ns.tensorboard_log, device=ns.device)
+    model = Policy(env, tensorboard_log=ns.tensorboard_log, device=ns.device, rollout_length=ns.rollout_length)
     model.learn(ns.max_episodes)
     if ns.save_filename is not None:
         model.save(ns.save_filename)
