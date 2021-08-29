@@ -50,16 +50,20 @@ class Rollout(nn.Module):
             nn.Conv2d(32, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
             nn.Flatten(start_dim=0), nn.Linear(1568, 128))
         self.rnn = RNN()
-        self.decoder = nn.Linear(128,1)
+        self.reward = nn.Linear(128,1)
+        self.rem_reward = nn.Linear(128,1)
         self.length = length
 
 #Compute sum of reward 
     def forward(self, observation, actions):
         h = self.encoder(observation)
+        rewards = []
         for _ in range(self.length):
             h = self.rnn(h, actions[0])
+            rewards.append(self.reward(h))
             actions = actions[1:]
-        return self.decoder(h)
+        rewards = torch.stack(rewards, dim=1)
+        return rewards, self.rem_reward(h)
 
 
 class Policy(nn.Module):
@@ -86,11 +90,15 @@ class Policy(nn.Module):
     def train_iter(self, episode):
         observations, rewards, actions = self.collect_rollout(episode=episode)
         losses = []
-        for t in range(0,len(observations)-10):
+        for t in range(0,len(observations)-16):
             total_next_few_rewards = self.rollout(torch.unsqueeze(torch.tensor(observations[t], device=self.device), 0), actions[t:t+1+self.rollout.length])
             actual_next_few_rewards = np.sum(rewards[t:t+15])
-            diff = total_next_few_rewards - actual_next_few_rewards
-            losses.append(diff*diff)
+            sim_rewards, sim_rem_wards = self.rollout(torch.unsqueeze(torch.tensor(observations[t], device=self.device), 0), actions[t:t+1+self.rollout.length])
+            actual_rewards, actual_rem_rewards = (torch.tensor(rewards[t:t+self.rollout.length]).unsqueeze(0),
+                torch.tensor([np.sum(rewards[t+self.rollout.length:t+15])]))
+            diff_rewards, diff_rem_rewards = actual_rewards - sim_rewards, actual_rem_rewards - sim_rem_wards
+#            diff_rewards = torch.tensor(actual_rewards) - sim_rewards
+            losses.append(diff_rewards*diff_rewards + diff_rem_rewards*diff_rem_rewards)
         loss = torch.stack(losses).sum()
         if self.writer is not None:
             self.writer.add_scalar("loss", loss, episode)
@@ -115,10 +123,12 @@ class Policy(nn.Module):
     def value(self, hidden_state, k):
         value = 0.0
         if k == self.rollout.length:
-            value = self.rollout.decoder(hidden_state)
+            value = self.rollout.rem_reward(hidden_state)
         else:
-            left_value = self.value(self.rollout.rnn(hidden_state, torch.tensor(2)), k+1)
-            right_value = self.value(self.rollout.rnn(hidden_state, torch.tensor(3)), k+1)
+            left_state = self.rollout.rnn(hidden_state, torch.tensor(2))
+            right_state = self.rollout.rnn(hidden_state, torch.tensor(3))
+            left_value = self.value(left_state, k+1) + self.rollout.reward(left_state)
+            right_value = self.value(left_state, k+1) + self.rollout.reward(right_state)
             value = torch.max(left_value, right_value)
         return value
 
