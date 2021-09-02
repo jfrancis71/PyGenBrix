@@ -59,7 +59,7 @@ class _PixelCNNDistribution(nn.Module):
         return sampl
 
     def mode(self, conditionals=None):
-        self.sample(conditionals, temperature=0.0)
+        return self.sample(conditionals, temperature=0.0)
 
 
 class PixelCNNDistribution(dl.Distribution):
