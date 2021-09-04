@@ -40,6 +40,8 @@ class _SpatialIndependentDistribution(nn.Module):
         self.event_shape = event_shape
 
     def log_prob(self, samples, params=None):
+        if list(samples.shape[1:]) != self.event_shape:
+            raise RuntimeError("samples has shape {}, but event_shape is {}".format(samples.shape, self.event_shape))
         init1 = torch.zeros_like(samples)
         prob1 = self.base_distribution_layer(self.n1(init1[:,:1], params)).log_prob(samples[:,:1])
         remain_probs = 0.0
@@ -72,6 +74,7 @@ class SpatialIndependentDistributionLayer(dl.Layer):
     def __init__(self, event_shape, base_distribution_layer, num_params, net_size=16):
         super(SpatialIndependentDistributionLayer, self).__init__(_SpatialIndependentDistribution(event_shape, base_distribution_layer, num_params=num_params, net_size=net_size))
         self.num_params = num_params
+        self.event_shape = event_shape
 
     def params_size(self, channels):
         return self.num_params
