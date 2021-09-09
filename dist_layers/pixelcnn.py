@@ -34,9 +34,9 @@ class PixelCNNDiscreteMixLayer(nn.Module):
 
         
 class _PixelCNNDistribution(nn.Module):
-    def __init__(self, event_shape, output_distribution_layer=PixelCNNDiscreteMixLayer(), num_conditional=None):
+    def __init__(self, event_shape, output_distribution_layer=PixelCNNDiscreteMixLayer(), num_conditional=None, nr_resnet=5):
         super(_PixelCNNDistribution, self).__init__()
-        self.pixelcnn_net = pixelcnn_model.PixelCNN(nr_resnet=5, nr_filters=160,
+        self.pixelcnn_net = pixelcnn_model.PixelCNN(nr_resnet=nr_resnet, nr_filters=160,
                 input_channels=event_shape[0], nr_params=output_distribution_layer.params_size(event_shape[0]), nr_conditional=num_conditional)
         self.output_distribution_layer = output_distribution_layer
         self.event_shape = event_shape
@@ -63,11 +63,11 @@ class _PixelCNNDistribution(nn.Module):
 
 
 class PixelCNNDistribution(dl.Distribution):
-    def __init__(self, event_shape, output_distribution_layer=PixelCNNDiscreteMixLayer()):
+    def __init__(self, event_shape, output_distribution_layer=PixelCNNDiscreteMixLayer(), nr_resnet=5):
         super(PixelCNNDistribution, self).__init__()
-        self.distribution = _PixelCNNDistribution(event_shape, output_distribution_layer)
+        self.distribution = _PixelCNNDistribution(event_shape, output_distribution_layer, num_conditional=None, nr_resnet=nr_resnet)
 
 
 class PixelCNNLayer(dl.Layer):
-    def __init__(self, event_shape, num_conditional, output_distribution_layer=PixelCNNDiscreteMixLayer()):
-        super(PixelCNNLayer, self).__init__(_PixelCNNDistribution(event_shape, output_distribution_layer, num_conditional))
+    def __init__(self, event_shape, num_conditional, output_distribution_layer=PixelCNNDiscreteMixLayer(), nr_resnet=5):
+        super(PixelCNNLayer, self).__init__(_PixelCNNDistribution(event_shape, output_distribution_layer, num_conditional, nr_resnet))
