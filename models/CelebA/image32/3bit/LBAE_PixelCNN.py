@@ -1,3 +1,4 @@
+import argparse
 import torch
 from torch import nn as nn
 import torchvision
@@ -56,4 +57,8 @@ mymodel = LBDistribution()
 
 trainer = Train.LightningDistributionTrainer( mymodel, celeba_dataset, learning_rate = .0002, batch_size = 8 )
 
-pl.Trainer( fast_dev_run = False, gpus=1, accumulate_grad_batches=8, callbacks=[Train.LogAutoencoderEpochCallback()] ).fit( trainer )
+ap = argparse.ArgumentParser(description="LBAE")
+ap.add_argument("--tensorboard_log")
+ns = ap.parse_args()
+
+pl.Trainer( fast_dev_run = False, gpus=1, accumulate_grad_batches=8, callbacks=[Train.LogAutoencoderEpochCallback()], default_root_dir=ns.tensorboard_log).fit( trainer )
