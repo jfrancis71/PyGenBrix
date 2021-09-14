@@ -42,6 +42,9 @@ class _PixelCNNDistribution(nn.Module):
         self.event_shape = event_shape
 
     def log_prob(self, samples, conditionals=None):
+        if samples.size()[1:4] != torch.Size(self.event_shape):
+            raise RuntimeError("sample shape  {}, but event_shape has shape {}"
+                            .format(samples.shape[1:4], self.event_shape))
         params = self.pixelcnn_net((samples*2.0)-1.0, conditional=conditionals)
         return self.output_distribution_layer(params).log_prob(samples)
 
