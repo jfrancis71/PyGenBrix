@@ -61,7 +61,8 @@ class IndependentQuantizedDistribution():
     def log_prob(self, samples):
         quantized_samples = torch.clamp((samples*self.num_buckets).floor(), 0, self.num_buckets-1)
         log_prob = self.dist.log_prob(quantized_samples)
-        return {"log_prob": log_prob}
+        fraction_correct = torch.mean((torch.abs(torch.argmax(self.logits, dim=4)-quantized_samples)<0.5)*1.0, axis=[1,2,3])
+        return {"log_prob": log_prob, "fraction_correct": fraction_correct}
 
     def sample(self, temperature=1.0):
         qsample = torch.distributions.Independent(torch.distributions.Categorical(logits=self.logits/temperature), reinterpreted_batch_ndims=3 )
