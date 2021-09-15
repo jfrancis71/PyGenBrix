@@ -35,7 +35,9 @@ class GenderTrainer(Train.LightningTrainer):
 
     def get_distribution(self, y):
         conditional = y[:,self.attr_index:self.attr_index+1].type(torch.float)
-        return self.model(conditional)
+        conditional_tensor = torch.reshape(conditional, (y.shape[0], 1, 1, 1))
+        conditional_tensor = torch.nn.Upsample(size=(32,32))(conditional_tensor)
+        return self.model(conditional_tensor)
 
 
 class GenderPixelCNNCallback(pl.Callback):
@@ -45,7 +47,9 @@ class GenderPixelCNNCallback(pl.Callback):
     def on_validation_epoch_end(self, trainer, pl_module):
         target = torch.arange(start=0,end=20,device=pl_module.device).type(torch.long)
         conditional = (target < 10).float().unsqueeze(1)
-        imglist = [pl_module.model(conditional[c:c+1]).sample() for c in range(20)]
+        conditional_tensor = torch.reshape(conditional, (20, 1, 1, 1))
+        conditional_tensor = torch.nn.Upsample(size=(32,32))(conditional_tensor)
+        imglist = [pl_module.model(conditional_tensor[c:c+1]).sample() for c in range(20)]
         imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
         trainer.logger.experiment.add_image("epoch_image", torchvision.utils.make_grid(imglist, padding=10, nrow=5 ), trainer.current_epoch, dataformats="CHW")
 
