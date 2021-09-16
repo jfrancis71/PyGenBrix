@@ -151,21 +151,7 @@ class LogAutoencoderEpochCallback(pl.Callback):
             pl_module.model.sample( torch.unsqueeze(pl_module.val_set[i*2][0].cuda(),0) )[0],
             pl_module.val_set[i*2+1][0].cuda(),
             pl_module.model.sample( torch.unsqueeze(pl_module.val_set[i*2+1][0].cuda(),0) )[0] ] for i in range(4) ]
-        sample_imglist_t7 = [ [
-            pl_module.val_set[i*2][0].cuda(),
-            pl_module.model.sample( torch.unsqueeze(pl_module.val_set[i*2][0].cuda(),0), temperature=0.7 )[0],
-            pl_module.val_set[i*2+1][0].cuda(),
-            pl_module.model.sample( torch.unsqueeze(pl_module.val_set[i*2+1][0].cuda(),0), temperature=0.7 )[0] ] for i in range(4) ]
-        mode_imglist = [ [
-            pl_module.val_set[i*2][0].cuda(),
-            pl_module.model.mode( torch.unsqueeze(pl_module.val_set[i*2][0].cuda(),0) )[0],
-            pl_module.val_set[i*2+1][0].cuda(),
-            pl_module.model.mode( torch.unsqueeze(pl_module.val_set[i*2+1][0].cuda(),0) )[0] ] for i in range(4) ]
-
         trainer.logger.experiment.add_image("samples_T=1.0", torchvision.utils.make_grid(list(itertools.chain(*sample_imglist)), padding=10, nrow=4 ), pl_module.global_step, dataformats="CHW")
-        trainer.logger.experiment.add_image("samples_T=0.7", torchvision.utils.make_grid(list(itertools.chain(*sample_imglist_t7)), padding=10, nrow=4 ), pl_module.global_step, dataformats="CHW")
-        trainer.logger.experiment.add_image("mode", torchvision.utils.make_grid(list(itertools.chain(*mode_imglist)), padding=10, nrow=4 ), pl_module.global_step, dataformats="CHW")
-
 
 
 #To run a training session:
