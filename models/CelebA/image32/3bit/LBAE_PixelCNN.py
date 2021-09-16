@@ -8,40 +8,59 @@ import PyGenBrix.dist_layers.pixelcnn as cnn
 import PyGenBrix.Train as Train
 import PyGenBrix.dist_layers.common_layers as dl
 import PyGenBrix.dist_layers.spatial_independent as sp
-
-import LBAE.models5
-import LBAE.parameters
+import PyGenBrix.models.residual_block as rb
+import PyGenBrix.models.binary_layer as bl
 
 import pytorch_lightning as pl
 
-hps = LBAE.parameters.Params()
-hps.channels = 3
-hps.img_size = 32
-hps.vae = False
-hps.zsize = 256
-hps.zround = -1
-hps.dataset = 'celeba'
-hps.channels_out = 64
+
+class Encoder(nn.Module):
+    def __init__(self):
+        super(Encoder, self).__init__()
+        self.c1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.c2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.c3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1, bias=False)
+        self.c4 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1, bias=False)
+        self.out = nn.Conv2d(256, 256, kernel_size=4, padding=0, bias=False)
+        self.b1 = rb.ResidualBlock(64)
+        self.b2 = rb.ResidualBlock(128)
+        self.bin = bl.BinaryLayer()
+
+    def forward(self, x):
+        x = self.c1(x)
+        x = nn.LeakyReLU(0.02)(x)
+        x = self.c2(x)
+        x = nn.LeakyReLU(0.02)(x)
+        x = self.b1(x)
+        x = self.c3(x)
+        x = nn.LeakyReLU(0.02)(x)
+        x = self.b2(x)
+        x = self.c4(x)
+        x = nn.LeakyReLU(0.02)(x)
+        x = self.out(x)
+        x = self.bin(x)
+        return x
+
 
 class LBDistribution(nn.Module):
     def __init__(self):
         super(LBDistribution, self).__init__()
-        self.enc = LBAE.models5.EncConvResBlock32(hps)
+        self.enc = Encoder()
         self.cnn = cnn.PixelCNNLayer([ 3, 32, 32 ], num_conditional=256, output_distribution_layer=sp.SpatialIndependentDistributionLayer( [3, 32, 32] , dl.IndependentQuantizedLayer( num_buckets = 8), num_params=30 ) )
         
     def log_prob(self, x):
-        enc = self.enc(x)[0]
+        enc = self.enc(x)[1]
         dist = self.cnn(enc)
         l = dist.log_prob(x)
         return l
 
     def sample(self, inp, temperature=1.0):
-        enc = self.enc(inp)[0].detach()
+        enc = self.enc(inp)[0]
         dist = self.cnn(enc)
         return dist.sample(temperature)
 
     def mode(self, inp):
-        enc = self.enc(inp)[0].detach()
+        enc = self.enc(inp)[0]
         dist = self.cnn(enc)
         return dist.mode()
 
