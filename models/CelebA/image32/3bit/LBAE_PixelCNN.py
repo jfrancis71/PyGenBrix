@@ -78,6 +78,7 @@ trainer = Train.LightningDistributionTrainer( mymodel, celeba_dataset, learning_
 
 ap = argparse.ArgumentParser(description="LBAE")
 ap.add_argument("--tensorboard_log")
+ap.add_argument("--max_epochs")
 ns = ap.parse_args()
 
-pl.Trainer( fast_dev_run = False, gpus=1, accumulate_grad_batches=8, callbacks=[Train.LogAutoencoderEpochCallback()], default_root_dir=ns.tensorboard_log).fit( trainer )
+pl.Trainer( fast_dev_run = False, gpus=1, accumulate_grad_batches=8, max_epochs=ns.max_epochs, callbacks=[Train.LogAutoencoderEpochCallback()], default_root_dir=ns.tensorboard_log).fit( trainer )
