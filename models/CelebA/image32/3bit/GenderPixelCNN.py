@@ -9,15 +9,10 @@ import PyGenBrix.dist_layers.common_layers as dl
 import PyGenBrix.dist_layers.spatial_independent as sp
 
 
-ap = argparse.ArgumentParser(description="LBAE")
+ap = argparse.ArgumentParser(description="GenderPixelCNN")
 ap.add_argument("--tensorboard_log")
+ap.add_argument("--max_epochs")
 ns = ap.parse_args()
-
-celeba_dataset = torchvision.datasets.ImageFolder(
-    root="/home/julian/ImageDataSets/celeba/",
-    transform = torchvision.transforms.Compose( [
-        torchvision.transforms.Pad( ( -15, -40,-15-1, -30-1) ), torchvision.transforms.Resize( 32 ), torchvision.transforms.ToTensor(),
-        torchvision.transforms.Lambda(lambda x: dl.quantize(x,8)) ] ))
 
 celeba_dataset = torchvision.datasets.CelebA(
     root="/home/julian/ImageDataSets",
@@ -60,5 +55,5 @@ mymodel = pcnn.PixelCNNLayer(
     num_conditional=1)
 
 
-pl.Trainer(fast_dev_run = False, gpus=1, accumulate_grad_batches = 16, default_root_dir=ns.tensorboard_log, callbacks=[
+pl.Trainer(fast_dev_run = False, gpus=1, accumulate_grad_batches = 16, max_epochs=ns.max_epochs, default_root_dir=ns.tensorboard_log, callbacks=[
     GenderPixelCNNCallback()]).fit(GenderTrainer( mymodel, celeba_dataset, learning_rate = .001, batch_size = 4 ) )
