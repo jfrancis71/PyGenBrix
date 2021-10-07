@@ -9,9 +9,9 @@ import PyGenBrix.dist_layers.spatial_independent as sp
 
 ap = argparse.ArgumentParser(description="PixelCNN")
 ap.add_argument("--tensorboard_log")
-ap.add_argument("--max_epochs")
+ap.add_argument("--max_epochs", default=10, type=int)
 ap.add_argument("--nr_resnet", default=5, type=int)
-ap.add_argument("--lr", default=.0002)
+ap.add_argument("--lr", default=.0002, type=float)
 ns = ap.parse_args()
 
 

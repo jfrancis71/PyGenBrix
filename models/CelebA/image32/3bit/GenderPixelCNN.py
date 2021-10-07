@@ -11,7 +11,7 @@ import PyGenBrix.dist_layers.spatial_independent as sp
 
 ap = argparse.ArgumentParser(description="GenderPixelCNN")
 ap.add_argument("--tensorboard_log")
-ap.add_argument("--max_epochs")
+ap.add_argument("--max_epochs", default=10, type=int)
 ns = ap.parse_args()
 
 celeba_dataset = torchvision.datasets.CelebA(
