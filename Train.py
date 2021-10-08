@@ -81,9 +81,10 @@ def distribution_sample(model, temperature=1.0):
     imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
     return torchvision.utils.make_grid(imglist, padding=10, nrow=4 )
 
-class LogDistributionSamplesPerEpoch(pl.Callback):
+
+class LogSamplesEpochCallback(pl.Callback):
     def __init__(self, filename=None, temperature=1.0):
-        super(LogDistributionSamplesPerEpoch, self).__init__()
+        super(LogSamplesEpochCallback, self).__init__()
         self.filename = filename
         self.temperature = temperature
 
@@ -94,21 +95,9 @@ class LogDistributionSamplesPerEpoch(pl.Callback):
             torchvision.utils.save_image(samples, self.filename)
 
 
-class LogDistributionModePerEpoch(pl.Callback):
-    def __init__(self, filename=None):
-        super(LogDistributionModePerEpoch, self).__init__()
-        self.filename = filename
-
-    def on_validation_epoch_end(self, trainer, pl_module):
-        samples = pl_module.model.mode()
-        pl_module.logger.experiment.add_image("epoch_mode", samples[0], pl_module.current_epoch, dataformats="CHW")
-        if self.filename is not None:
-            torchvision.utils.save_image(samples, self.filename)
-
-
-class LogDistributionSamplesPerTraining(pl.Callback):
+class LogSamplesTrainingCallback(pl.Callback):
     def __init__(self, every_global_step=1000, filename=None, temperature = 1.0):
-        super(LogDistributionSamplesPerTraining, self).__init__()
+        super(LogSamplesTrainingCallback, self).__init__()
         self.every_global_step = every_global_step
         self.filename = filename
         self.temperature = temperature
@@ -123,35 +112,20 @@ class LogDistributionSamplesPerTraining(pl.Callback):
                 torchvision.utils.save_image(samples, self.filename)
 
 
-class LogDistributionModePerTraining(pl.Callback):
-    def __init__(self, every_global_step=1000, filename=None):
-        super(LogDistributionModePerTraining, self).__init__()
-        self.every_global_step = every_global_step
-        self.filename = filename
-
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
-        if (pl_module.global_step % self.every_global_step == 0) and (batch_idx % trainer.accumulate_grad_batches == 0):
-            pl_module.eval()
-            sample = torch.clip(pl_module.model.mode(),0.0,1.0)
-            pl_module.train()
-            pl_module.logger.experiment.add_image("train_mode", sample[0], pl_module.global_step, dataformats="CHW")
-            if self.filename is not None:
-                torchvision.utils.save_image(sample, self.filename)
-
-class LogAutoencoderEpochCallback(pl.Callback):
-    """LogAutoencoderEpochCallback logs images from an autoencoder
+class LogReconstructionEpochCallback(pl.Callback):
+    """LogReconstructionEpochCallback logs images from an autoencoder
     which defines sample( images )
     """
     def __init__(self):
-        super(LogAutoencoderEpochCallback, self).__init__()
+        super(LogReconstructionEpochCallback, self).__init__()
 
     def on_validation_epoch_end(self, trainer, pl_module):
         sample_imglist = [ [
             pl_module.val_set[i*2][0].cuda(),
-            pl_module.model.sample( torch.unsqueeze(pl_module.val_set[i*2][0].cuda(),0) )[0],
+            pl_module.model.sample_reconstruction( torch.unsqueeze(pl_module.val_set[i*2][0].cuda(),0) )[0],
             pl_module.val_set[i*2+1][0].cuda(),
-            pl_module.model.sample( torch.unsqueeze(pl_module.val_set[i*2+1][0].cuda(),0) )[0] ] for i in range(4) ]
-        trainer.logger.experiment.add_image("samples_T=1.0", torchvision.utils.make_grid(list(itertools.chain(*sample_imglist)), padding=10, nrow=4 ), pl_module.global_step, dataformats="CHW")
+            pl_module.model.sample_reconstruction( torch.unsqueeze(pl_module.val_set[i*2+1][0].cuda(),0) )[0] ] for i in range(4) ]
+        trainer.logger.experiment.add_image("reconstruction_T=1.0", torchvision.utils.make_grid(list(itertools.chain(*sample_imglist)), padding=10, nrow=4 ), pl_module.global_step, dataformats="CHW")
 
 
 #To run a training session:

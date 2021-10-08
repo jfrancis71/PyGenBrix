@@ -28,5 +28,5 @@ trainer = Train.LightningDistributionTrainer( mymodel, celeba_dataset, learning_
 
 pl.Trainer( fast_dev_run = False, gpus=1, accumulate_grad_batches = 8, max_epochs=ns.max_epochs, 
           callbacks=[
-                     Train.LogDistributionSamplesPerEpoch(temperature=1.0)
+                     Train.LogSamplesEpochCallback(temperature=1.0)
           ], default_root_dir=ns.tensorboard_log).fit( trainer )

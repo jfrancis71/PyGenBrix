@@ -54,7 +54,7 @@ class LBDistribution(nn.Module):
         l = dist.log_prob(x)
         return l
 
-    def sample(self, inp, temperature=1.0):
+    def sample_reconstruction(self, inp, temperature=1.0):
         enc = self.enc(inp)[0]
         dist = self.cnn(enc)
         return dist.sample(temperature)
@@ -81,4 +81,4 @@ ap.add_argument("--tensorboard_log")
 ap.add_argument("--max_epochs", default=10, type=int)
 ns = ap.parse_args()
 
-pl.Trainer( fast_dev_run = False, gpus=1, accumulate_grad_batches=8, max_epochs=ns.max_epochs, callbacks=[Train.LogAutoencoderEpochCallback()], default_root_dir=ns.tensorboard_log).fit( trainer )
+pl.Trainer( fast_dev_run = False, gpus=1, accumulate_grad_batches=8, max_epochs=ns.max_epochs, callbacks=[Train.LogReconstructionEpochCallback()], default_root_dir=ns.tensorboard_log).fit( trainer )
