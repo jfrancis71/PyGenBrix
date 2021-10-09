@@ -11,10 +11,10 @@ import PyGenBrix.models.residual_block as rb
 ap = argparse.ArgumentParser(description="VAE")
 ap.add_argument("--tensorboard_log")
 ap.add_argument("--max_epochs", default=10, type=int)
+ap.add_argument("--z_samples", default=1, type=int)
+ap.add_argument("--latents", default=64, type=int)
 ap.add_argument("--lr", default=.0002, type=float)
 ns = ap.parse_args()
-
-latents = 64
 
 mnist_dataset = torchvision.datasets.MNIST('/home/julian/ImageDataSets/MNIST', train=True, download=False,
                    transform=torchvision.transforms.Compose([
@@ -41,7 +41,7 @@ class Encoder(nn.Module):
         self.c2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1, bias=False)
         self.c3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1, bias=False)
         self.c4 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1, bias=False)
-        self.l0 = nn.Linear(256*4*4, 64)
+        self.l0 = nn.Linear(256*4*4, ns.latents)
         self.b1 = rb.ResidualBlock(64)
         self.b2 = rb.ResidualBlock(128)
 
@@ -78,17 +78,14 @@ class Decoder(nn.Module):
 
 
 class VAE(nn.Module):
-    def __init__(self):
+    def __init__(self, z_samples=1):
         super(VAE, self).__init__()
-        self.fc1 = nn.Linear(784, 400)
-        self.fc2 = nn.Linear(400, latents)
-        self.fc3 = nn.Linear(latents, 400)
-        self.fc4 = nn.Linear(400, 784)
         self.bin = StochasticBinaryLayer()
         self.encoder = Encoder()
         self.decoder = Decoder()
+        self.z_samples = z_samples
 
-    def log_prob(self, x):
+    def log_prob1(self, x):
         logits = self.encoder(x)
         zsample = self.bin(logits)
         decode = self.decoder(zsample)
@@ -100,8 +97,13 @@ class VAE(nn.Module):
                 "recon_log_prob": -BCE,
                 "KLD": KLD}
 
+    def log_prob(self, x):
+        sample_log_probs = [ self.log_prob1(x)["log_prob"] for i in range(self.z_samples) ]
+        log_prob = torch.logsumexp(torch.stack(sample_log_probs, dim=0), dim=0) - torch.log(torch.tensor(self.z_samples))
+        return {"log_prob": log_prob}
+
     def sample(self, temperature=1.0):
-        z = torch.distributions.bernoulli.Bernoulli(logits=torch.zeros([1,latents])).sample().to("cuda")
+        z = torch.distributions.bernoulli.Bernoulli(logits=torch.zeros([1,ns.latents])).sample().to("cuda")
         sample = self.decoder(z)
         sample = torch.distributions.bernoulli.Bernoulli(probs=sample).sample().view(-1,1,28,28)
         return sample
@@ -114,8 +116,7 @@ class VAE(nn.Module):
         return sample
 
 
-mymodel = VAE()
-
+mymodel = VAE(ns.z_samples)
 
 trainer = Train.LightningDistributionTrainer( mymodel, mnist_dataset, learning_rate = ns.lr, batch_size = 64 )
 
