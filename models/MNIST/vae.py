@@ -90,8 +90,9 @@ class VAE(nn.Module):
         zsample = self.bin(logits)
         decode = self.decoder(zsample)
         BCE = torch.sum(F.binary_cross_entropy(decode, x, reduction='none'), axis=[1,2,3])
-        KLD = torch.sum(torch.log(torch.tensor(2.0)) - torch.distributions.bernoulli.Bernoulli(logits=logits).entropy(), axis=1)
-#        print( "BCE=", BCE.shape)
+        KLD = torch.sum(torch.distributions.kl_divergence(
+            torch.distributions.bernoulli.Bernoulli(logits=logits),
+            torch.distributions.bernoulli.Bernoulli(logits=torch.zeros([64,ns.latents]).to(x.device))), axis=1)
         log_prob = -BCE - KLD
         return {"log_prob": log_prob,
                 "recon_log_prob": -BCE,
