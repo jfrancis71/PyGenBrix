@@ -41,7 +41,7 @@ class Encoder2(nn.Module):
         self.c2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1, bias=False)
         self.c3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1, bias=False)
         self.c4 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1, bias=False)
-        self.l0 = nn.Linear(256*4*4, ns.latents)
+        self.l0 = nn.Conv2d(256, ns.latents, kernel_size=4, stride=1, padding=0)
         self.b1 = rb.ResidualBlock(64)
         self.b2 = rb.ResidualBlock(128)
 
@@ -56,7 +56,6 @@ class Encoder2(nn.Module):
         x = self.b2(x)
         x = self.c4(x)
         x = nn.LeakyReLU(0.02)(x)
-        x = x.view(x.size(0), -1)
         x = self.l0(x)
         return x
 
@@ -83,13 +82,12 @@ class Decoder2(nn.Module):
     def __init__(self):
         super(Decoder2, self).__init__()
         c = 128
-        self.fc = nn.Linear(in_features=64, out_features=c*2*7*7)
+        self.conv3 = nn.Conv2d(64, 128*2*7*7, kernel_size=1)
         self.conv2 = nn.ConvTranspose2d(in_channels=c*2, out_channels=c, kernel_size=4, stride=2, padding=1)
         self.conv1 = nn.ConvTranspose2d(in_channels=c, out_channels=16, kernel_size=4, stride=2, padding=1)
             
     def forward(self, x):
-        x = self.fc(x)
-        x = x.view(x.size(0), 128*2, 7, 7) # unflatten batch of feature vectors to a batch of multi-channel feature maps
+        x = self.conv3(x).view(-1,128*2,7,7)
         x = F.relu(self.conv2(x))
         x = self.conv1(x)
         return x
@@ -129,7 +127,7 @@ class VAE(nn.Module):
         plogits1 = self.decoder2(zsample2)
         xlogits = self.decoder1(zsample1)
         BCE = torch.sum(F.binary_cross_entropy(torch.sigmoid(xlogits), x, reduction='none'), axis=[1,2,3])
-        KLD2 = torch.sum(torch.log(torch.tensor(2.0)) - torch.distributions.bernoulli.Bernoulli(logits=qlogits2).entropy(), axis=1)
+        KLD2 = torch.sum(torch.log(torch.tensor(2.0)) - torch.distributions.bernoulli.Bernoulli(logits=qlogits2).entropy(), axis=[1, 2, 3])
         KLD1 = torch.sum(torch.distributions.kl_divergence(
             torch.distributions.bernoulli.Bernoulli(logits=qlogits1),
             torch.distributions.bernoulli.Bernoulli(logits=plogits1)), axis=[1,2,3])
@@ -145,7 +143,7 @@ class VAE(nn.Module):
         return {"log_prob": log_prob}
 
     def sample(self, temperature=1.0):
-        z2 = torch.distributions.bernoulli.Bernoulli(logits=torch.zeros([1,ns.latents])).sample().to("cuda")
+        z2 = torch.distributions.bernoulli.Bernoulli(logits=torch.zeros([1, ns.latents, 1, 1])).sample().to("cuda")
         sample = self.bin(self.decoder2(z2))
         sample = self.bin(self.decoder1(sample))
         sample = torch.distributions.bernoulli.Bernoulli(probs=sample).sample().view(-1,1,28,28)
