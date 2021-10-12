@@ -122,17 +122,17 @@ class VAE(nn.Module):
         self.z_samples = z_samples
 
     def log_prob1(self, x):
-        logits2 = self.encoder2(x)
-        zsample2 = self.bin(logits2)
-        logits1 = self.encoder1(zsample2, x)
-        zsample1 = self.bin(logits1)
-        decode2 = self.decoder2(zsample2)
-        decode1 = self.decoder1(zsample1)
-        BCE = torch.sum(F.binary_cross_entropy(torch.sigmoid(decode1), x, reduction='none'), axis=[1,2,3])
-        KLD2 = torch.sum(torch.log(torch.tensor(2.0)) - torch.distributions.bernoulli.Bernoulli(logits=logits2).entropy(), axis=1)
+        qlogits2 = self.encoder2(x)
+        zsample2 = self.bin(qlogits2)
+        qlogits1 = self.encoder1(zsample2, x)
+        zsample1 = self.bin(qlogits1)
+        plogits1 = self.decoder2(zsample2)
+        xlogits = self.decoder1(zsample1)
+        BCE = torch.sum(F.binary_cross_entropy(torch.sigmoid(xlogits), x, reduction='none'), axis=[1,2,3])
+        KLD2 = torch.sum(torch.log(torch.tensor(2.0)) - torch.distributions.bernoulli.Bernoulli(logits=qlogits2).entropy(), axis=1)
         KLD1 = torch.sum(torch.distributions.kl_divergence(
-            torch.distributions.bernoulli.Bernoulli(logits=logits1),
-            torch.distributions.bernoulli.Bernoulli(logits=decode2)), axis=[1,2,3])
+            torch.distributions.bernoulli.Bernoulli(logits=qlogits1),
+            torch.distributions.bernoulli.Bernoulli(logits=plogits1)), axis=[1,2,3])
 
         log_prob = -BCE - KLD2 - KLD1
         return {"log_prob": log_prob,
