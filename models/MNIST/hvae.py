@@ -128,14 +128,11 @@ class VAE(nn.Module):
         zsample1 = self.bin(logits1)
         decode2 = self.decoder2(zsample2)
         decode1 = self.decoder1(zsample1)
-        detsample1 = (zsample1<0.5)*1.0
         BCE = torch.sum(F.binary_cross_entropy(torch.sigmoid(decode1), x, reduction='none'), axis=[1,2,3])
         KLD2 = torch.sum(torch.log(torch.tensor(2.0)) - torch.distributions.bernoulli.Bernoulli(logits=logits2).entropy(), axis=1)
         KLD1 = torch.sum(torch.distributions.kl_divergence(
             torch.distributions.bernoulli.Bernoulli(logits=logits1),
             torch.distributions.bernoulli.Bernoulli(logits=decode2)), axis=[1,2,3])
-        print("KLD1=", torch.sum(KLD1))
-        print("KLD2=", torch.sum(KLD2))
 
         log_prob = -BCE - KLD2 - KLD1
         return {"log_prob": log_prob,
