@@ -37,7 +37,6 @@ class StochasticBinaryLayer(nn.Module):
 class Encoder2(nn.Module):
     def __init__(self):
         super(Encoder2, self).__init__()
-        self.c1 = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.c2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1, bias=False)
         self.c3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1, bias=False)
         self.c4 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1, bias=False)
@@ -46,8 +45,6 @@ class Encoder2(nn.Module):
         self.b2 = rb.ResidualBlock(128)
 
     def forward(self, x):
-        x = self.c1(x)
-        x = nn.LeakyReLU(0.02)(x)
         x = self.c2(x)
         x = nn.LeakyReLU(0.02)(x)
         x = self.b1(x)
@@ -59,17 +56,29 @@ class Encoder2(nn.Module):
         x = self.l0(x)
         return x
 
+
 class Encoder1(nn.Module):
     def __init__(self):
         super(Encoder1, self).__init__()
+        self.c1 = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
+
+    def forward(self, x):
+        x = self.c1(x)
+        x = nn.LeakyReLU(0.02)(x)
+        return x
+
+
+class EncoderSampleZ1(nn.Module):
+    def __init__(self):
+        super(EncoderSampleZ1, self).__init__()
         self.c1 = nn.Conv2d(16, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.c2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.c3 = nn.Conv2d(64, 16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.p = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.p = nn.Conv2d(64, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.map = Decoder2()
 
-    def forward(self, z2, x):
-        z1 = self.map(z2) + self.p(x)
+    def forward(self, z2, x1):
+        z1 = self.map(z2) + self.p(x1)
         z1 = self.c1(z1)
         z1 = nn.LeakyReLU(0.02)(z1)
         z1 = self.c2(z1)
@@ -115,14 +124,16 @@ class VAE(nn.Module):
         self.bin = StochasticBinaryLayer()
         self.encoder2 = Encoder2()
         self.encoder1 = Encoder1()
+        self.encoder_samplez1 = EncoderSampleZ1()
         self.decoder2 = Decoder2()
         self.decoder1 = Decoder1()
         self.z_samples = z_samples
 
     def log_prob1(self, x):
-        qlogits2 = self.encoder2(x)
+        x1 = self.encoder1(x)
+        qlogits2 = self.encoder2(x1)
         zsample2 = self.bin(qlogits2)
-        qlogits1 = self.encoder1(zsample2, x)
+        qlogits1 = self.encoder_samplez1(zsample2, x1)
         zsample1 = self.bin(qlogits1)
         plogits1 = self.decoder2(zsample2)
         xlogits = self.decoder1(zsample1)
@@ -152,7 +163,8 @@ class VAE(nn.Module):
         return sample
 
     def sample_reconstruction(self, x):
-        logits2 = self.encoder2(x)
+        x1 = self.encoder1(x)
+        logits2 = self.encoder2(x1)
         z2 = self.bin(logits2)
         sample = self.bin(self.decoder2(z2))
         sample = self.bin(self.decoder1(sample))
