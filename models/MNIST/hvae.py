@@ -18,6 +18,7 @@ ns = ap.parse_args()
 
 mnist_dataset = torchvision.datasets.MNIST('/home/julian/ImageDataSets/MNIST', train=True, download=False,
                    transform=torchvision.transforms.Compose([
+                       torchvision.transforms.Resize(32),
                        torchvision.transforms.ToTensor(),
                        torchvision.transforms.Lambda(lambda x: 1.0-((x<0.5)*1.0))
                    ]))
@@ -148,11 +149,11 @@ class Decoder2(nn.Module):
 class Decoder3(nn.Module):
     def __init__(self):
         super(Decoder3, self).__init__()
-        self.conv1 = nn.Conv2d(64, 128*2*7*7, kernel_size=1)
+        self.conv1 = nn.Conv2d(64, 128*2*8*8, kernel_size=1)
         self.conv2 = nn.Conv2d(128*2, 16, kernel_size=3, padding=1)
             
     def forward(self, z3):
-        x = nn.LeakyReLU(0.02)(self.conv1(z3).view(-1,128*2,7,7))
+        x = nn.LeakyReLU(0.02)(self.conv1(z3).view(-1,128*2,8,8))
         x = self.conv2(x)
         return x
 
@@ -209,7 +210,7 @@ class VAE(nn.Module):
         sample = self.bin(self.decoder3(z3))
         sample = self.bin(self.decoder2(sample))
         sample = self.bin(self.decoder1(sample))
-        sample = torch.distributions.bernoulli.Bernoulli(probs=sample).sample().view(-1,1,28,28)
+        sample = torch.distributions.bernoulli.Bernoulli(probs=sample).sample().view(-1,1,32,32)
         return sample
 
     def sample_reconstruction(self, x):
@@ -220,7 +221,7 @@ class VAE(nn.Module):
         sample = self.bin(self.decoder3(z3))
         sample = self.bin(self.decoder2(sample))
         sample = self.bin(self.decoder1(sample))
-        sample = torch.distributions.bernoulli.Bernoulli(probs=sample).sample().view(-1,1,28,28)
+        sample = torch.distributions.bernoulli.Bernoulli(probs=sample).sample().view(-1,1,32,32)
         return sample
 
 
