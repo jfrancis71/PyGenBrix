@@ -34,18 +34,14 @@ class StochasticBinaryLayer(nn.Module):
         return stg_latent_code
 
 
-class Encoder3(nn.Module):
+class Encoder1(nn.Module):
     def __init__(self):
-        super(Encoder3, self).__init__()
-        self.c4 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1, bias=False)
-        self.l0 = nn.Conv2d(256, ns.latents, kernel_size=4, stride=1, padding=0)
-        self.b2 = rb.ResidualBlock(128)
+        super(Encoder1, self).__init__()
+        self.c1 = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
 
     def forward(self, x):
-        x = self.b2(x)
-        x = self.c4(x)
+        x = self.c1(x)
         x = nn.LeakyReLU(0.02)(x)
-        x = self.l0(x)
         return x
 
 
@@ -65,34 +61,19 @@ class Encoder2(nn.Module):
         return x
 
 
-class Encoder1(nn.Module):
+class Encoder3(nn.Module):
     def __init__(self):
-        super(Encoder1, self).__init__()
-        self.c1 = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        super(Encoder3, self).__init__()
+        self.c4 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1, bias=False)
+        self.l0 = nn.Conv2d(256, ns.latents, kernel_size=4, stride=1, padding=0)
+        self.b2 = rb.ResidualBlock(128)
 
     def forward(self, x):
-        x = self.c1(x)
+        x = self.b2(x)
+        x = self.c4(x)
         x = nn.LeakyReLU(0.02)(x)
+        x = self.l0(x)
         return x
-
-
-class EncoderSampleZ2(nn.Module):
-    def __init__(self):
-        super(EncoderSampleZ2, self).__init__()
-        self.c1 = nn.Conv2d(16, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.c2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.c3 = nn.Conv2d(64, 16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.p = nn.Conv2d(128, 16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.map = Decoder3()
-
-    def forward(self, z3, x2):
-        z1 = self.map(z3) + self.p(x2)
-        z1 = self.c1(z1)
-        z1 = nn.LeakyReLU(0.02)(z1)
-        z1 = self.c2(z1)
-        z1 = nn.LeakyReLU(0.02)(z1)
-        z1 = self.c3(z1)
-        return z1
 
 
 class EncoderSampleZ1(nn.Module):
@@ -114,15 +95,38 @@ class EncoderSampleZ1(nn.Module):
         return z1
 
 
-class Decoder3(nn.Module):
+class EncoderSampleZ2(nn.Module):
     def __init__(self):
-        super(Decoder3, self).__init__()
-        self.conv1 = nn.Conv2d(64, 128*2*7*7, kernel_size=1)
-        self.conv2 = nn.Conv2d(128*2, 16, kernel_size=3, padding=1)
-            
-    def forward(self, z3):
-        x = nn.LeakyReLU(0.02)(self.conv1(z3).view(-1,128*2,7,7))
-        x = self.conv2(x)
+        super(EncoderSampleZ2, self).__init__()
+        self.c1 = nn.Conv2d(16, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.c2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.c3 = nn.Conv2d(64, 16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.p = nn.Conv2d(128, 16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.map = Decoder3()
+
+    def forward(self, z3, x2):
+        z1 = self.map(z3) + self.p(x2)
+        z1 = self.c1(z1)
+        z1 = nn.LeakyReLU(0.02)(z1)
+        z1 = self.c2(z1)
+        z1 = nn.LeakyReLU(0.02)(z1)
+        z1 = self.c3(z1)
+        return z1
+
+
+class Decoder1(nn.Module):
+    def __init__(self):
+        super(Decoder1, self).__init__()
+        self.c1 = nn.Conv2d(16, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.c2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.c3 = nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1, bias=False)
+
+    def forward(self, x):
+        x = self.c1(x)
+        x = nn.LeakyReLU(0.02)(x)
+        x = self.c2(x)
+        x = nn.LeakyReLU(0.02)(x)
+        x = self.c3(x)
         return x
 
 
@@ -139,19 +143,16 @@ class Decoder2(nn.Module):
         x = self.conv1(x)
         return x
 
-class Decoder1(nn.Module):
-    def __init__(self):
-        super(Decoder1, self).__init__()
-        self.c1 = nn.Conv2d(16, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.c2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.c3 = nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1, bias=False)
 
-    def forward(self, x):
-        x = self.c1(x)
-        x = nn.LeakyReLU(0.02)(x)
-        x = self.c2(x)
-        x = nn.LeakyReLU(0.02)(x)
-        x = self.c3(x)
+class Decoder3(nn.Module):
+    def __init__(self):
+        super(Decoder3, self).__init__()
+        self.conv1 = nn.Conv2d(64, 128*2*7*7, kernel_size=1)
+        self.conv2 = nn.Conv2d(128*2, 16, kernel_size=3, padding=1)
+            
+    def forward(self, z3):
+        x = nn.LeakyReLU(0.02)(self.conv1(z3).view(-1,128*2,7,7))
+        x = self.conv2(x)
         return x
 
 
