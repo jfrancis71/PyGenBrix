@@ -127,7 +127,9 @@ class VAE(nn.Module):
         plogits1 = self.decoder2(zsample2)
         xlogits = self.decoder1(zsample1)
         BCE = torch.sum(F.binary_cross_entropy(torch.sigmoid(xlogits), x, reduction='none'), axis=[1,2,3])
-        KLD2 = torch.sum(torch.log(torch.tensor(2.0)) - torch.distributions.bernoulli.Bernoulli(logits=qlogits2).entropy(), axis=[1, 2, 3])
+        KLD2 = torch.sum(torch.distributions.kl_divergence(
+            torch.distributions.bernoulli.Bernoulli(logits=qlogits2),
+            torch.distributions.bernoulli.Bernoulli(logits=torch.zeros([64,ns.latents,1,1]).to(x.device))), axis=[1, 2, 3])
         KLD1 = torch.sum(torch.distributions.kl_divergence(
             torch.distributions.bernoulli.Bernoulli(logits=qlogits1),
             torch.distributions.bernoulli.Bernoulli(logits=plogits1)), axis=[1,2,3])
