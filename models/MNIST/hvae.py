@@ -37,18 +37,19 @@ class StochasticBinaryLayer(nn.Module):
 class Encoder1(nn.Module):
     def __init__(self):
         super(Encoder1, self).__init__()
-        self.c1 = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.c1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.b1 = rb.ResidualBlock(32)
 
     def forward(self, x):
         x = self.c1(x)
-        x = nn.LeakyReLU(0.02)(x)
+        x = self.b1(x)
         return x
 
 
 class Encoder2(nn.Module):
     def __init__(self):
         super(Encoder2, self).__init__()
-        self.c2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.c2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1, bias=False)
         self.c3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1, bias=False)
         self.b1 = rb.ResidualBlock(64)
 
@@ -82,7 +83,7 @@ class EncoderSampleZ1(nn.Module):
         self.c1 = nn.Conv2d(16, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.c2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.c3 = nn.Conv2d(64, 16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.p = nn.Conv2d(64, 16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.p = nn.Conv2d(32, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.map = Decoder2()
 
     def forward(self, z2, x1):
