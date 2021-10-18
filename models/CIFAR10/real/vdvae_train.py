@@ -81,5 +81,5 @@ H.image_size=32
 vae, ema_vae = th.load_vaes(H, logprint)
 model = VDVAEModel(vae, ema_vae)
 trainer = VDVAETrainer(model, dataset)
-pl.Trainer( fast_dev_run = True, gpus=1, accumulate_grad_batches = 1, max_epochs=10,
-    callbacks=[LogSamplesVAECallback(1000)]).fit( trainer )
+pl.Trainer(fast_dev_run = False, gpus=1, accumulate_grad_batches = 1, max_epochs=10,
+    callbacks=[LogSamplesVAECallback(1000)]).fit(trainer)
