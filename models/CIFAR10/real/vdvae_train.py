@@ -45,10 +45,9 @@ class VDVAETrainer(pl.LightningModule):
         x, y = batch
         x = x.permute(0, 2, 3, 1)
         stats = vdvae_train.eval_step((x-.5)*4, (x-.5)*2, self.model.ema_vae)
-        self.log('elbo', stats["elbo"])
-        self.log('kl', stats["rate"])
-        self.log('recon_error', stats["distortion"])
-
+        self.log("validation_elbo", stats["elbo"], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log("validation_kl", stats["rate"], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log("validation_recon_error", stats["distortion"], on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr = self.learning_rate)
