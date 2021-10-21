@@ -40,12 +40,16 @@ elif ns.dataset == "mnist":
     image_size = 32
 else:
     print("Dataset not recognized.")
+    quit()
 if ns.rv_distribution == "bernoulli":
     rv_distribution = dl.IndependentBernoulliLayer()
 elif ns.rv_distribution == "spiq3":
     rv_distribution = sp.SpatialIndependentDistributionLayer( [image_channels, 32, 32], dl.IndependentQuantizedLayer( num_buckets = 8), num_params=30 )
+elif ns.rv_distribution == "PixelCNNDiscMixDistribution":
+    rv_distribution = cnn.PixelCNNDiscreteMixLayer()
 else:
     print("rv distribution not recognized")
+    quit()
 model = cnn.PixelCNNDistribution([ image_channels, image_size, image_size ], rv_distribution, nr_resnet=ns.nr_resnet )
 trainer = Train.LightningDistributionTrainer( model, dataset, learning_rate = ns.lr, batch_size = 8 )
 pl.Trainer(fast_dev_run=ns.fast_dev_run, gpus=1, accumulate_grad_batches=8, max_epochs=ns.max_epochs, 

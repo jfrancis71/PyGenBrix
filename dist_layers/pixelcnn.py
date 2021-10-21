@@ -20,7 +20,7 @@ class PixelCNNDiscreteMixDistribution():
     def log_prob(self, samples):
         return {"log_prob": -pixelcnn_utils.discretized_mix_logistic_loss((samples*2.0)-1.0, self.params)}
 
-    def sample(self):
+    def sample(self, temp=1.0):
         return (pixelcnn_utils.sample_from_discretized_mix_logistic(self.params, 10)+1.0)/2.0
 
 
