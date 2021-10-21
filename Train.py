@@ -37,11 +37,6 @@ class LightningTrainer(pl.LightningModule):
             generator=torch.Generator().manual_seed(42) ) 
         return (train_set, val_set)
 
-    def on_fit_start(self):
-        if self.add_graph:
-            img = self.train_set[0][0].to(self.device)
-            self.logger.experiment.add_graph(Forwarder(self.model), torch.unsqueeze(img, dim=0))
-
     def mean_step(self, batch, batch_indx):
         x, y = batch
         result = self.get_distribution(y).log_prob(x)
@@ -65,10 +60,10 @@ class LightningTrainer(pl.LightningModule):
         return torch.optim.Adam(self.model.parameters(), lr = self.learning_rate)
     
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True, num_workers=4, drop_last=True)
+        return torch.utils.data.DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True, num_workers=4, drop_last=True, pin_memory=True)
     
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.val_set, batch_size = self.batch_size, num_workers=4, drop_last=True)
+        return torch.utils.data.DataLoader(self.val_set, batch_size = self.batch_size, num_workers=4, drop_last=True, pin_memory=True)
 
 class LightningDistributionTrainer(LightningTrainer):
     def __init__(self, model, dataset, add_graph=False, learning_rate=.001, batch_size=32):
