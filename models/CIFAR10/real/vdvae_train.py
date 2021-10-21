@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 import torch
 import torch.nn as nn
@@ -71,6 +72,12 @@ class LogSamplesVAECallback(pl.Callback):
             pl_module.logger.experiment.add_image("train_sample", samples_grid, pl_module.global_step, dataformats="CHW")
 
 
+ap = argparse.ArgumentParser(description="VDVAE")
+ap.add_argument("--tensorboard_log")
+ap.add_argument("--max_epochs", default=10, type=int)
+ap.add_argument("--lr", default=.0002, type=float)
+ap.add_argument("--fast_dev_run", action="store_true")
+ns = ap.parse_args()
 dataset = torchvision.datasets.CIFAR10(root='/home/julian/ImageDataSets/CIFAR10', train=True,
                                         download=False, transform=torchvision.transforms.ToTensor())
 h = hps.Hyperparams()
@@ -91,6 +98,6 @@ vae = vdvae.VAE(h)
 ema_vae = vdvae.VAE(h)
 ema_vae.requires_grad = False
 model = VDVAEModel(vae, ema_vae)
-trainer = VDVAETrainer(model, dataset)
-pl.Trainer(fast_dev_run = False, gpus=1, accumulate_grad_batches = 1, max_epochs=10,
+trainer = VDVAETrainer(model, dataset, batch_size=8, learning_rate=ns.lr)
+pl.Trainer(fast_dev_run = ns.fast_dev_run, gpus=1, accumulate_grad_batches = 1, max_epochs=ns.max_epochs, default_root_dir=ns.tensorboard_log, 
     callbacks=[LogSamplesVAECallback(1000)]).fit(trainer)
