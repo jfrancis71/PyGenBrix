@@ -77,23 +77,35 @@ ap.add_argument("--tensorboard_log")
 ap.add_argument("--max_epochs", default=10, type=int)
 ap.add_argument("--lr", default=.0002, type=float)
 ap.add_argument("--fast_dev_run", action="store_true")
+ap.add_argument("--dataset")
 ns = ap.parse_args()
-dataset = torchvision.datasets.CIFAR10(root='/home/julian/ImageDataSets/CIFAR10', train=True,
-                                        download=False, transform=torchvision.transforms.ToTensor())
 h = hps.Hyperparams()
 h.width = 384
 h.zdim = 16
 h.dec_blocks = "1x1,4m1,4x2,8m4,8x5,16m8,16x10,32m16,32x21"
 h.enc_blocks = "32x11,32d2,16x6,16d2,8x6,8d2,4x3,4d4,1x3"
 h.ema_rate = 0.9999
-h.image_channels=3
-h.image_size=32
+h.image_size = 32
 h.custom_width_str = ""
 h.no_bias_above = 64
 h.bottleneck_multiple = 0.25
 h.num_mixtures = 10
 h.grad_clip = 200.0
 h.skip_threshold = 400.0
+if ns.dataset == "cifar10":
+    dataset = torchvision.datasets.CIFAR10(root='/home/julian/ImageDataSets/CIFAR10', train=True,
+        download=False, transform=torchvision.transforms.ToTensor())
+    h.image_channels = 3
+elif ns.dataset == "celeba32":
+    dataset = torchvision.datasets.ImageFolder(root="/home/julian/ImageDataSets/celeba/",
+        transform = torchvision.transforms.Compose([
+            torchvision.transforms.Pad((-15, -40,-15-1, -30-1)),
+            torchvision.transforms.Resize(32), torchvision.transforms.ToTensor(),
+        ]))
+    h.image_channels = 3
+else:
+    print("Dataset not recognized.")
+    exit(1)
 vae = vdvae.VAE(h)
 ema_vae = vdvae.VAE(h)
 ema_vae.requires_grad = False
