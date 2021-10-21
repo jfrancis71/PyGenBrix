@@ -3,10 +3,9 @@ import torch
 import torch.nn as nn
 import torchvision
 import pytorch_lightning as pl
-#import vdvae.train_helpers as th
-from vdvae import train_helpers as th
-import vdvae.data as vdvae_data
 import vdvae.train as vdvae_train
+import vdvae.hps as hps
+import vdvae.vae as vdvae
 
 
 class VDVAEModel(nn.Module):
@@ -36,7 +35,7 @@ class VDVAETrainer(pl.LightningModule):
     def training_step(self, batch, batch_indx):
         x, y = batch
         x = x.permute(0, 2, 3, 1)
-        stats = vdvae_train.training_step(H, (x-.5)*4, (x-.5)*2, self.model.vae, self.model.ema_vae, self.optimizers(), -1)
+        stats = vdvae_train.training_step(h, (x-.5)*4, (x-.5)*2, self.model.vae, self.model.ema_vae, self.optimizers(), -1)
         self.log('elbo', stats["elbo"])
         self.log('kl', stats["rate"])
         self.log('recon_error', stats["distortion"])
@@ -74,10 +73,23 @@ class LogSamplesVAECallback(pl.Callback):
 
 dataset = torchvision.datasets.CIFAR10(root='/home/julian/ImageDataSets/CIFAR10', train=True,
                                         download=False, transform=torchvision.transforms.ToTensor())
-H, logprint = th.set_up_hyperparams()
-H.image_channels=3
-H.image_size=32
-vae, ema_vae = th.load_vaes(H, logprint)
+h = hps.Hyperparams()
+h.width = 384
+h.zdim = 16
+h.dec_blocks = "1x1,4m1,4x2,8m4,8x5,16m8,16x10,32m16,32x21"
+h.enc_blocks = "32x11,32d2,16x6,16d2,8x6,8d2,4x3,4d4,1x3"
+h.ema_rate = 0.9999
+h.image_channels=3
+h.image_size=32
+h.custom_width_str = ""
+h.no_bias_above = 64
+h.bottleneck_multiple = 0.25
+h.num_mixtures = 10
+h.grad_clip = 200.0
+h.skip_threshold = 400.0
+vae = vdvae.VAE(h)
+ema_vae = vdvae.VAE(h)
+ema_vae.requires_grad = False
 model = VDVAEModel(vae, ema_vae)
 trainer = VDVAETrainer(model, dataset)
 pl.Trainer(fast_dev_run = False, gpus=1, accumulate_grad_batches = 1, max_epochs=10,
