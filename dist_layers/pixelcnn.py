@@ -48,7 +48,7 @@ class _PixelCNNDistribution(nn.Module):
             raise RuntimeError("sample shape  {}, but event_shape has shape {}"
                             .format(samples.shape[1:4], self.event_shape))
         params = self.pixelcnn_net((samples*2.0)-1.0, conditional=conditionals)
-        return self.output_distribution_layer(params).log_prob(samples)/self.ndims
+        return {"log_prob": self.output_distribution_layer(params).log_prob(samples)["log_prob"]/self.ndims}
 
     def sample(self, conditionals=None, temperature=1.0):
         with torch.no_grad():
