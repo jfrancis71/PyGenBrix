@@ -40,9 +40,9 @@ class VDVAETrainer(pl.LightningModule):
         x, y = batch
         x = x.permute(0, 2, 3, 1)
         stats = vdvae_train.training_step(h, (x-.5)*4, x, self.model.vae, self.model.ema_vae, self.optimizers(), -1)
-        self.log('log_prob', -stats["elbo"])
-        self.log('kl', stats["rate"])
-        self.log('recon_error', stats["distortion"])
+        self.log('log_prob', -stats["elbo"], on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('kl', stats["rate"], on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('recon_error', stats["distortion"], on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
     def validation_step(self, batch, batch_indx):
         x, y = batch

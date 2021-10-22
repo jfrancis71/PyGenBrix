@@ -49,6 +49,7 @@ class _ParallelCNNDistribution(nn.Module):
         self.upsampler_nets = nn.ModuleList(upsampler_nets)
         self.event_shape = event_shape
         self.num_conditional_channels = num_conditional_channels
+        self.ndims = np.prod(event_shape)
 
 #Note this will alter masked_value
     def log_prob_block(self, upsampled_images, distribution_params, masked_value, block_parallel_cnns, slice):
@@ -135,7 +136,7 @@ class _ParallelCNNDistribution(nn.Module):
             for k, v in upsample_log_prob_dict.items():
                 logging_dict["upsample_level_"+str(level)+"/"+k] = upsample_log_prob_dict[k]
             log_prob += upsample_log_prob_dict["log_prob"]
-        logging_dict["log_prob"] = log_prob
+        logging_dict["log_prob"] = log_prob/self.ndims
         return logging_dict
     
     def sample(self, conditionals=None, temperature=1.0):
