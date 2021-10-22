@@ -7,6 +7,9 @@ import pytorch_lightning as pl
 import vdvae.train as vdvae_train
 import vdvae.hps as hps
 import vdvae.vae as vdvae
+import pygenbrix_layer as pygl
+import PyGenBrix.dist_layers.common_layers as dl
+import PyGenBrix.dist_layers.spatial_independent as sp
 
 
 class VDVAEModel(nn.Module):
@@ -36,7 +39,7 @@ class VDVAETrainer(pl.LightningModule):
     def training_step(self, batch, batch_indx):
         x, y = batch
         x = x.permute(0, 2, 3, 1)
-        stats = vdvae_train.training_step(h, (x-.5)*4, (x-.5)*2, self.model.vae, self.model.ema_vae, self.optimizers(), -1)
+        stats = vdvae_train.training_step(h, (x-.5)*4, x, self.model.vae, self.model.ema_vae, self.optimizers(), -1)
         self.log('elbo', stats["elbo"])
         self.log('kl', stats["rate"])
         self.log('recon_error', stats["distortion"])
@@ -44,7 +47,7 @@ class VDVAETrainer(pl.LightningModule):
     def validation_step(self, batch, batch_indx):
         x, y = batch
         x = x.permute(0, 2, 3, 1)
-        stats = vdvae_train.eval_step((x-.5)*4, (x-.5)*2, self.model.ema_vae)
+        stats = vdvae_train.eval_step((x-.5)*4, x, self.model.ema_vae)
         self.log("validation_elbo", stats["elbo"], on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self.log("validation_kl", stats["rate"], on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self.log("validation_recon_error", stats["distortion"], on_step=False, on_epoch=True, prog_bar=True, logger=True)
@@ -67,7 +70,7 @@ class LogSamplesVAECallback(pl.Callback):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
         if (pl_module.global_step % self.step_freq == 0) and (batch_idx % trainer.accumulate_grad_batches == 0):
             samples = pl_module.model.ema_vae.forward_uncond_samples(8, t=1.0)
-            samples = torch.tensor(samples).permute((0,3,1,2))
+            samples = torch.tensor(samples)
             samples_grid = torchvision.utils.make_grid(samples, padding=10, nrow=4)
             pl_module.logger.experiment.add_image("train_sample", samples_grid, pl_module.global_step, dataformats="CHW")
 
@@ -78,6 +81,7 @@ ap.add_argument("--max_epochs", default=10, type=int)
 ap.add_argument("--lr", default=.0002, type=float)
 ap.add_argument("--fast_dev_run", action="store_true")
 ap.add_argument("--dataset")
+ap.add_argument("--rv_distribution")
 ns = ap.parse_args()
 h = hps.Hyperparams()
 h.width = 384
@@ -92,6 +96,7 @@ h.bottleneck_multiple = 0.25
 h.num_mixtures = 10
 h.grad_clip = 200.0
 h.skip_threshold = 400.0
+
 if ns.dataset == "cifar10":
     dataset = torchvision.datasets.CIFAR10(root='/home/julian/ImageDataSets/CIFAR10', train=True,
         download=False, transform=torchvision.transforms.ToTensor())
@@ -106,8 +111,23 @@ elif ns.dataset == "celeba32":
 else:
     print("Dataset not recognized.")
     exit(1)
-vae = vdvae.VAE(h)
-ema_vae = vdvae.VAE(h)
+
+if ns.rv_distribution == "bernoulli":
+    rv_distribution = dl.IndependentBernoulliLayer()
+elif ns.rv_distribution == "q3":
+    rv_distribution = dl.IndependentQuantizedLayer(num_buckets = 8)
+elif ns.rv_distribution == "spiq3":
+    rv_distribution = sp.SpatialIndependentDistributionLayer([image_channels, 32, 32], dl.IndependentQuantizedLayer(num_buckets = 8), num_params=30)
+elif ns.rv_distribution == "PixelCNNDiscMixDistribution":
+    rv_distribution = pixel_cnn.PixelCNNDiscreteMixLayer()
+elif ns.rv_distribution == "VDVAEDiscMixDistribution":
+    rv_distribution = pygl.VDVAEDiscMixtureLayer(h)
+else:
+    print("rv distribution not recognized")
+    quit()
+
+vae = vdvae.VAE(h, rv_distribution)
+ema_vae = vdvae.VAE(h, rv_distribution)
 ema_vae.requires_grad = False
 model = VDVAEModel(vae, ema_vae)
 trainer = VDVAETrainer(model, dataset, batch_size=8, learning_rate=ns.lr)
