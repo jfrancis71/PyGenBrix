@@ -40,7 +40,7 @@ class VDVAETrainer(pl.LightningModule):
         x, y = batch
         x = x.permute(0, 2, 3, 1)
         stats = vdvae_train.training_step(h, (x-.5)*4, x, self.model.vae, self.model.ema_vae, self.optimizers(), -1)
-        self.log('elbo', stats["elbo"])
+        self.log('log_prob', -stats["elbo"])
         self.log('kl', stats["rate"])
         self.log('recon_error', stats["distortion"])
 
@@ -48,7 +48,7 @@ class VDVAETrainer(pl.LightningModule):
         x, y = batch
         x = x.permute(0, 2, 3, 1)
         stats = vdvae_train.eval_step((x-.5)*4, x, self.model.ema_vae)
-        self.log("validation_elbo", stats["elbo"], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log("validation_log_prob", -stats["elbo"], on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self.log("validation_kl", stats["rate"], on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self.log("validation_recon_error", stats["distortion"], on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
@@ -79,6 +79,7 @@ ap = argparse.ArgumentParser(description="VDVAE")
 ap.add_argument("--tensorboard_log")
 ap.add_argument("--max_epochs", default=10, type=int)
 ap.add_argument("--lr", default=.0002, type=float)
+ap.add_argument("--ema_rate", default=.9999, type=float)
 ap.add_argument("--fast_dev_run", action="store_true")
 ap.add_argument("--dataset")
 ap.add_argument("--rv_distribution")
@@ -88,8 +89,8 @@ h.width = 384
 h.zdim = 16
 h.dec_blocks = "1x1,4m1,4x2,8m4,8x5,16m8,16x10,32m16,32x21"
 h.enc_blocks = "32x11,32d2,16x6,16d2,8x6,8d2,4x3,4d4,1x3"
-h.ema_rate = 0.9999
 h.image_size = 32
+h.ema_rate = ns.ema_rate
 h.custom_width_str = ""
 h.no_bias_above = 64
 h.bottleneck_multiple = 0.25
@@ -108,6 +109,15 @@ elif ns.dataset == "celeba32":
             torchvision.transforms.Resize(32), torchvision.transforms.ToTensor(),
         ]))
     h.image_channels = 3
+elif ns.dataset == "mnist":
+    dataset = torchvision.datasets.MNIST('/home/julian/ImageDataSets/MNIST',
+    train=True, download=False,
+    transform=torchvision.transforms.Compose([
+        torchvision.transforms.Resize(32),
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Lambda(lambda x: 1.0-((x<0.5)*1.0))]))
+    h.image_channels = 1
+    h.image_size = 32
 else:
     print("Dataset not recognized.")
     exit(1)
