@@ -109,7 +109,7 @@ elif ns.dataset == "celeba32":
             torchvision.transforms.Resize(32), torchvision.transforms.ToTensor(),
         ]))
     h.image_channels = 3
-elif ns.dataset == "mnist":
+elif ns.dataset == "mnist32":
     dataset = torchvision.datasets.MNIST('/home/julian/ImageDataSets/MNIST',
     train=True, download=False,
     transform=torchvision.transforms.Compose([
@@ -127,7 +127,7 @@ if ns.rv_distribution == "bernoulli":
 elif ns.rv_distribution == "q3":
     rv_distribution = dl.IndependentQuantizedLayer(num_buckets = 8)
 elif ns.rv_distribution == "spiq3":
-    rv_distribution = sp.SpatialIndependentDistributionLayer([image_channels, 32, 32], dl.IndependentQuantizedLayer(num_buckets = 8), num_params=30)
+    rv_distribution = sp.SpatialIndependentDistributionLayer([h.image_channels, h.image_width, image_width], dl.IndependentQuantizedLayer(num_buckets = 8), num_params=30)
 elif ns.rv_distribution == "PixelCNNDiscMixDistribution":
     rv_distribution = pixel_cnn.PixelCNNDiscreteMixLayer()
 elif ns.rv_distribution == "VDVAEDiscMixDistribution":
