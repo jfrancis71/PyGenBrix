@@ -41,14 +41,13 @@ class _PixelCNNDistribution(nn.Module):
                 input_channels=event_shape[0], nr_params=output_distribution_layer.params_size(event_shape[0]), nr_conditional=num_conditional)
         self.output_distribution_layer = output_distribution_layer
         self.event_shape = event_shape
-        self.ndims = np.prod(event_shape)
 
     def log_prob(self, samples, conditionals=None):
         if samples.size()[1:4] != torch.Size(self.event_shape):
             raise RuntimeError("sample shape  {}, but event_shape has shape {}"
                             .format(samples.shape[1:4], self.event_shape))
         params = self.pixelcnn_net((samples*2.0)-1.0, conditional=conditionals)
-        return {"log_prob": self.output_distribution_layer(params).log_prob(samples)["log_prob"]/self.ndims}
+        return {"log_prob": self.output_distribution_layer(params).log_prob(samples)["log_prob"]}
 
     def sample(self, conditionals=None, temperature=1.0):
         with torch.no_grad():
