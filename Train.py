@@ -128,25 +128,3 @@ class LogReconstructionEpochCallback(pl.Callback):
 #pl.Trainer(fast_dev_run=False, gpus=1).fit(Train.LightningTrainer(mymodel, dataset, Train.disp, batch_size=16))
 #To restore a training session:
 #_ = Train.LightningTrainer.load_from_checkpoint("~/PyGenBrixProj/CelebA/lightning_logs/version_7/checkpoints/epoch=1-step=22793.ckpt", model=mymodel, dataset=celeba_dataset)
-
-# To train a conditional distribution:
-# mydist = Train.PyGenBrixModel( 
-#     cnn.MultiStageParallelCNNLayer([1, 28, 28], vae.IndependentBernoulliLayer()),
-#     [1, 28, 28])
-# Train.train( mydist, mnist, batch_size=32, sleep_time=0)
-class PyGenBrixModel(nn.Module):
-
-    def __init__(self, distribution, dims):
-        super(PyGenBrixModel, self).__init__()
-        self.cond_distribution = distribution
-        self.dims = dims
-        self.conditionals = torch.nn.Parameter(torch.zeros(dims), requires_grad=True )
-        
-    def log_prob(self, samples):
-        return self.cond_distribution(self.conditionals.expand([samples.shape[0], self.dims[0], self.dims[1], self.dims[2]])).log_prob(samples)
-    
-    def sample(self, temperature=1.0):
-        return self.cond_distribution(torch.unsqueeze(self.conditionals, 0)).sample(temperature)
-
-    def mode(self):
-        return self.cond_distribution(torch.unsqueeze(self.conditionals, 0)).mode()
