@@ -72,10 +72,14 @@ class LightningDistributionTrainer(LightningTrainer):
     def get_distribution(self, y):
         return self.model
 
-def distribution_sample(model, temperature=1.0):
+
+def logging_distribution_samples(pl_module, model, name, current_step, temperature=1.0, filename=None):
     imglist = [model.sample(temperature) for _ in range(16)]
     imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
-    return torchvision.utils.make_grid(imglist, padding=10, nrow=4 )
+    grid_image = torchvision.utils.make_grid(imglist, padding=10, nrow=4 )
+    pl_module.logger.experiment.add_image(name+"T"+str(temperature), grid_image, current_step, dataformats="CHW")
+    if filename is not None:
+        torchvision.utils.save_image(grid_image, filename)
 
 
 class LogSamplesEpochCallback(pl.Callback):
@@ -85,10 +89,7 @@ class LogSamplesEpochCallback(pl.Callback):
         self.temperature = temperature
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        samples = distribution_sample(pl_module.model, self.temperature)
-        pl_module.logger.experiment.add_image("epoch_sample T"+str(self.temperature), samples, pl_module.current_epoch, dataformats="CHW")
-        if self.filename is not None:
-            torchvision.utils.save_image(samples, self.filename)
+        logging_distribution_samples(pl_module, pl_module.model, "epoch", pl_module.current_epoch, self.temperature, self.filename)
 
 
 class LogSamplesTrainingCallback(pl.Callback):
@@ -101,11 +102,8 @@ class LogSamplesTrainingCallback(pl.Callback):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
         if (pl_module.global_step % self.every_global_step == 0) and (batch_idx % trainer.accumulate_grad_batches == 0):
             pl_module.eval()
-            samples = distribution_sample(pl_module.model, self.temperature)
+            logging_distribution_samples(pl_module, pl_module.model, "train", pl_module.global_step, self.temperature, self.filename)
             pl_module.train()
-            pl_module.logger.experiment.add_image("train_sample T"+str(self.temperature), samples, pl_module.global_step, dataformats="CHW")
-            if self.filename is not None:
-                torchvision.utils.save_image(samples, self.filename)
 
 
 class LogReconstructionEpochCallback(pl.Callback):
