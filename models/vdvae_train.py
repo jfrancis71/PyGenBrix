@@ -70,7 +70,6 @@ class LogSamplesVAECallback(pl.Callback):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
         if (pl_module.global_step % self.step_freq == 0) and (batch_idx % trainer.accumulate_grad_batches == 0):
             samples = pl_module.model.ema_vae.forward_uncond_samples(8, t=1.0)
-            samples = torch.tensor(samples)
             samples_grid = torchvision.utils.make_grid(samples, padding=10, nrow=4)
             pl_module.logger.experiment.add_image("train_sample", samples_grid, pl_module.global_step, dataformats="CHW")
 
