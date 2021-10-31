@@ -138,9 +138,20 @@ class _ParallelCNNDistribution(nn.Module):
         logging_dict["log_prob"] = log_prob
         return logging_dict
     
-    def sample(self, conditionals=None, temperature=1.0):
+    def sample(self, sample_shape, conditionals=None, temperature=1.0):
         with torch.no_grad():
-            sample = torch.zeros([1, self.event_shape[0], self.event_shape[1]//2**self.num_upsampling_stages, self.event_shape[2]//2**self.num_upsampling_stages ], device=next(self.parameters()).device)
+            if conditionals is None:
+                if sample_shape == []:
+                    batch_shape = 1
+                else:
+                    batch_shape = sample_shape[0]
+            else:
+                if sample_shape == []:
+                    batch_shape = conditionals.shape[0]
+                else:
+                    print("In this impl we don't support sample_shape != [] and layer")
+                    quit()
+            sample = torch.zeros([batch_shape, self.event_shape[0], self.event_shape[1]//2**self.num_upsampling_stages, self.event_shape[2]//2**self.num_upsampling_stages ], device=next(self.parameters()).device)
             base_conditionals = conditionals[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages] if conditionals is not None else None
             self.sample_block(sample, base_conditionals, self.base_nets, base_slice, temperature)
             for level in range(self.num_upsampling_stages):
@@ -150,7 +161,10 @@ class _ParallelCNNDistribution(nn.Module):
                     sample,
                     upsample_conditionals,
                     self.upsampler_nets[ level ], temperature)
-        return sample
+        if sample_shape == [] and conditionals == None:
+            return sample[0]
+        else:
+            return sample
 
     def mode(self, conditionals=None):
         return self.sample(conditionals, temperature=0.0)

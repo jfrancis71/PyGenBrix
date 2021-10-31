@@ -137,8 +137,8 @@ class Distribution(nn.Module):
     def log_prob(self, samples):
         return self.distribution.log_prob(samples)
 
-    def sample(self, temperature=1.0):
-        return self.distribution.sample(conditionals=None, temperature=temperature)
+    def sample(self, sample_shape, temperature=1.0):
+        return self.distribution.sample(sample_shape, conditionals=None, temperature=temperature)
 
     def mode(self):
         return self.distribution.mode(conditionals=None)
@@ -155,9 +155,9 @@ class LayerDistribution(nn.Module):
     def log_prob(self, samples):
         return self.distribution.log_prob(samples, self.params)
 
-    def sample(self, temperature=1.0):
+    def sample(self, sample_shape, temperature=1.0):
         with torch.no_grad():
-            return self.distribution.sample(self.params, temperature)
+            return self.distribution.sample(sample_shape, self.params, temperature)
 
     def mean(self):
         with torch.no_grad():
@@ -166,6 +166,7 @@ class LayerDistribution(nn.Module):
     def mode(self):
         with torch.no_grad():
             return self.distribution.mode(self.params)
+
 
 #Layer object provides a forward method and returns a distribution object.
 #It assumes the passed in object has interface:

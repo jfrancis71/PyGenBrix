@@ -49,9 +49,20 @@ class _PixelCNNDistribution(nn.Module):
         params = self.pixelcnn_net((samples*2.0)-1.0, conditional=conditionals)
         return {"log_prob": self.output_distribution_layer(params).log_prob(samples)["log_prob"]}
 
-    def sample(self, conditionals=None, temperature=1.0):
+    def sample(self, sample_shape=[], conditionals=None, temperature=1.0):
         with torch.no_grad():
-            sampl = torch.zeros([1]+self.event_shape, device="cuda")
+            if conditionals is None:
+                if sample_shape == []:
+                    batch_shape = 1
+                else:
+                    batch_shape = sample_shape[0]
+            else:
+                if sample_shape == []:
+                    batch_shape = conditionals.shape[0]
+                else:
+                    print("In this impl we don't support sample_shape != [] and layer")
+                    quit()
+            sampl = torch.zeros([batch_shape]+self.event_shape, device="cuda")
             for y in range(self.event_shape[1]):
                 for x in range(self.event_shape[2]):
                     params=self.pixelcnn_net((sampl*2)-1, sample=True, conditional=conditionals)
@@ -59,8 +70,11 @@ class _PixelCNNDistribution(nn.Module):
                         s = self.output_distribution_layer(params).sample(temperature)
                     else:
                         s = self.output_distribution_layer(params).mode()
-                    sampl[0,:,y,x] = s[0,:,y,x]
-        return sampl
+                    sampl[:,:,y,x] = s[:,:,y,x]
+        if sample_shape == [] and conditionals == None:
+            return sampl[0]
+        else:
+            return sampl
 
     def mode(self, conditionals=None):
         return self.sample(conditionals, temperature=0.0)

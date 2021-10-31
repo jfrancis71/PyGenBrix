@@ -73,8 +73,8 @@ class LightningDistributionTrainer(LightningTrainer):
         return self.model
 
 
-def logging_distribution_samples(pl_module, model, name, current_step, temperature=1.0, filename=None):
-    imglist = [model.sample(temperature) for _ in range(16)]
+def logging_distribution_samples(pl_module, model, name, current_step, batch_size, temperature=1.0, filename=None):
+    imglist = [model.sample([batch_size], temperature) for _ in range(16//batch_size)]
     imglist = torch.clip(torch.cat(imglist, axis=0),0.0,1.0)
     grid_image = torchvision.utils.make_grid(imglist, padding=10, nrow=4 )
     pl_module.logger.experiment.add_image(name+"T"+str(temperature), grid_image, current_step, dataformats="CHW")
@@ -89,7 +89,7 @@ class LogSamplesEpochCallback(pl.Callback):
         self.temperature = temperature
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        logging_distribution_samples(pl_module, pl_module.model, "epoch", pl_module.current_epoch, self.temperature, self.filename)
+        logging_distribution_samples(pl_module, pl_module.model, "epoch", pl_module.current_epoch, pl_module.batch_size, self.temperature, self.filename)
 
 
 class LogSamplesTrainingCallback(pl.Callback):
@@ -102,7 +102,7 @@ class LogSamplesTrainingCallback(pl.Callback):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
         if (pl_module.global_step % self.every_global_step == 0) and (batch_idx % trainer.accumulate_grad_batches == 0):
             pl_module.eval()
-            logging_distribution_samples(pl_module, pl_module.model, "train", pl_module.global_step, self.temperature, self.filename)
+            logging_distribution_samples(pl_module, pl_module.model, "train", pl_module.global_step, pl_module.batch_size, self.temperature, self.filename)
             pl_module.train()
 
 

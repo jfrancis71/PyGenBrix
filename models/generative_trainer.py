@@ -84,7 +84,10 @@ else:
     quit()
 
 trainer = Train.LightningDistributionTrainer(model, dataset, learning_rate=ns.lr, batch_size=ns.batch_size)
-train_callback = Train.LogSamplesTrainingCallback(every_global_step=ns.train_log_freq, temperature=1.0) if ns.train_log_freq != 0 else None
+callbacks = [Train.LogSamplesEpochCallback(temperature=1.0), Train.LogSamplesEpochCallback(temperature=0.7)]
+if ns.train_log_freq != 0:
+    callbacks.append(Train.LogSamplesTrainingCallback(every_global_step=ns.train_log_freq, temperature=1.0))
+    callbacks.append(Train.LogSamplesTrainingCallback(every_global_step=ns.train_log_freq, temperature=0.7))
 pl.Trainer(fast_dev_run=ns.fast_dev_run, gpus=1, accumulate_grad_batches=ns.accumulate_grad_batches, max_epochs=ns.max_epochs, 
-           callbacks=[Train.LogSamplesEpochCallback(temperature=1.0), train_callback],
+           callbacks=callbacks,
            default_root_dir=ns.tensorboard_log).fit(trainer)

@@ -39,6 +39,9 @@ class VDVAE(nn.Module):
         elbo = self.vae.forward((samples-.5)*4, samples)["elbo"]*self.ndims
         return {"log_prob": -elbo}
 
-    def sample(self, temperature=1.0):
-        samples = torch.tensor(self.vae.forward_uncond_samples(1, t=temperature))
+    def sample(self, sample_shape=None, temperature=1.0):
+        if sample_shape is None:
+            samples = self.vae.forward_uncond_samples(1, t=temperature)[0]
+        else:
+            samples = self.vae.forward_uncond_samples(sample_shape[0], t=temperature)
         return samples
