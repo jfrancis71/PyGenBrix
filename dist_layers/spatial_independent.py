@@ -50,17 +50,22 @@ class _SpatialIndependentDistribution(nn.Module):
             remain_probs = torch.sum(remain_probs, dim=0)
         return {"log_prob": prob1["log_prob"]+remain_probs}
 
-    def sample(self, params=None, temperature=1.0):
-        init1 = torch.zeros([1] + self.event_shape, device="cuda")
-        if temperature >= 0.01:
-            init1[0,0] = self.base_distribution_layer(self.n1(init1[:,:1], params)).sample(temperature)
+    def sample(self, sample_shape=[], params=None, temperature=1.0):
+        if params is not None:
+            batch_size = params.shape[0]
         else:
-            init1[0,0] = self.base_distribution_layer(self.n1(init1[:,:1], params)).mode()
+            batch_size = samples_shape[0]
+        init1 = torch.zeros([batch_size] + self.event_shape, device="cuda")
+        l1 = self.n1(init1[:,:1], params)
+        if temperature >= 0.01:
+            init1[:,0] = self.base_distribution_layer(self.n1(init1[:,:1], params)).sample(temperature)[:,0]
+        else:
+            init1[:,0] = self.base_distribution_layer(self.n1(init1[:,:1], params)).mode()[:,0]
         for i in range(self.event_shape[0]-1):
             if temperature >= 0.01:
-                init1[0,i+1] = self.base_distribution_layer(self.n[i](init1[:,:i+1], params)).sample(temperature)
+                init1[:,i+1] = self.base_distribution_layer(self.n[i](init1[:,:i+1], params)).sample(temperature)[:,0]
             else:
-                init1[0,i+1] = self.base_distribution_layer(self.n[i](init1[:,:i+1], params)).mode()
+                init1[:,i+1] = self.base_distribution_layer(self.n[i](init1[:,:i+1], params)).mode()[:,0]
         return init1
 
     def mode(self, params=None):
