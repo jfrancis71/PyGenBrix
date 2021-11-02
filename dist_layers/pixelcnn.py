@@ -60,8 +60,7 @@ class _PixelCNNDistribution(nn.Module):
                 if sample_shape == []:
                     batch_shape = conditionals.shape[0]
                 else:
-                    print("In this impl we don't support sample_shape != [] and layer")
-                    quit()
+                    raise RuntimeError("In this impl we don't support sample_shape != [] and layer")
             sampl = torch.zeros([batch_shape]+self.event_shape, device="cuda")
             for y in range(self.event_shape[1]):
                 for x in range(self.event_shape[2]):

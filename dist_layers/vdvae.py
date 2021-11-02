@@ -29,8 +29,7 @@ class VDVAE(nn.Module):
             h.dec_blocks = "1x2,4m1,4x3,8m4,8x7,16m8,16x15,32m16,32x31,64m32,64x12"
             h.enc_blocks = "64x11,64d2,32x20,32d2,16x9,16d2,8x8,8d2,4x7,4d4,1x5"
         else:
-            print("VDVAE shape not standard.")
-            quit()
+            raise RuntimeError("VDVAE shape not standard.")
         self.vae = vdvae.VAE(h, rv_distribution)
         self.ndims = np.prod(event_shape)
 
