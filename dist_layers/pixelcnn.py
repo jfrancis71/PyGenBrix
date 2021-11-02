@@ -87,5 +87,5 @@ class PixelCNNDistribution(dl.Distribution):
 
 
 class PixelCNNLayer(dl.Layer):
-    def __init__(self, event_shape, num_conditional, output_distribution_layer=PixelCNNDiscreteMixLayer(), nr_resnet=5):
+    def __init__(self, event_shape, output_distribution_layer, num_conditional, nr_resnet=5):
         super(PixelCNNLayer, self).__init__(_PixelCNNDistribution(event_shape, output_distribution_layer, num_conditional, nr_resnet))

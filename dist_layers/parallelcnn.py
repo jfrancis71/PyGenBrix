@@ -153,6 +153,7 @@ class _ParallelCNNDistribution(nn.Module):
                     quit()
             sample = torch.zeros([batch_shape, self.event_shape[0], self.event_shape[1]//2**self.num_upsampling_stages, self.event_shape[2]//2**self.num_upsampling_stages ], device=next(self.parameters()).device)
             base_conditionals = conditionals[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages] if conditionals is not None else None
+            print("SAMP=", sample.shape, "COB=", base_conditionals.shape)
             self.sample_block(sample, base_conditionals, self.base_nets, base_slice, temperature)
             for level in range(self.num_upsampling_stages):
                 level_subsample_rate = 2**(self.num_upsampling_stages-level-1)
@@ -177,5 +178,5 @@ class ParallelCNNDistribution(dl.Distribution):
 
 
 class ParallelCNNLayer(dl.Layer):
-    def __init__(self, event_shape, output_distribution_layer, num_upsampling_stages, max_unet_layers, num_conditional_channels):
+    def __init__(self, event_shape, output_distribution_layer, num_conditional_channels, num_upsampling_stages, max_unet_layers):
         super(ParallelCNNLayer, self).__init__(_ParallelCNNDistribution(event_shape, output_distribution_layer, num_upsampling_stages, max_unet_layers=3, num_conditional_channels=num_conditional_channels))
