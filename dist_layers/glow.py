@@ -23,12 +23,16 @@ class _GlowDistribution(nn.Module):
         log_det = log_dets.mean()
         log = log_p + log_det
         nats_per_dim = log / ( 3 * 64 * 64 )
-        return {"log_prob": nats_per_dim}
+        return {"log_prob": log}
 
-    def sample(self, conditional=None, temperature=0.7):
+    def sample(self, sample_shape, conditional=None, temperature=0.7):
+        if conditional is not None:
+            batch_shape = conditional.shape[0]
+        else:
+            batch_shape = sample_shape[0]
         z_sample = []
         for z in self.z_shapes:
-            z_new = torch.randn(1, z[0], z[1], z[2]) * temperature
+            z_new = torch.randn(batch_shape, z[0], z[1], z[2]) * temperature
             z_sample.append(z_new.to(next(self.glow_net.parameters()).device))
         return self.glow_net.reverse(z_sample, conditional=conditional) + 0.5
 
