@@ -1,0 +1,2 @@
+python gender_trainer.py --tensorboard_log=/home/julian/PyGenBrixProj/trained_models/celeba/real/glow --model=Glow --train_log_freq=1000 --dataset=celeba64 --accumulate_grad_batches=2 --batch_size=8 --lr=.0001
+python gender_trainer.py --tensorboard_log=/home/julian/PyGenBrixProj/trained_models/celeba/3bit/pixelcnn_gender --model=PixelCNN --rv_distribution=spiq3 --dataset=celeba32 --accumulate_grad_batches=1 --batch_size=16 --train_log_freq=1000
