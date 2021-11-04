@@ -20,7 +20,7 @@ class EMAModel(nn.Module):
 
 
 class EMATrainer(pl.LightningModule):
-    def __init__(self, model, dataset, batch_size=8, learning_rate=0.0002):
+    def __init__(self, model, dataset, batch_size=8, learning_rate=0.0002, ema_rate=0.99):
         super(EMATrainer, self).__init__()
         self.model = model
         self.dataset = dataset
@@ -30,6 +30,7 @@ class EMATrainer(pl.LightningModule):
         self.learning_rate = learning_rate
         self.grad_clip = 200
         self.skip_threshold = 400
+        self.ema_rate = ema_rate
 
     def get_datasets(self):
         dataset_size = len(self.dataset)
@@ -54,6 +55,7 @@ class EMATrainer(pl.LightningModule):
         if (log_prob_per_pixel_nans == False and grad_norm < self.skip_threshold):
             self.optimizers().step()
             skipped_update = 0
+            vdvae_train.update_ema(self.model.model, self.model.ema_model, self.ema_rate)
         self.log('skipped_update', skipped_update, on_step=True, on_epoch=True, prog_bar=False, logger=True)
         self.log('grad_norm', grad_norm, on_step=True, on_epoch=True, prog_bar=False, logger=True)
         self.log('log_prob', log_prob_per_pixel, on_step=True, on_epoch=True, prog_bar=True, logger=True)
@@ -95,31 +97,16 @@ ap.add_argument("--model")
 ap.add_argument("--dataset")
 ap.add_argument("--rv_distribution")
 ns = ap.parse_args()
-h = hps.Hyperparams()
-h.width = 384
-h.zdim = 16
-h.dec_blocks = "1x1,4m1,4x2,8m4,8x5,16m8,16x10,32m16,32x21"
-h.enc_blocks = "32x11,32d2,16x6,16d2,8x6,8d2,4x3,4d4,1x3"
-h.image_size = 32
-h.ema_rate = ns.ema_rate
-h.custom_width_str = ""
-h.no_bias_above = 64
-h.bottleneck_multiple = 0.25
-h.num_mixtures = 10
-h.grad_clip = 200.0
-h.skip_threshold = 400.0
 
 event_shape, dataset = parser.get_dataset(ns)
 rv_distribution = parser.get_rv_distribution(ns, event_shape)
 if ns.model != "vdvae":
     print("This program only supports vdvae")
     quit()
-h.image_channels = event_shape[0]
-h.width = event_shape[2]
 vae = vdvae.VDVAE(event_shape, rv_distribution)
 ema_vae = vdvae.VDVAE(event_shape, rv_distribution)
 ema_vae.requires_grad = False
 model = EMAModel(vae, ema_vae)
-trainer = EMATrainer(model, dataset, batch_size=8, learning_rate=ns.lr)
+trainer = EMATrainer(model, dataset, batch_size=8, learning_rate=ns.lr, ema_rate=ns.ema_rate)
 pl.Trainer(fast_dev_run = ns.fast_dev_run, gpus=1, accumulate_grad_batches = 1, max_epochs=ns.max_epochs, default_root_dir=ns.tensorboard_log, 
     callbacks=[LogSamplesVAECallback(1000)]).fit(trainer)
