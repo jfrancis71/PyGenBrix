@@ -7,8 +7,7 @@ import PyGenBrix.dist_layers.parallelcnn as parallel_cnn
 import PyGenBrix.dist_layers.vdvae as vdvae
 import PyGenBrix.models.lb_autoencoder as lbae
 import PyGenBrix.Train as Train
-import PyGenBrix.dist_layers.common_layers as dl
-import PyGenBrix.dist_layers.spatial_independent as sp
+import PyGenBrix.models.parser as parser
 
 ap = argparse.ArgumentParser(description="generative_trainer")
 ap.add_argument("--tensorboard_log")
@@ -25,65 +24,18 @@ ap.add_argument("--nr_resnet", default=5, type=int)
 ap.add_argument("--train_log_freq", default=0, type=int)
 ns = ap.parse_args()
 
-q3 = ((torchvision.transforms.Lambda(lambda x: dl.quantize(x,8)),)
-                if ns.rv_distribution=="q3" or ns.rv_distribution=="spiq3" or ns.model=="LBAE" else ())
-if ns.dataset == "cifar10":
-    dataset = torchvision.datasets.CIFAR10(root='/home/julian/ImageDataSets/CIFAR10', train=True,
-        download=False, transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor(),*q3]))
-    image_channels = 3
-    image_size = 32
-elif ns.dataset == "celeba32":
-    dataset = torchvision.datasets.ImageFolder(root="/home/julian/ImageDataSets/celeba/",
-        transform = torchvision.transforms.Compose([
-            torchvision.transforms.Pad((-15, -40,-15-1, -30-1)),
-            torchvision.transforms.Resize(32), torchvision.transforms.ToTensor(),*q3
-        ]))
-    image_channels = 3
-    image_size = 32
-elif ns.dataset == "celeba64":
-    dataset = torchvision.datasets.ImageFolder(root="/home/julian/ImageDataSets/celeba/",
-        transform = torchvision.transforms.Compose([
-            torchvision.transforms.Pad((-15, -40,-15-1, -30-1)),
-            torchvision.transforms.Resize(64), torchvision.transforms.ToTensor(),*q3
-        ]))
-    image_channels = 3
-    image_size = 64
-elif ns.dataset == "mnist32":
-    dataset = torchvision.datasets.MNIST('/home/julian/ImageDataSets/MNIST',
-    train=True, download=False,
-    transform=torchvision.transforms.Compose([
-        torchvision.transforms.Resize(32),
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Lambda(lambda x: 1.0-((x<0.5)*1.0))]))
-    image_channels = 1
-    image_size = 32
-else:
-    print("Dataset not recognized.")
-    quit()
-
-if ns.rv_distribution == "bernoulli":
-    rv_distribution = dl.IndependentBernoulliLayer()
-elif ns.rv_distribution == "q3":
-    rv_distribution = dl.IndependentQuantizedLayer( num_buckets = 8)
-elif ns.rv_distribution == "spiq3":
-    rv_distribution = sp.SpatialIndependentDistributionLayer( [image_channels, image_size, image_size], dl.IndependentQuantizedLayer( num_buckets = 8), num_params=30 )
-elif ns.rv_distribution == "PixelCNNDiscMixDistribution":
-    rv_distribution = pixel_cnn.PixelCNNDiscreteMixLayer()
-elif ns.model == "LBAE":
-    rv_distribution = None
-else:
-    print("rv distribution not recognized")
-    quit()
+event_shape, dataset = parser.get_dataset(ns)
+rv_distribution = parser.get_rv_distribution(ns, event_shape)
 
 if ns.model == "PixelCNN":
-    model = pixel_cnn.PixelCNNDistribution([image_channels, image_size, image_size], rv_distribution, nr_resnet=ns.nr_resnet )
+    model = pixel_cnn.PixelCNNDistribution(event_shape, rv_distribution, nr_resnet=ns.nr_resnet )
 elif ns.model == "ParallelCNN":
-    model = parallel_cnn.ParallelCNNDistribution([image_channels, image_size, image_size], rv_distribution, max_unet_layers=3, num_upsampling_stages=int(ns.parallelcnn_num_upsampling_stages))
+    model = parallel_cnn.ParallelCNNDistribution(event_shape, rv_distribution, max_unet_layers=3, num_upsampling_stages=int(ns.parallelcnn_num_upsampling_stages))
     if ns.rv_distribution == "spiq3":
         print("parallelcnn and spiq3 incompatible")
         quit()
 elif ns.model == "VDVAE":
-    model = vdvae.VDVAE([image_channels, image_size, image_size], rv_distribution)
+    model = vdvae.VDVAE(event_shape, rv_distribution)
 elif ns.model == "LBAE":
     model = lbae.LBDistribution()
 else:

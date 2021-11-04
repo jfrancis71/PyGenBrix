@@ -10,6 +10,7 @@ import vdvae.vae as vdvae
 import pygenbrix_layer as pygl
 import PyGenBrix.dist_layers.common_layers as dl
 import PyGenBrix.dist_layers.spatial_independent as sp
+import PyGenBrix.models.parser as parser
 
 
 class VDVAEModel(nn.Module):
@@ -80,6 +81,7 @@ ap.add_argument("--max_epochs", default=10, type=int)
 ap.add_argument("--lr", default=.0002, type=float)
 ap.add_argument("--ema_rate", default=.9999, type=float)
 ap.add_argument("--fast_dev_run", action="store_true")
+ap.add_argument("--model")
 ap.add_argument("--dataset")
 ap.add_argument("--rv_distribution")
 ns = ap.parse_args()
@@ -97,44 +99,13 @@ h.num_mixtures = 10
 h.grad_clip = 200.0
 h.skip_threshold = 400.0
 
-if ns.dataset == "cifar10":
-    dataset = torchvision.datasets.CIFAR10(root='/home/julian/ImageDataSets/CIFAR10', train=True,
-        download=False, transform=torchvision.transforms.ToTensor())
-    h.image_channels = 3
-elif ns.dataset == "celeba32":
-    dataset = torchvision.datasets.ImageFolder(root="/home/julian/ImageDataSets/celeba/",
-        transform = torchvision.transforms.Compose([
-            torchvision.transforms.Pad((-15, -40,-15-1, -30-1)),
-            torchvision.transforms.Resize(32), torchvision.transforms.ToTensor(),
-        ]))
-    h.image_channels = 3
-elif ns.dataset == "mnist32":
-    dataset = torchvision.datasets.MNIST('/home/julian/ImageDataSets/MNIST',
-    train=True, download=False,
-    transform=torchvision.transforms.Compose([
-        torchvision.transforms.Resize(32),
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Lambda(lambda x: 1.0-((x<0.5)*1.0))]))
-    h.image_channels = 1
-    h.image_size = 32
-else:
-    print("Dataset not recognized.")
-    exit(1)
-
-if ns.rv_distribution == "bernoulli":
-    rv_distribution = dl.IndependentBernoulliLayer()
-elif ns.rv_distribution == "q3":
-    rv_distribution = dl.IndependentQuantizedLayer(num_buckets = 8)
-elif ns.rv_distribution == "spiq3":
-    rv_distribution = sp.SpatialIndependentDistributionLayer([h.image_channels, h.image_width, image_width], dl.IndependentQuantizedLayer(num_buckets = 8), num_params=30)
-elif ns.rv_distribution == "PixelCNNDiscMixDistribution":
-    rv_distribution = pixel_cnn.PixelCNNDiscreteMixLayer()
-elif ns.rv_distribution == "VDVAEDiscMixDistribution":
-    rv_distribution = pygl.VDVAEDiscMixtureLayer(h)
-else:
-    print("rv distribution not recognized")
+event_shape, dataset = parser.get_dataset(ns)
+rv_distribution = parser.get_rv_distribution(ns, event_shape)
+if ns.model != "vdvae":
+    print("This program only supports vdvae")
     quit()
-
+h.image_channels = event_shape[0]
+h.width = event_shape[2]
 vae = vdvae.VAE(h, rv_distribution)
 ema_vae = vdvae.VAE(h, rv_distribution)
 ema_vae.requires_grad = False

@@ -10,6 +10,7 @@ import PyGenBrix.dist_layers.vdvae as vdvae
 import PyGenBrix.Train as Train
 import PyGenBrix.dist_layers.common_layers as dl
 import PyGenBrix.dist_layers.spatial_independent as sp
+import PyGenBrix.models.parser as parser
 
 
 def logging_distribution_samples(pl_module, model, name, gender, current_step, batch_size, temperature=1.0, filename=None):
@@ -73,44 +74,15 @@ ap.add_argument("--train_log_freq", default=0, type=int)
 ap.add_argument("--filename", default=None)
 ns = ap.parse_args()
 
-if ns.dataset == "celeba32":
-    dataset = torchvision.datasets.CelebA(
-        root="/home/julian/ImageDataSets",
-        transform = torchvision.transforms.Compose([
-            torchvision.transforms.Pad((-15, -40,-15-1, -30-1)),
-            torchvision.transforms.Resize(32),
-            torchvision.transforms.ToTensor()]))
-    image_channels = 3
-    image_size = 32
-elif ns.dataset == "celeba64":
-    dataset = torchvision.datasets.CelebA(
-        root="/home/julian/ImageDataSets",
-        transform = torchvision.transforms.Compose([
-            torchvision.transforms.Pad((-15, -40,-15-1, -30-1)),
-            torchvision.transforms.Resize(64),
-            torchvision.transforms.ToTensor()]))
-    image_channels = 3
-    image_size = 64
-else:
-    print("Dataset not recognized.")
+if ns.dataset != "celeba32" and ns.dataset != "celeba64":
+    print("This program only supports celeba")
     quit()
+event_shape, dataset = parser.get_dataset(ns)
+rv_distribution = parser.get_rv_distribution(ns, event_shape)
 
-if ns.rv_distribution == "bernoulli":
-    rv_distribution = dl.IndependentBernoulliLayer()
-elif ns.rv_distribution == "q3":
-    rv_distribution = dl.IndependentQuantizedLayer( num_buckets = 8)
-elif ns.rv_distribution == "spiq3":
-    rv_distribution = sp.SpatialIndependentDistributionLayer( [image_channels, image_size, image_size], dl.IndependentQuantizedLayer( num_buckets = 8), num_params=30 )
-elif ns.rv_distribution == "PixelCNNDiscMixDistribution":
-    rv_distribution = pixel_cnn.PixelCNNDiscreteMixLayer()
-elif ns.model == "Glow":
-    rv_distribution = None
-else:
-    print("rv distribution not recognized")
-    quit()
 
 if ns.model == "PixelCNN":
-    model = pixel_cnn.PixelCNNLayer([image_channels, image_size, image_size], rv_distribution, 1, nr_resnet=ns.nr_resnet )
+    model = pixel_cnn.PixelCNNLayer(event_shape, rv_distribution, 1, nr_resnet=ns.nr_resnet )
 elif ns.model == "Glow":
     model = glow.GlowLayer(num_conditional=1)
 else:
