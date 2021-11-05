@@ -152,7 +152,6 @@ class _ParallelCNNDistribution(nn.Module):
                     raise RuntimeError("In this impl we don't support sample_shape != [] and layer")
             sample = torch.zeros([batch_shape, self.event_shape[0], self.event_shape[1]//2**self.num_upsampling_stages, self.event_shape[2]//2**self.num_upsampling_stages ], device=next(self.parameters()).device)
             base_conditionals = conditionals[:,:,::2**self.num_upsampling_stages,::2**self.num_upsampling_stages] if conditionals is not None else None
-            print("SAMP=", sample.shape, "COB=", base_conditionals.shape)
             self.sample_block(sample, base_conditionals, self.base_nets, base_slice, temperature)
             for level in range(self.num_upsampling_stages):
                 level_subsample_rate = 2**(self.num_upsampling_stages-level-1)

@@ -41,7 +41,7 @@ class LightningTrainer(pl.LightningModule):
         x, y = batch
         ndims = np.prod(x.shape[1:])
         result = self.get_distribution(y).log_prob(x)
-        log_prob = torch.mean( result["log_prob"] )
+        log_prob = torch.mean(result["log_prob"])/ndims
         logs = {key: torch.mean(value)/ndims for key, value in result.items()}
         return {"loss": -log_prob, "log": logs}
 
