@@ -15,28 +15,15 @@ import PyGenBrix.models.parser as parser
 import PyGenBrix.Train as Train
 
 
-class EMATrainer(pl.LightningModule):
+class EMATrainer(Train.LightningTrainer):
     def __init__(self, model, train_model, dataset, batch_size=8, learning_rate=0.0002, ema_rate=0.99):
-        super(EMATrainer, self).__init__()
-        self.model = model
+        super(EMATrainer, self).__init__(model, dataset, False, learning_rate, batch_size)
         self.train_model = train_model
         self.model.requires_grad = False
-        self.dataset = dataset
-        self.train_set, self.val_set = self.get_datasets()
         self.automatic_optimization = False
-        self.batch_size = batch_size
-        self.learning_rate = learning_rate
         self.grad_clip = 200
         self.skip_threshold = 400
         self.ema_rate = ema_rate
-
-    def get_datasets(self):
-        dataset_size = len(self.dataset)
-        training_size = np.round(dataset_size*0.9).astype(int)
-        train_set, val_set = torch.utils.data.random_split(
-            self.dataset, [training_size, dataset_size-training_size],
-            generator=torch.Generator().manual_seed(42) ) 
-        return (train_set, val_set)
 
     def training_step(self, batch, batch_indx):
         x, y = batch
@@ -65,12 +52,6 @@ class EMATrainer(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.train_model.parameters(), lr = self.learning_rate)
-
-    def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True, num_workers=4, drop_last=True, pin_memory=True)
-    
-    def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.val_set, batch_size = self.batch_size, num_workers=4, drop_last=True, pin_memory=True)
 
 
 ap = argparse.ArgumentParser(description="EMATrainer")
