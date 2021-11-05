@@ -1,4 +1,5 @@
 import argparse
+import copy
 import numpy as np
 import torch
 import torch.nn as nn
@@ -11,18 +12,15 @@ import pygenbrix_layer as pygl
 import PyGenBrix.dist_layers.common_layers as dl
 import PyGenBrix.dist_layers.spatial_independent as sp
 import PyGenBrix.models.parser as parser
-
-
-class EMAModel(nn.Module):
-    def __init__(self, model, ema_model):
-        super(EMAModel, self).__init__()
-        self.model, self.ema_model = model, ema_model
+import PyGenBrix.Train as Train
 
 
 class EMATrainer(pl.LightningModule):
-    def __init__(self, model, dataset, batch_size=8, learning_rate=0.0002, ema_rate=0.99):
+    def __init__(self, model, train_model, dataset, batch_size=8, learning_rate=0.0002, ema_rate=0.99):
         super(EMATrainer, self).__init__()
         self.model = model
+        self.train_model = train_model
+        self.model.requires_grad = False
         self.dataset = dataset
         self.train_set, self.val_set = self.get_datasets()
         self.automatic_optimization = False
@@ -43,48 +41,36 @@ class EMATrainer(pl.LightningModule):
     def training_step(self, batch, batch_indx):
         x, y = batch
         ndims = np.prod(x.shape[1:])
-        self.model.model.zero_grad()
-        log_prob = self.model.model.log_prob(x)["log_prob"].mean()
+        self.train_model.zero_grad()
+        log_prob = self.train_model.log_prob(x)["log_prob"].mean()
         log_prob_per_pixel = log_prob/ndims
         loss = -log_prob_per_pixel
         loss.backward()       
-        grad_norm = torch.nn.utils.clip_grad_norm_(self.model.model.parameters(), self.grad_clip).item()
+        grad_norm = torch.nn.utils.clip_grad_norm_(self.train_model.parameters(), self.grad_clip).item()
         log_prob_per_pixel_nans = torch.isnan(log_prob_per_pixel)
         self.log("log_prob_nans", log_prob_per_pixel_nans, on_step=True, on_epoch=True, prog_bar=False, logger=True)
         skipped_update = 1
         if (log_prob_per_pixel_nans == False and grad_norm < self.skip_threshold):
             self.optimizers().step()
             skipped_update = 0
-            vdvae_train.update_ema(self.model.model, self.model.ema_model, self.ema_rate)
+            vdvae_train.update_ema(self.train_model, self.model, self.ema_rate)
         self.log('skipped_update', skipped_update, on_step=True, on_epoch=True, prog_bar=False, logger=True)
         self.log('grad_norm', grad_norm, on_step=True, on_epoch=True, prog_bar=False, logger=True)
         self.log('log_prob', log_prob_per_pixel, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
     def validation_step(self, batch, batch_indx):
         x, y = batch
-        log_prob = self.model.ema_model.log_prob(x)
+        log_prob = self.model.log_prob(x)
         self.log("validation_log_prob", log_prob["log_prob"], on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.model.parameters(), lr = self.learning_rate)
+        return torch.optim.Adam(self.train_model.parameters(), lr = self.learning_rate)
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True, num_workers=4, drop_last=True, pin_memory=True)
     
     def val_dataloader(self):
         return torch.utils.data.DataLoader(self.val_set, batch_size = self.batch_size, num_workers=4, drop_last=True, pin_memory=True)
-
-
-class LogSamplesVAECallback(pl.Callback):
-    def __init__(self, step_freq):
-        super(LogSamplesVAECallback, self).__init__()
-        self.step_freq = step_freq
-
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
-        if (pl_module.global_step % self.step_freq == 0) and (batch_idx % trainer.accumulate_grad_batches == 0):
-            samples = pl_module.model.ema_model.sample([8], temperature=1.0)
-            samples_grid = torchvision.utils.make_grid(samples, padding=10, nrow=4)
-            pl_module.logger.experiment.add_image("train_sample", samples_grid, pl_module.global_step, dataformats="CHW")
 
 
 ap = argparse.ArgumentParser(description="EMATrainer")
@@ -103,10 +89,8 @@ rv_distribution = parser.get_rv_distribution(ns, event_shape)
 if ns.model != "vdvae":
     print("This program only supports vdvae")
     quit()
-vae = vdvae.VDVAE(event_shape, rv_distribution)
-ema_vae = vdvae.VDVAE(event_shape, rv_distribution)
-ema_vae.requires_grad = False
-model = EMAModel(vae, ema_vae)
-trainer = EMATrainer(model, dataset, batch_size=8, learning_rate=ns.lr, ema_rate=ns.ema_rate)
+model = vdvae.VDVAE(event_shape, rv_distribution)
+train_model = vdvae.VDVAE(event_shape, rv_distribution)
+trainer = EMATrainer(model, train_model, dataset, batch_size=8, learning_rate=ns.lr, ema_rate=ns.ema_rate)
 pl.Trainer(fast_dev_run = ns.fast_dev_run, gpus=1, accumulate_grad_batches = 1, max_epochs=ns.max_epochs, default_root_dir=ns.tensorboard_log, 
-    callbacks=[LogSamplesVAECallback(1000)]).fit(trainer)
+    callbacks=[Train.LogSamplesTrainingCallback(every_global_step=100, temperature=1.0)]).fit(trainer)
