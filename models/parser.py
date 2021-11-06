@@ -1,6 +1,10 @@
 from torchvision import transforms, datasets
 import PyGenBrix.dist_layers.common_layers as dl
 import PyGenBrix.dist_layers.spatial_independent as sp
+import PyGenBrix.dist_layers.pixelcnn as pixel_cnn
+import PyGenBrix.dist_layers.parallelcnn as parallel_cnn
+import PyGenBrix.dist_layers.vdvae as vdvae
+import PyGenBrix.models.lb_autoencoder as lbae
 import pygenbrix_layer as pygl
 
 
@@ -60,3 +64,21 @@ def get_rv_distribution(ns, event_shape):
         print("rv distribution not recognized")
         quit()
     return rv_distribution
+
+def get_model(ns, event_shape, rv_distribution):
+    if ns.model == "PixelCNN":
+        model = pixel_cnn.PixelCNNDistribution(event_shape, rv_distribution, nr_resnet=ns.nr_resnet )
+    elif ns.model == "ParallelCNN":
+        model = parallel_cnn.ParallelCNNDistribution(event_shape, rv_distribution, max_unet_layers=3, num_upsampling_stages=int(ns.parallelcnn_num_upsampling_stages))
+        if ns.rv_distribution == "spiq3":
+            print("parallelcnn and spiq3 incompatible")
+            quit()
+    elif ns.model == "VDVAE":
+        model = vdvae.VDVAE(event_shape, rv_distribution)
+    elif ns.model == "LBAE":
+        model = lbae.LBDistribution()
+    else:
+        print("model not recognized")
+        quit()
+    return model
+
