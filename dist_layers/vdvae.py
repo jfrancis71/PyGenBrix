@@ -1,3 +1,7 @@
+#Uses https://github.com/jfrancis71/vdvae
+#Above was forked from openai/vdvae
+#This package should be searchable from python kernel.
+
 import numpy as np
 import torch
 import torch.nn as nn
