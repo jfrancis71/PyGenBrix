@@ -1,3 +1,4 @@
+#These algos come from https://github.com/kuangliu/pytorch-cifar
 import argparse
 import numpy as np
 import torch
