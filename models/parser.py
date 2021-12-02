@@ -32,6 +32,14 @@ def get_dataset(ns):
         ]))
         image_channels = 3
         image_size = 64
+    elif ns.dataset == "celeba128":
+        dataset = datasets.CelebA(root="/home/julian/ImageDataSets",
+            transform = transforms.Compose([
+                transforms.Pad((-15, -40,-15-1, -30-1)),
+                transforms.Resize(128), transforms.ToTensor(),*q3
+        ]))
+        image_channels = 3
+        image_size = 128
     elif ns.dataset == "mnist32":
         dataset = datasets.MNIST('/home/julian/ImageDataSets/MNIST',
             train=True, download=False,
