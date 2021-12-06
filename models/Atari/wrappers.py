@@ -13,6 +13,16 @@ class SleepWrapper(gym.Wrapper):
         return obs, reward, done, info
 
 
+class RenderWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super(RenderWrapper, self).__init__(env)
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        self.env.render()
+        return obs, reward, done, info
+
+
 #altered from Deep Reinforcement Learning Hands-On, Maxim Lapan, 2nd edition
 class StackFramesWrapper(gym.ObservationWrapper):
     def __init__(self, env, n_steps, dtype=np.float32):
