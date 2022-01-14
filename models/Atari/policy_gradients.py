@@ -15,6 +15,7 @@ class Policy(nn.Module):
     """Pytorch CNN implementing a Policy"""
     def __init__(self, env, tensorboard_log=None):
         super(Policy, self).__init__()
+        self.steps = 0
         self.net = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=5, stride=2) , nn.BatchNorm2d(16), nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
@@ -28,7 +29,7 @@ class Policy(nn.Module):
             self.writer = None
 
     def forward(self, x):
-        x = self.net(x)
+        x = self.net(x)*.1
         return F.softmax(x, dim=0)
 
     def get_action_distribution(self, observation):
@@ -58,9 +59,9 @@ class Policy(nn.Module):
         policy_loss.backward()
         self.optimizer.step()
         
-    def learn(self, max_episodes=1000):
+    def learn(self, max_episodes=1000, max_steps=100000):
         episode = 0
-        while episode<max_episodes:
+        while episode<max_episodes and self.steps < max_steps:
             print("Iteration", episode)
             self.train_iter(episode)
             episode += 1
@@ -75,6 +76,7 @@ class Policy(nn.Module):
         observations, rewards, actions, log_probs = [], [], [], []
         observation = self.env.reset()
         for _ in range(steps):
+            self.steps += 1
             observation = np.transpose(observation/255.0 - 0.5, (2,0,1)).astype(np.float32)
             observation_tensor = torch.tensor(observation).unsqueeze(0).to(next(self.parameters()).device)
             action_distribution = self.get_action_distribution(observation_tensor)
@@ -115,6 +117,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Policy Gradients")
     ap.add_argument("--env", default="PongNoFrameskip-v4")
     ap.add_argument("--max_episodes", default=1000, type=int)
+    ap.add_argument("--max_steps", default=100000, type=int)
     ap.add_argument("--save_filename")
     ap.add_argument("--tensorboard_log", default=None)
     ap.add_argument("--device", default="cpu")
@@ -125,6 +128,6 @@ if __name__ == "__main__":
     env = sb3_wrappers.WarpFrame(env)
     env = wrappers.StackFramesWrapper(env, 1, np.uint8)
     model = Policy(env, tensorboard_log=ns.tensorboard_log).to(ns.device)
-    model.learn(ns.max_episodes)
+    model.learn(ns.max_episodes, ns.max_steps)
     if ns.save_filename is not None:
         model.save(ns.save_filename)
