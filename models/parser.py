@@ -6,6 +6,26 @@ import PyGenBrix.dist_layers.parallelcnn as parallel_cnn
 import PyGenBrix.dist_layers.vdvae as vdvae
 import PyGenBrix.models.lb_autoencoder as lbae
 import pygenbrix_layer as pygl
+import os
+import PIL
+
+
+#https://discuss.pytorch.org/t/how-to-load-images-without-using-imagefolder/59999/2
+class SingleFolderImage():
+    def __init__(self, root, transform):
+        self.main_dir = root
+        self.transform = transform
+        all_imgs = os.listdir(root)
+        self.total_imgs = all_imgs
+
+    def __len__(self):
+        return len(self.total_imgs)
+
+    def __getitem__(self, idx):
+        img_loc = os.path.join(self.main_dir, self.total_imgs[idx])
+        image = PIL.Image.open(img_loc).convert("RGB")
+        tensor_image = self.transform(image)
+        return tensor_image, 0
 
 
 def get_dataset(ns):
@@ -37,6 +57,16 @@ def get_dataset(ns):
             transform = transforms.Compose([
                 transforms.Pad((-15, -40,-15-1, -30-1)),
                 transforms.Resize(128), transforms.ToTensor(),*q3
+        ]))
+        image_channels = 3
+        image_size = 128
+    elif ns.dataset == "coco128":
+#        dataset = datasets.CocoDetection(root="/home/julian/ImageDataSets/COCO/train2017", annFile="/home/julian/ImageDataSets/COCO/annotations/captions_train2017.json",
+#        dataset = datasets.CelebA(root="/home/julian/ImageDataSets/COCO/train2017",
+        dataset = SingleFolderImage(root="/home/julian/ImageDataSets/COCO/train2017",
+            transform = transforms.Compose([
+#                transforms.Pad((-15, -40,-15-1, -30-1)),
+                transforms.Resize((128,128)), transforms.ToTensor(),*q3
         ]))
         image_channels = 3
         image_size = 128
