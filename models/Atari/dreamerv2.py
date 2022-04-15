@@ -168,6 +168,52 @@ class MCTS():
         return action
 
 
+def tree_policy_fn(num_actions, agent_state, horizon):
+    if horizon == 1:
+        action = torch.tensor([0,0,0,0,0,0]).cuda().unsqueeze(0)*1.0
+        best_value = -1000.0
+        for act in range(num_actions):
+            action = torch.tensor([0,0,0,0,0,0]).cuda().unsqueeze(0)*1.0
+            action[0,act] = 1
+            new_agent_state = dreamer._task_behavior._world_model.dynamics.img_step(agent_state, action, sample=dreamer._task_behavior._config.imag_sample)
+            feat = dreamer._wm.dynamics.get_feat(new_agent_state)
+            value = dreamer._task_behavior.value(feat).mode()
+            print("Action     ", act, "  ", value)
+            if best_value < value:
+                best_value = value
+                best_action = action
+        return best_value, best_action
+    action = torch.tensor([0,0,0,0,0,0]).cuda().unsqueeze(0)*1.0
+    best_value = -1000.0
+    copy_agent_state_stoch = agent_state["stoch"].clone()
+    copy_agent_state_deter = agent_state["deter"].clone()
+    for act in range(num_actions):
+        action = torch.tensor([0,0,0,0,0,0]).cuda().unsqueeze(0)*1.0
+        action[0,act] = 1
+        sum_val = 0.0
+        no_samples = 2
+        for samp in range(no_samples):
+            new_agent_state = dreamer._task_behavior._world_model.dynamics.img_step(agent_state, action, sample=dreamer._task_behavior._config.imag_sample)
+            value, _ = tree_policy_fn(num_actions, new_agent_state, horizon-1)
+            sum_val += value
+        value = sum_val/no_samples
+        print("Action ", act, "  ", value)
+        if best_value < value:
+            best_value = value
+            best_action = action
+
+    assert(torch.sum(torch.abs(agent_state["stoch"]-copy_agent_state_stoch))==0.0)
+    assert(torch.sum(torch.abs(agent_state["deter"]-copy_agent_state_deter))==0.0)
+    return best_value, best_action
+     
+
+
+def tree_policy(agent_state):
+    value, action = tree_policy_fn(6, agent_state, 4)
+    print(value)
+    return action.detach()[0].cpu().numpy()
+
+
 def mcts_policy(agent_state):
     tree = MCTS(random_rollout=False)
     action = tree.run(agent_state, 64)
@@ -193,6 +239,8 @@ class Game():
             self.policy = random_policy
         elif policy == "mcts":
             self.policy = mcts_policy
+        elif policy == "tree":
+            self.policy = tree_policy
         else:
             assert False
 
