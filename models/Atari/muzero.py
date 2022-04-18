@@ -10,8 +10,10 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
-import stable_baselines3.common.atari_wrappers as sb3_wrappers
-import PyGenBrix.models.Atari.wrappers as wrappers
+#import stable_baselines3.common.atari_wrappers as sb3_wrappers
+#import PyGenBrix.models.Atari.wrappers as wrappers
+import stable_baselines3.common.evaluation as sb3_evaluation
+from pfrl.wrappers import atari_wrappers as pfrl_atari_wrappers
 import random
 
 
@@ -80,12 +82,13 @@ class Policy(nn.Module):
         self.device = device
 
 #Note, this assumes a vectorized environment, for use by evaluate_policy
-    def predict(self, observation, state=None, deterministic=None):
+    def predict(self, observation, state=None, episode_start=None, deterministic=None):
         observation = np.transpose(observation[0]/255.0 - 0.5, (2,0,1)).astype(np.float32)
         observation_tensor = torch.tensor(observation, device=self.device).unsqueeze(0)
-        action_distribution = self.get_action_distribution(observation_tensor)
-        action = action_distribution.sample()
-        return [action.item()], None
+#        action_distribution = self.get_action_distribution(observation_tensor)
+#        action = action_distribution.sample()
+        action = self.plan(observation_tensor)
+        return [action], None
     
     def train_iter(self, episode):
         observations, rewards, actions = self.collect_rollout(episode=episode)
@@ -113,6 +116,8 @@ class Policy(nn.Module):
             print("Iteration", episode)
             self.train_iter(episode)
             episode += 1
+            reward = sb3_evaluation.evaluate_policy(self, self.env, 1, render=True)
+            print("Reward=", reward)
 
     def save(self, filename):
         torch.save(self.state_dict(), filename)
@@ -197,9 +202,9 @@ if __name__ == "__main__":
     ns = ap.parse_args()
     env = gym.make(ns.env)
     env.seed(42)
-    env = sb3_wrappers.MaxAndSkipEnv(env, skip=4)
-    env = sb3_wrappers.WarpFrame(env)
-    env = wrappers.StackFramesWrapper(env, 1, np.uint8)
+    env = pfrl_atari_wrappers.MaxAndSkipEnv(env, skip=4)
+    env = pfrl_atari_wrappers.WarpFrame(env)
+#    env = pfrl_atari_wrappers.FrameStack(env, 4)
     model = Policy(env, tensorboard_log=ns.tensorboard_log, device=ns.device, rollout_length=ns.rollout_length)
     model.learn(ns.max_episodes)
     if ns.save_filename is not None:
