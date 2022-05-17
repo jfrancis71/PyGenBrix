@@ -8,6 +8,7 @@ from pfrl.initializers import init_chainer_default
 from pfrl.q_functions import DiscreteActionValueHead, DuelingDQN
 from pfrl import agents, experiments, explorers
 from pfrl.wrappers import atari_wrappers
+import argparse
 
 import logging
 
@@ -70,7 +71,17 @@ agent = pfrl.agents.DQN(
     gpu=gpu,
 )
 
-experiments.train_agent_with_evaluation(
+ap = argparse.ArgumentParser(description="pfrl DQN")
+ap.add_argument("--model")
+ap.add_argument("--demo", action="store_true")
+ns = ap.parse_args()
+
+if ns.demo:
+    agent.load(ns.model)
+    env = pfrl.wrappers.Render(env)
+    experiments.eval_performance(env=env, agent=agent, n_steps=100000, n_episodes=None)
+else:
+    experiments.train_agent_with_evaluation(
         agent=agent,
         env=env,
         steps=1000000,
@@ -78,6 +89,5 @@ experiments.train_agent_with_evaluation(
         checkpoint_freq=None,
         eval_n_episodes=10,
         eval_interval=100000,
-        outdir="fred",
-        eval_env=env
-)
+        outdir=ns.model,
+        eval_env=env)
