@@ -7,11 +7,10 @@ import gym
 import numpy
 from pfrl import nn as pnn
 from pfrl.initializers import init_chainer_default
-from pfrl.q_functions import DiscreteActionValueHead, DuelingDQN
+from pfrl.q_functions import DiscreteActionValueHead
 from pfrl import agents, experiments, explorers
 from pfrl.wrappers import atari_wrappers
 import argparse
-
 import logging
 
 logging.basicConfig(level=20)
@@ -24,7 +23,6 @@ env = atari_wrappers.wrap_deepmind(
 )
 
 n_actions = 6
-# Q-network with LSTM
 q_func = pfrl.nn.RecurrentSequential(
     nn.Conv2d(1, 32, 8, stride=4),
     nn.ReLU(),
@@ -37,40 +35,37 @@ q_func = pfrl.nn.RecurrentSequential(
     nn.Linear(512, n_actions),
     DiscreteActionValueHead(),
 )
-# Replay buffer that stores whole episodes
+
 replay_buffer = pfrl.replay_buffers.EpisodicReplayBuffer(10**6)
 
-explorer = pfrl.explorers.ConstantEpsilonGreedy(
-    epsilon=0.3, random_action_func=env.action_space.sample)
+explorer = explorers.LinearDecayEpsilonGreedy(
+    1.0,
+    .01,
+    1000000,
+    lambda: numpy.random.randint(n_actions),
+)
 
 def phi(x):
-    # Feature extractor
     return numpy.asarray(x, dtype=numpy.float32) / 255
 
-
-
-# Use Adam to optimize q_func. eps=1e-2 is for stability.
 optimizer = torch.optim.Adam(q_func.parameters(), lr=1e-4, eps=1e-4)
 
-# Now create an agent that will interact with the environment.
-agent = pfrl.agents.DoubleDQN(
+agent = pfrl.agents.DQN(
     q_func,
     optimizer,
     replay_buffer,
     gamma=0.99,
     explorer=explorer,
     replay_start_size=10000,
-    target_update_interval=100,
-    update_interval=4,
+    target_update_interval=1000,
+    update_interval=1,
     phi=phi,
     gpu=0,
     episodic_update_len=10,
-    batch_accumulator="mean",
-    minibatch_size=32,
     recurrent=True
 )
 
-ap = argparse.ArgumentParser(description="pfrl DQN")
+ap = argparse.ArgumentParser(description="pfrl RNN DQN")
 ap.add_argument("--model")
 ap.add_argument("--demo", action="store_true")
 ns = ap.parse_args()
@@ -89,4 +84,5 @@ else:
         eval_n_episodes=10,
         eval_interval=100000,
         outdir=ns.model,
-        eval_env=env)
+        eval_env=env,
+        use_tensorboard=True)
