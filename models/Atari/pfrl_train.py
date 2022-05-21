@@ -11,16 +11,24 @@ from pfrl import agents, experiments, explorers
 from pfrl.wrappers import atari_wrappers
 import argparse
 import logging
+import sleep_wrapper
 
 logging.basicConfig(level=20)
 
+ap = argparse.ArgumentParser(description="pfrl DQN")
+ap.add_argument("--model")
+ap.add_argument("--demo", action="store_true")
+ap.add_argument("--sleep", default=.02, type=float)
+ap.add_argument("--env", default="PongNoFrameskip-v4")
+ns = ap.parse_args()
+
 env = atari_wrappers.wrap_deepmind(
-    atari_wrappers.make_atari('PongNoFrameskip-v4', max_frames=10000),
+    atari_wrappers.make_atari(ns.env, max_frames=10000),
     episode_life=True,
     clip_rewards=True,
 )
 
-n_actions = 6
+n_actions = env.action_space.n
 q_func = torch.nn.Sequential(
             pnn.SmallAtariCNN(),
             init_chainer_default(torch.nn.Linear(256, n_actions)),
@@ -54,14 +62,10 @@ agent = pfrl.agents.DQN(
     gpu=0,
 )
 
-ap = argparse.ArgumentParser(description="pfrl DQN")
-ap.add_argument("--model")
-ap.add_argument("--demo", action="store_true")
-ns = ap.parse_args()
-
 if ns.demo:
     agent.load(ns.model)
     env = pfrl.wrappers.Render(env)
+    env = sleep_wrapper.SleepWrapper(env, ns.sleep)
     experiments.eval_performance(env=env, agent=agent, n_steps=100000, n_episodes=None)
 else:
     experiments.train_agent_with_evaluation(
