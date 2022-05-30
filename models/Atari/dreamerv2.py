@@ -205,8 +205,72 @@ def tree_policy_fn(num_actions, agent_state, horizon):
     assert(torch.sum(torch.abs(agent_state["stoch"]-copy_agent_state_stoch))==0.0)
     assert(torch.sum(torch.abs(agent_state["deter"]-copy_agent_state_deter))==0.0)
     return best_value, best_action
-     
 
+
+class DecisionNode():
+    def __init__(self, agent_state, max_depth):
+        self.agent_state = agent_state
+        self.actions = {}
+        self.best_action = -1
+        feat = dreamer._wm.dynamics.get_feat(self.agent_state)
+        self.action_dist = dreamer._task_behavior.actor(feat)
+        self.value = dreamer._task_behavior.value(feat).mode()
+        self.max_depth = max_depth
+
+    def explore(self):
+        action = self.action_dist.sample()
+        action = torch.argmax(action).cpu().item()
+        if action in self.actions.keys():
+            self.actions[action].explore()
+        else:
+            self.actions[action] = ChanceNode(self.agent_state, action, self.max_depth-1)
+            self.actions[action].explore()
+        self.best_value = -1000
+        self.best_action = -1
+        for act in self.actions:
+            if self.actions[act].value > self.best_value:
+                self.best_value = self.actions[act].value
+                self.best_action = act
+
+
+class ChanceNode():
+    def __init__(self, agent_state, action, max_depth):
+        self.agent_state = agent_state
+#        self.action = action
+        self.value = -1000
+        self.agent_states = {}
+        self.decision_nodes = []
+        self.action = torch.tensor([0,0,0,0,0,0]).cuda().unsqueeze(0)*1.0
+        self.action[0, action] = 1
+#        for i in range(2):
+#            new_agent_state = dreamer._task_behavior._world_model.dynamics.img_step(self.agent_state, action, sample=dreamer._task_behavior._config.imag_sample)
+#            self.decision_nodes.append(DecisionNode(new_agent_state, max_depth-1))
+        self.max_depth = max_depth
+        self.explore_count = 0
+        self.decision_nodes = []
+
+    def explore(self):
+        self.explore_count += 1
+        self.value = 0
+        print("Len=", len(self.decision_nodes))
+        if np.sqrt(self.explore_count) > len(self.decision_nodes):
+            new_agent_state = dreamer._task_behavior._world_model.dynamics.img_step(self.agent_state, self.action, sample=dreamer._task_behavior._config.imag_sample)
+            self.decision_nodes.append(DecisionNode(new_agent_state, self.max_depth-1))
+        if self.max_depth > 0:
+            self.decision_nodes[np.random.randint(low=0, high=len(self.decision_nodes))].explore()
+        for d in self.decision_nodes:
+            self.value += d.value/len(self.decision_nodes)
+
+
+def mcts2_policy(agent_state):
+    node = DecisionNode(agent_state, 10)
+    for i in range(64):
+        node.explore()
+    action = torch.tensor([0,0,0,0,0,0]).cuda().unsqueeze(0)*1.0
+    action[0,node.best_action] = 1
+    print("Node size=", len(node.actions))
+    return action.detach()[0].cpu().numpy()
+     
 
 def tree_policy(agent_state):
     value, action = tree_policy_fn(6, agent_state, 4)
@@ -219,11 +283,28 @@ def mcts_policy(agent_state):
     action = tree.run(agent_state, 64)
     return action.detach()[0].cpu().numpy()
 
-def ac_policy(agent_state):
+
+def actor_policy(agent_state):
     feat = dreamer._wm.dynamics.get_feat(agent_state)
     action_dist = dreamer._task_behavior.actor(feat)
     action = action_dist.mode()
     return action.detach()[0].cpu().numpy()
+
+
+def critic_policy(agent_state):
+    best_value = -1000.0
+    best_action = -1   
+    for act in range(6):
+        action = torch.tensor([0,0,0,0,0,0]).cuda().unsqueeze(0)*1.0
+        action[0,act] = 1
+        new_agent_state = dreamer._task_behavior._world_model.dynamics.img_step(agent_state, action, sample=dreamer._task_behavior._config.imag_sample)
+        feat = dreamer._wm.dynamics.get_feat(new_agent_state)
+        value = dreamer._task_behavior.value(feat).mode()
+        if best_value < value:
+            best_value = value
+            best_action = action
+    return best_action[0].cpu().numpy()
+
 
 def random_policy(agent_state):
     action_dist = tools.OneHotDist(1.0*(torch.tensor([0,0,0,0,0,0])).cuda()[None])
@@ -233,14 +314,18 @@ def random_policy(agent_state):
 
 class Game():
     def __init__(self, policy):
-        if policy == "ac":
-            self.policy = ac_policy
+        if policy == "actor":
+            self.policy = actor_policy
+        elif policy == "critic":
+            self.policy = critic_policy
         elif policy == "random":
             self.policy = random_policy
         elif policy == "mcts":
             self.policy = mcts_policy
         elif policy == "tree":
             self.policy = tree_policy
+        elif policy == "mcts2":
+            self.policy = mcts2_policy
         else:
             assert False
 
