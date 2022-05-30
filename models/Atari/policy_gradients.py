@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
 import stable_baselines3.common.atari_wrappers as sb3_wrappers
-import PyGenBrix.models.Atari.wrappers as wrappers
+#import PyGenBrix.models.Atari.wrappers as wrappers
 
 
 class Policy(nn.Module):
@@ -17,7 +17,7 @@ class Policy(nn.Module):
         super(Policy, self).__init__()
         self.steps = 0
         self.net = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=5, stride=2) , nn.BatchNorm2d(16), nn.ReLU(),
+            nn.Conv2d(4, 16, kernel_size=5, stride=2) , nn.BatchNorm2d(16), nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
             nn.Conv2d(32, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
             nn.Flatten(start_dim=0), nn.Linear(1568, env.action_space.n))
@@ -29,7 +29,8 @@ class Policy(nn.Module):
             self.writer = None
 
     def forward(self, x):
-        x = self.net(x)*.1
+#        print("Input=", x.shape)
+        x = self.net(x)
         return F.softmax(x, dim=0)
 
     def get_action_distribution(self, observation):
@@ -38,7 +39,7 @@ class Policy(nn.Module):
 
 #Note, this assumes a vectorized environment, for use by evaluate_policy
     def predict(self, observation, state=None, deterministic=None):
-        observation = np.transpose(observation[0]/255.0 - 0.5, (2,0,1)).astype(np.float32)
+        observation = np.transpose(observation/255.0 - 0.5, (2,0,1)).astype(np.float32)
         observation_tensor = torch.tensor(observation).unsqueeze(0)
         action_distribution = self.get_action_distribution(observation_tensor)
         action = action_distribution.sample()
@@ -75,9 +76,10 @@ class Policy(nn.Module):
     def collect_rollout(self, steps=2000):
         observations, rewards, actions, log_probs = [], [], [], []
         observation = self.env.reset()
+        print("Obs=", observation.shape)
         for _ in range(steps):
             self.steps += 1
-            observation = np.transpose(observation/255.0 - 0.5, (2,0,1)).astype(np.float32)
+            observation = np.transpose(observation.__array__()[:,:,:,0]/255.0 - 0.5, (0,1,2)).astype(np.float32)
             observation_tensor = torch.tensor(observation).unsqueeze(0).to(next(self.parameters()).device)
             action_distribution = self.get_action_distribution(observation_tensor)
             action = action_distribution.sample()
@@ -126,7 +128,7 @@ if __name__ == "__main__":
     env.seed(42)
     env = sb3_wrappers.MaxAndSkipEnv(env, skip=4)
     env = sb3_wrappers.WarpFrame(env)
-    env = wrappers.StackFramesWrapper(env, 1, np.uint8)
+    env = gym.wrappers.FrameStack(env, 4)
     model = Policy(env, tensorboard_log=ns.tensorboard_log).to(ns.device)
     model.learn(ns.max_episodes, ns.max_steps)
     if ns.save_filename is not None:
