@@ -57,7 +57,6 @@ explorer = explorers.LinearDecayEpsilonGreedy(
 def phi(x):
     return numpy.asarray(x, dtype=numpy.float32) / 255
 
-#optimizer = torch.optim.Adam(q_func.parameters(), lr=1e-4, eps=1e-4)
 optimizer = pfrl.optimizers.RMSpropEpsInsideSqrt(
     q_func.parameters(),
     lr=2.5e-4,
@@ -68,7 +67,7 @@ optimizer = pfrl.optimizers.RMSpropEpsInsideSqrt(
 )
 
 
-agent = pfrl.agents.DQN(
+agent = pfrl.agents.DoubleDQN(
     q_func,
     optimizer,
     replay_buffer,
@@ -85,8 +84,8 @@ agent = pfrl.agents.DQN(
 
 if ns.demo:
     agent.load(ns.model)
-    env = pfrl.wrappers.Render(test_env)
-    env = sleep_wrapper.SleepWrapper(env, ns.sleep)
+    test_env = pfrl.wrappers.Render(test_env)
+    test_env = sleep_wrapper.SleepWrapper(test_env, ns.sleep)
     experiments.eval_performance(env=test_env, agent=agent, n_steps=100000, n_episodes=None)
 else:
     experiments.train_agent_with_evaluation(
