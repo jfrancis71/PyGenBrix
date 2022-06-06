@@ -25,12 +25,12 @@ ap.add_argument("--steps", default=1e7, type=int)
 ns = ap.parse_args()
 
 env = atari_wrappers.wrap_deepmind(
-    atari_wrappers.make_atari(ns.env, max_frames=None),
+    atari_wrappers.make_atari(ns.env, max_frames=10000),
     episode_life=True,
     clip_rewards=True,
 )
 test_env = atari_wrappers.wrap_deepmind(
-    atari_wrappers.make_atari(ns.env, max_frames=None),
+    atari_wrappers.make_atari(ns.env, max_frames=10000),
     episode_life=False,
     clip_rewards=False,
 )
