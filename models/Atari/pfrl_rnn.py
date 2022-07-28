@@ -1,4 +1,5 @@
-#Achieved best score of 2.0
+#Recurrent PFRL DeepQ
+#Intentionally bit convoluted implementation for educational purpose (ie unwrap that RecurrentSequential module)
 
 import pfrl
 import torch
@@ -13,6 +14,13 @@ from pfrl.wrappers import atari_wrappers
 import argparse
 import logging
 import sleep_wrapper
+
+from pfrl.utils.recurrent import (
+    get_packed_sequence_info,
+    unwrap_packed_sequences_recursive,
+    wrap_packed_sequences_recursive,
+)
+
 
 logging.basicConfig(level=20)
 
@@ -37,19 +45,62 @@ test_env = atari_wrappers.wrap_deepmind(
     frame_stack = False
 )
 
-n_actions = test_env.action_space.n
-q_func = pfrl.nn.RecurrentSequential(
-    nn.Conv2d(1, 32, 8, stride=4),
-    nn.ReLU(),
-    nn.Conv2d(32, 64, 4, stride=2),
-    nn.ReLU(),
-    nn.Conv2d(64, 64, 3, stride=1),
-    nn.Flatten(),
-    nn.ReLU(),
-    nn.LSTM(input_size=3136, hidden_size=512),
-    nn.Linear(512, n_actions),
-    DiscreteActionValueHead(),
-)
+
+class MyNetwork(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.l1 = nn.Conv2d(1, 32, 8, stride=4)
+        self.l2 = nn.ReLU()
+        self.l3 = nn.Conv2d(32, 64, 4, stride=2)
+        self.l4 = nn.ReLU()
+        self.l5 = nn.Conv2d(64, 64, 3, stride=1)
+        self.l6 = nn.Flatten()
+        self.l7 = nn.ReLU()
+        self.r8 = nn.LSTM(input_size=3136, hidden_size=512)
+        self.l9 = init_chainer_default(torch.nn.Linear(512, n_actions))
+        self.l10 = DiscreteActionValueHead()
+
+    def forward(self, sequences, recurrent_state):
+        h = sequences
+        batch_sizes, sorted_indices = h.batch_sizes, h.sorted_indices
+        if batch_sizes[0].item() == 32:
+            debug = True
+        else:
+            debug = False
+        h = h.data
+        if debug:
+            print("BS=", batch_sizes)
+            print("H=", h.shape)
+        h = self.l1(h)
+        h = self.l2(h)
+        h = self.l3(h)
+        h = self.l4(h)
+        h = self.l5(h)
+        h = self.l6(h)
+        h = self.l7(h)
+        if debug:
+            print("H=", h.shape)
+        h = torch.nn.utils.rnn.PackedSequence(
+            h, batch_sizes=batch_sizes, sorted_indices=sorted_indices)
+        if debug:
+            print("Hdata=", h.data.shape)
+        if recurrent_state is None:
+            rs = None
+        else:
+            rs = recurrent_state[0]
+        h, rs = self.r8(h, rs)
+        new_recurrent_state = [rs]
+        h = h.data
+        h = self.l9(h)
+        if debug:
+            print("q=", h.shape)
+        h = self.l10(h)
+        h = wrap_packed_sequences_recursive(h, batch_sizes, sorted_indices)
+        new_recurrent_state = [(new_recurrent_state[0][0]*0.0,new_recurrent_state[0][1]*0.0)]
+        return h, tuple(new_recurrent_state)
+
+
+q_func = MyNetwork()
 
 replay_buffer = pfrl.replay_buffers.EpisodicReplayBuffer(10**6)
 
@@ -79,13 +130,14 @@ agent = pfrl.agents.DoubleDQN(
     gamma=0.99,
     explorer=explorer,
     replay_start_size=5*10**4,
+#    replay_start_size=5*10**3,
     target_update_interval=10**4,
     clip_delta=True,
     update_interval=4,
     batch_accumulator="sum",
     phi=phi,
     gpu=0,
-    episodic_update_len=10,
+    episodic_update_len=4,
     recurrent=True
 )
 
