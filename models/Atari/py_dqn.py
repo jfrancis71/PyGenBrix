@@ -1,23 +1,20 @@
-# Credit: This repo was very useful reference implementation:
-# https://github.com/leonjovanovic/drl-dqn-atari-pong
-# from Leon Jovanovic
+# Credit: Below repo was very useful reference implementation:
+# https://github.com/leonjovanovic/drl-dqn-atari-pong by Leon Jovanovic
+# Following hyperparameters were inspired from that repo, and achieved good
+# results on Pong in 500,000 steps.
 
 
 import numpy as np
-import torch.nn as nn
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+import pfrl
 from pfrl import nn as pnn
 from pfrl.initializers import init_chainer_default
-from pfrl.q_functions import DiscreteActionValueHead
 from pfrl.utils.batch_states import batch_states
 from pfrl.replay_buffer import batch_experiences
-import pfrl
 from pfrl import agents, explorers
-import torch.nn.functional as F
-from numpy import random as nprandom
-import random
-from neural_nets import DQN
-import torch.optim as optim
 
 
 def phi(x):
@@ -31,7 +28,7 @@ class PyDQNAgent(nn.Module):
         super(PyDQNAgent, self).__init__()
         self.replay_buffer = pfrl.replay_buffers.ReplayBuffer(capacity=15000)
         self.num_iterations = 0
-        self.n_iter_update_nn = 1000
+        self.target_update_interval = 1000
         if max_steps == 0:
             self.explorer = explorers.Greedy()
         else:
@@ -78,7 +75,7 @@ class PyDQNAgent(nn.Module):
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-        if ( self.num_iterations % self.n_iter_update_nn) == 0:
+        if ( self.num_iterations % self.target_update_interval) == 0:
             self.target_nn.load_state_dict(self.moving_nn.state_dict())
 
     def loss(self, exp_batch):
