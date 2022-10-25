@@ -3,6 +3,7 @@ import gym
 from pfrl.wrappers import atari_wrappers as pfrl_atari_wrappers
 import pfrl_dqn
 import py_dqn
+import py_tedqn
 import pg
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
@@ -86,6 +87,11 @@ elif ns.agent == "PyDQN":
     if ns.demo:
         q_max_steps = 0
     agent = py_dqn.PyDQNAgent(tb_writer, q_max_steps)
+elif ns.agent == "PyTEDQN":
+    q_max_steps = ns.max_steps
+    if ns.demo:
+        q_max_steps = 0
+    agent = py_tedqn.PyTEDQNAgent(tb_writer, q_max_steps)
 else:
     print(ns.agent, " not recognised as agent.")
     quit()
