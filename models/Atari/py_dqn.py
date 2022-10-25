@@ -27,7 +27,7 @@ class PyDQNAgent(nn.Module):
     def __init__(self, tb_writer, max_steps):
         super(PyDQNAgent, self).__init__()
         self.replay_buffer = pfrl.replay_buffers.ReplayBuffer(capacity=15000)
-        self.num_iterations = 0
+        self.steps = 0
         self.target_update_interval = 1000
         if max_steps == 0:
             self.explorer = explorers.Greedy()
@@ -47,7 +47,7 @@ class PyDQNAgent(nn.Module):
 
     def act(self, observation):
         self.observation = observation
-        self.action = self.explorer.select_action(self.num_iterations, lambda:
+        self.action = self.explorer.select_action(self.steps, lambda:
             self.select_greedy_action(phi(observation)))
         return self.action
 
@@ -59,10 +59,10 @@ class PyDQNAgent(nn.Module):
     def observe(self, observation, reward, done, reset):
         self.replay_buffer.append(self.observation, self.action, reward, observation)       
         self.sample_and_improve(32)
-        self.num_iterations += 1
+        self.steps += 1
 
     def sample_and_improve(self, batch_size):
-        if self.num_iterations > 10001:
+        if self.steps > 10001:
             sample_buffer = self.replay_buffer.sample(batch_size)
             exp_batch = batch_experiences(
                 sample_buffer,
@@ -75,7 +75,7 @@ class PyDQNAgent(nn.Module):
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-        if ( self.num_iterations % self.target_update_interval) == 0:
+        if ( self.steps % self.target_update_interval) == 0:
             self.target_nn.load_state_dict(self.moving_nn.state_dict())
 
     def loss(self, exp_batch):
