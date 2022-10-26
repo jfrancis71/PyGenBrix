@@ -5,15 +5,14 @@ from torch.distributions import Categorical
 import numpy as np
 import torch
 
-num_actions = 6
 class PGAgent(nn.Module):
-    def __init__(self, tb_writer):
+    def __init__(self, n_actions, tb_writer):
         super(PGAgent, self).__init__()
         self.net = nn.Sequential(
             nn.Conv2d(4, 16, kernel_size=5, stride=2) , nn.BatchNorm2d(16), nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
             nn.Conv2d(32, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
-            nn.Flatten(start_dim=0), nn.Linear(1568, num_actions))
+            nn.Flatten(start_dim=0), nn.Linear(1568, n_actions))
         self.optimizer = optim.RMSprop(self.parameters(), lr=1e-4)
         self.observations = []
         self.rewards = []

@@ -83,7 +83,7 @@ if ns.agent == "PFRLDQN":
         q_max_steps = 0
     agent = pfrl_dqn.PFRLDQNAgent(n_actions, tb_writer, q_max_steps)
 elif ns.agent == "PG":
-    agent = pg.PGAgent(tb_writer)
+    agent = pg.PGAgent(n_actions, tb_writer)
 elif ns.agent == "PyDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
@@ -93,7 +93,7 @@ elif ns.agent == "PyTEDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
         q_max_steps = 0
-    agent = py_tedqn.PyTEDQNAgent(tb_writer, q_max_steps)
+    agent = py_tedqn.PyTEDQNAgent(n_actions, tb_writer, q_max_steps)
 else:
     print(ns.agent, " not recognised as agent.")
     quit()
