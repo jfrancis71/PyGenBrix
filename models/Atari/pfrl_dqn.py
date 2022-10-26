@@ -15,9 +15,8 @@ def phi(x):
     return np.asarray(x, dtype=np.float32) / 255
 
 
-n_actions = 6
 class PFRLDQNAgent(nn.Module):
-    def __init__(self, tb_writer, max_steps):
+    def __init__(self, n_actions, tb_writer, max_steps):
         super(PFRLDQNAgent, self).__init__()
         self.q_func = nn.Sequential(
             pnn.LargeAtariCNN(),

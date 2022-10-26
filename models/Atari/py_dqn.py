@@ -20,11 +20,9 @@ from pfrl import agents, explorers
 def phi(x):
     return np.asarray(x, dtype=np.float32) / 255
 
-n_actions = 6
-
 
 class PyDQNAgent(nn.Module):
-    def __init__(self, tb_writer, max_steps):
+    def __init__(self, n_actions, tb_writer, max_steps):
         super(PyDQNAgent, self).__init__()
         self.replay_buffer = pfrl.replay_buffers.ReplayBuffer(capacity=15000)
         self.steps = 0

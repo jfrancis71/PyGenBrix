@@ -71,6 +71,8 @@ env = pfrl_atari_wrappers.MaxAndSkipEnv(env, skip=4)
 env = pfrl_atari_wrappers.WarpFrame(env)
 env = pfrl_atari_wrappers.FrameStack(env, 4)
 
+n_actions = env.action_space.n
+
 tb_writer = None
 if ns.folder is not None:
     tb_writer = SummaryWriter(ns.folder)
@@ -79,14 +81,14 @@ if ns.agent == "PFRLDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
         q_max_steps = 0
-    agent = pfrl_dqn.PFRLDQNAgent(tb_writer, q_max_steps)
+    agent = pfrl_dqn.PFRLDQNAgent(n_actions, tb_writer, q_max_steps)
 elif ns.agent == "PG":
     agent = pg.PGAgent(tb_writer)
 elif ns.agent == "PyDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
         q_max_steps = 0
-    agent = py_dqn.PyDQNAgent(tb_writer, q_max_steps)
+    agent = py_dqn.PyDQNAgent(n_actions, tb_writer, q_max_steps)
 elif ns.agent == "PyTEDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
