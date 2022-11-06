@@ -4,9 +4,13 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 import numpy as np
 import torch
+import matplotlib.pyplot as plt; plt.rcdefaults()
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 class PGAgent(nn.Module):
-    def __init__(self, n_actions, tb_writer):
+    def __init__(self, n_actions, tb_writer, demo=False):
         super(PGAgent, self).__init__()
         self.net = nn.Sequential(
             nn.Conv2d(4, 16, kernel_size=5, stride=2) , nn.BatchNorm2d(16), nn.ReLU(),
@@ -20,9 +24,20 @@ class PGAgent(nn.Module):
         self.log_probs = []
         self.observation = None
         self.eps = np.finfo(np.float32).eps.item()
+        self.demo = demo
+        if self.demo:
+            y_pos = np.arange(6)
+            performance = [1,1,1,1,1,1]
+            plt.ion()
+            self.figure, ax = plt.subplots(figsize=(5, 4))
+            self.ln = ax.bar(y_pos, performance, align='center', alpha=0.5)
+            plt.xticks(y_pos, np.arange(6))
+            plt.ylabel('Prob')
+            plt.title('Action Probabilities')
+            self.figure.canvas.draw()
+            self.figure.canvas.flush_events()
 
-    def act(self, observation):
-#        observation = np.transpose(observation/255.0 - 0.5, (2,0,1)).astype(np.float32)
+    def act(self, observation, demo=False):
         observation = (observation/255.0 - 0.5).astype(np.float32)
         observation_tensor = torch.tensor(observation).unsqueeze(0)
         x = self.net(observation_tensor)
@@ -30,11 +45,15 @@ class PGAgent(nn.Module):
         action_distribution = Categorical(F.softmax(x, dim=0))
         self.action = action_distribution.sample()
         self.log_prob = action_distribution.log_prob(self.action)
+        if self.demo:
+            for i in range(6):
+                self.ln[i].set_height(action_distribution.probs[i].detach())
+            self.figure.canvas.draw()
+            self.figure.canvas.flush_events()
         return self.action.item()
 
     def observe(self, observation, reward, done, reset):
         if done is False:
-#            observation = np.transpose(observation.__array__()[:,:,:,0]/255.0 - 0.5, (0,1,2)).astype(np.float32)
             self.observations.append(observation)
             self.actions.append(self.action)
             self.rewards.append(reward)
