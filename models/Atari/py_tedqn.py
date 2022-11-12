@@ -26,8 +26,9 @@ n_actions = 6
 
 #Some ideas based on Thompson Sampling on an Ensemble of DQN's for exploration
 class PyTEDQNAgent(nn.Module):
-    def __init__(self, n_actions, tb_writer, max_steps):
+    def __init__(self, actions, tb_writer, max_steps):
         super(PyTEDQNAgent, self).__init__()
+        n_actions = actions
         self.subagent1 = py_dqn.PyDQNAgent(n_actions, None, max_steps)
         self.subagent2 = py_dqn.PyDQNAgent(n_actions, None, max_steps)
         self.subagent1.moving_nn[-1].weight.data.fill_(0.0)

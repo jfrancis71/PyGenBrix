@@ -10,8 +10,10 @@ import matplotlib.pyplot as plt
 
 
 class PGAgent(nn.Module):
-    def __init__(self, n_actions, tb_writer, demo=False):
+    def __init__(self, actions, tb_writer, demo=False):
         super(PGAgent, self).__init__()
+        n_actions = len(actions)
+        print("N Actions=", n_actions)
         self.net = nn.Sequential(
             nn.Conv2d(4, 16, kernel_size=5, stride=2) , nn.BatchNorm2d(16), nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
@@ -29,11 +31,11 @@ class PGAgent(nn.Module):
         self.demo = demo
         if self.demo:
             y_pos = np.arange(6)
-            performance = [1,1,1,1,1,1]
+            performance = [1]*n_actions
             plt.ion()
-            self.figure, ax = plt.subplots(figsize=(5, 4))
+            self.figure, ax = plt.subplots(figsize=(6, 4))
             self.ln = ax.bar(y_pos, performance, align='center', alpha=0.5)
-            plt.xticks(y_pos, np.arange(6))
+            plt.xticks(y_pos, actions)
             plt.ylabel('Prob')
             plt.title('Action Probabilities')
             self.figure.canvas.draw()

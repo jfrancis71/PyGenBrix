@@ -61,8 +61,9 @@ class ReplayBuffer():
 
 
 class PyDQNAgent(nn.Module):
-    def __init__(self, n_actions, tb_writer, max_steps):
+    def __init__(self, actions, tb_writer, max_steps):
         super(PyDQNAgent, self).__init__()
+        n_actions = len(actions)
 #        self.replay_buffer = PFRLReplayBuffer()
         self.replay_buffer = ReplayBuffer()
         self.steps = 0

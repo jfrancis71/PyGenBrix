@@ -65,8 +65,8 @@ def demo_episode(env, agent):
 
 
 ap = argparse.ArgumentParser(description="RL Trainer")
-ap.add_argument("--env", default="PongNoFrameskip-v4")
 ap.add_argument("--agent")
+ap.add_argument("--env", default="PongNoFrameskip-v4")
 ap.add_argument("--max_steps", default=500000, type=int)
 ap.add_argument("--folder", default=None)
 #ap.add_argument("--device", default="cpu")
@@ -84,7 +84,12 @@ env = pfrl_atari_wrappers.MaxAndSkipEnv(env, skip=4)
 env = pfrl_atari_wrappers.WarpFrame(env)
 env = pfrl_atari_wrappers.FrameStack(env, 4)
 
-n_actions = env.action_space.n
+print("Env=", ns.env)
+if ns.env == "PongNoFrameskip-v4":
+    actions = ["NOOP", "FIRE", "RIGHT", "LEFT", "RIGHTFIRE", "LEFTFIRE"]
+else:
+    print(ns.env + " environment not recognized.")
+    quit()
 
 tb_writer = None
 if ns.folder is not None:
@@ -94,21 +99,21 @@ if ns.agent == "PFRLDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
         q_max_steps = 0
-    agent = pfrl_dqn.PFRLDQNAgent(n_actions, tb_writer, q_max_steps)
+    agent = pfrl_dqn.PFRLDQNAgent(actions, tb_writer, q_max_steps)
 elif ns.agent == "PG":
-    agent = pg.PGAgent(n_actions, tb_writer, ns.demo)
+    agent = pg.PGAgent(actions, tb_writer, ns.demo)
 elif ns.agent == "PyDQN":
-    agent = py_dqn.PyDQNAgent(n_actions, tb_writer, ns.max_steps)
+    agent = py_dqn.PyDQNAgent(actions, tb_writer, ns.max_steps)
 elif ns.agent == "TreeBackupDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
         q_max_steps = 0
-    agent = treebackup_dqn.PyDQNAgent(n_actions, tb_writer, q_max_steps)
+    agent = treebackup_dqn.PyDQNAgent(actions, tb_writer, q_max_steps)
 elif ns.agent == "PyTEDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
         q_max_steps = 0
-    agent = py_tedqn.PyTEDQNAgent(n_actions, tb_writer, q_max_steps)
+    agent = py_tedqn.PyTEDQNAgent(actions, tb_writer, q_max_steps)
 else:
     print(ns.agent, " not recognised as agent.")
     quit()

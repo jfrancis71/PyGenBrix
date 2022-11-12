@@ -63,8 +63,9 @@ class ReplayBuffer():
 
 
 class PyDQNAgent(nn.Module):
-    def __init__(self, n_actions, tb_writer, max_steps):
+    def __init__(self, actions, tb_writer, max_steps):
         super(PyDQNAgent, self).__init__()
+        n_actions = len(actions)
 #        self.replay_buffer = PFRLReplayBuffer()
         self.replay_buffer = ReplayBuffer()
         self.steps = 0
@@ -85,7 +86,7 @@ class PyDQNAgent(nn.Module):
             ).to("cuda")
         self.optimizer = optim.RMSprop(self.moving_nn.parameters(), lr=5e-5)
 
-    def act(self, observation, on_policy=False):
+    def act(self, observation, on_policy, demo=False):
         self.observation = observation
         if on_policy == False:
             self.action = self.explorer.select_action(self.steps, lambda:
