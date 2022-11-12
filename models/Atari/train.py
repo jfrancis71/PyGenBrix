@@ -11,45 +11,57 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 def experiment(env, agent, tb_writer=None, max_steps=500000):
+    steps = 0
+    episodes = 0
+    while steps < max_steps:
+        episode_score, episode_length = experiment_episode(env, agent)
+        print("Episode score=", episode_score, ", Length=", episode_length)
+        if tb_writer is not None:
+            tb_writer.add_scalar("episode_score", episode_score, steps)
+            tb_writer.add_scalar("episode_length", episode_length, steps)
+        steps += episode_length
+        episodes += 1
+        if episodes % 10 == 0:
+            test_episode_score, test_episode_length = demo_episode(env, agent)
+            print("Test episode score=", test_episode_score, ", Length=", test_episode_length)
+            if tb_writer is not None:
+                tb_writer.add_scalar("test_episode_score", test_episode_score, steps)
+                tb_writer.add_scalar("test_episode_length", test_episode_length, steps)
+
+def experiment_episode(env, agent):
     observation = env.reset()
     episode_score = 0
     episode_length = 0
     observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
-    for idx in range(max_steps):
+    done = False
+    while done is False:
         action = agent.act(observation)
         observation, reward, done, info = env.step(action)
         episode_score += reward
         episode_length += 1
         observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
         agent.observe(observation, reward, done, False)
-        if done:
-            observation = env.reset()
-            observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
-            print("Episode score=", episode_score, ", Length=", episode_length)
-            if tb_writer is not None:
-                tb_writer.add_scalar("episode_score", episode_score, idx)
-                tb_writer.add_scalar("episode_length", episode_length, idx)
-            episode_score = 0
-            episode_length = 0
-
+    return episode_score, episode_length
 
 def demo(env, agent):
+    steps = 0
+    while steps < 500000:
+        episode_score, episode_length = demo_episode(env, agent)
+        steps += episode_length
+
+def demo_episode(env, agent):
     observation = env.reset()
     episode_score = 0
     episode_length = 0
     observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
-    for idx in range(500000):
-        action = agent.act(observation)
+    done = False
+    while done is False:
+        action = agent.act(observation, on_policy=True)
         observation, reward, done, info = env.step(action)
         episode_score += reward
         episode_length += 1
         observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
-        if done:
-            observation = env.reset()
-            observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
-            print("Episode score=", episode_score, ", Length=", episode_length)
-            episode_score = 0
-            episode_length = 0
+    return episode_score, episode_length
 
 
 ap = argparse.ArgumentParser(description="RL Trainer")
@@ -86,10 +98,7 @@ if ns.agent == "PFRLDQN":
 elif ns.agent == "PG":
     agent = pg.PGAgent(n_actions, tb_writer, ns.demo)
 elif ns.agent == "PyDQN":
-    q_max_steps = ns.max_steps
-    if ns.demo:
-        q_max_steps = 0
-    agent = py_dqn.PyDQNAgent(n_actions, tb_writer, q_max_steps)
+    agent = py_dqn.PyDQNAgent(n_actions, tb_writer, ns.max_steps)
 elif ns.agent == "TreeBackupDQN":
     q_max_steps = ns.max_steps
     if ns.demo:

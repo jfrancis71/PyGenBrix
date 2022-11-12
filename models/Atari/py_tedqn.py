@@ -41,7 +41,7 @@ class PyTEDQNAgent(nn.Module):
         self.training_agent = 0
         self.steps = 0
 
-    def act(self, observation):
+    def act(self, observation, on_policy):
         self.observation = observation
         tensor_obs = torch.tensor(np.array([phi(observation)]), device="cuda")
         all_actions1 = self.subagent1.moving_nn(tensor_obs)[0]

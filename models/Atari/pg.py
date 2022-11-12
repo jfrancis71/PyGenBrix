@@ -17,6 +17,8 @@ class PGAgent(nn.Module):
             nn.Conv2d(16, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
             nn.Conv2d(32, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
             nn.Flatten(start_dim=0), nn.Linear(1568, n_actions))
+        self.net[-1].weight.data.fill_(0.0)
+        self.net[-1].bias.data.fill_(1.0)
         self.optimizer = optim.RMSprop(self.parameters(), lr=1e-4)
         self.observations = []
         self.rewards = []
@@ -37,7 +39,7 @@ class PGAgent(nn.Module):
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
 
-    def act(self, observation, demo=False):
+    def act(self, observation, on_policy, demo=False):
         observation = (observation/255.0 - 0.5).astype(np.float32)
         observation_tensor = torch.tensor(observation).unsqueeze(0)
         x = self.net(observation_tensor)

@@ -51,8 +51,7 @@ class PFRLDQNAgent(nn.Module):
            phi=phi,
            gpu=0,)
 
-
-    def act(self, observation):
+    def act(self, observation, on_policy):
         return self.agent.act(observation)
 
     def observe(self, observation, reward, done, reset):

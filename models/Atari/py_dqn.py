@@ -85,10 +85,13 @@ class PyDQNAgent(nn.Module):
             ).to("cuda")
         self.optimizer = optim.RMSprop(self.moving_nn.parameters(), lr=5e-5)
 
-    def act(self, observation):
+    def act(self, observation, on_policy=False):
         self.observation = observation
-        self.action = self.explorer.select_action(self.steps, lambda:
-            self.select_greedy_action(phi(observation)))
+        if on_policy == False:
+            self.action = self.explorer.select_action(self.steps, lambda:
+                self.select_greedy_action(phi(observation)))
+        else:
+            self.action = self.select_greedy_action(phi(observation))
         return self.action
 
     def select_greedy_action(self, observation):
