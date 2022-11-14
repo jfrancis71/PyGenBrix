@@ -27,6 +27,7 @@ def experiment(env, agent, tb_writer=None, max_steps=500000):
             if tb_writer is not None:
                 tb_writer.add_scalar("test_episode_score", test_episode_score, steps)
                 tb_writer.add_scalar("test_episode_length", test_episode_length, steps)
+                agent.episode_end(tb_writer)
 
 def experiment_episode(env, agent):
     observation = env.reset()
@@ -35,7 +36,7 @@ def experiment_episode(env, agent):
     observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
     done = False
     while done is False:
-        action = agent.act(observation)
+        action = agent.act(observation, on_policy=False)
         observation, reward, done, info = env.step(action)
         episode_score += reward
         episode_length += 1
@@ -68,6 +69,7 @@ ap = argparse.ArgumentParser(description="RL Trainer")
 ap.add_argument("--agent")
 ap.add_argument("--env", default="PongNoFrameskip-v4")
 ap.add_argument("--max_steps", default=500000, type=int)
+ap.add_argument("--multi_steps", default=2, type=int)
 ap.add_argument("--folder", default=None)
 #ap.add_argument("--device", default="cpu")
 #ap.add_argument("--rollout_length", default=3, type=int)
@@ -108,7 +110,7 @@ elif ns.agent == "TreeBackupDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
         q_max_steps = 0
-    agent = treebackup_dqn.PyDQNAgent(actions, tb_writer, q_max_steps)
+    agent = treebackup_dqn.PyDQNAgent(actions, tb_writer, q_max_steps, ns.multi_steps)
 elif ns.agent == "PyTEDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
