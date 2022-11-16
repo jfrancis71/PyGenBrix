@@ -9,6 +9,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+# Reference implementation:
+# https://github.com/albarji/deeprl-pong/blob/master/policygradientpytorch.py
+# The inspiration for the neural net comes from this source as well as the
+# choice of optimizer and hyperparameter.
+
+
 class PGAgent(nn.Module):
     def __init__(self, actions, tb_writer, demo=False):
         super(PGAgent, self).__init__()
