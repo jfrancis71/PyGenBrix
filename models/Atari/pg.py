@@ -98,3 +98,6 @@ class PGAgent(nn.Module):
         discounted_r -= np.mean(discounted_r)
         discounted_r /= np.std(discounted_r) + self.eps
         return discounted_r
+
+    def episode_end(self, tb_writer):
+        pass
