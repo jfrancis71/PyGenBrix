@@ -6,6 +6,7 @@ import treebackup_dqn
 import py_dqn
 import py_tedqn
 import pg
+import pg_eligibility_traces
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
@@ -104,6 +105,8 @@ if ns.agent == "PFRLDQN":
     agent = pfrl_dqn.PFRLDQNAgent(actions, tb_writer, q_max_steps)
 elif ns.agent == "PG":
     agent = pg.PGAgent(actions, tb_writer, ns.demo)
+elif ns.agent == "PGEligibility":
+    agent = pg_eligibility_traces.PGEligibilityTracesAgent(actions, tb_writer, ns.demo)
 elif ns.agent == "PyDQN":
     agent = py_dqn.PyDQNAgent(actions, tb_writer, ns.max_steps)
 elif ns.agent == "TreeBackupDQN":
