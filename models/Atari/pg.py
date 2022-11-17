@@ -14,23 +14,22 @@ import matplotlib.pyplot as plt
 # The inspiration for the neural net comes from this source as well as the
 # choice of optimizer and hyperparameter.
 
+# Works somewhat on pong, learns to return ball back quite well within 500,000 steps.
+# Albeit it seems to get stuck in suboptimal local minima from time to time (maybe 1 in 3?)
+
 
 class PGAgent(nn.Module):
     def __init__(self, actions, tb_writer, demo=False):
         super(PGAgent, self).__init__()
         n_actions = len(actions)
-        print("N Actions=", n_actions)
         self.net = nn.Sequential(
             nn.Conv2d(4, 16, kernel_size=5, stride=2) , nn.BatchNorm2d(16), nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
             nn.Conv2d(32, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),
             nn.Flatten(start_dim=0), nn.Linear(1568, n_actions))
         self.optimizer = optim.RMSprop(self.parameters(), lr=1e-4)
-        self.observations = []
         self.rewards = []
-        self.actions = []
-        self.log_probs = []
-        self.observation = None
+        self.grads = []
         self.eps = np.finfo(np.float32).eps.item()
         self.demo = demo
         if self.demo:
@@ -49,35 +48,34 @@ class PGAgent(nn.Module):
         observation = (observation/255.0 - 0.5).astype(np.float32)
         observation_tensor = torch.tensor(observation).unsqueeze(0)
         x = self.net(observation_tensor)
-        self.observation = observation
         action_distribution = Categorical(F.softmax(x, dim=0))
-        self.action = action_distribution.sample()
-        self.log_prob = action_distribution.log_prob(self.action)
+        action = action_distribution.sample()
+        self.net.zero_grad()
+        loss = -action_distribution.log_prob(action)
+        loss.backward()
+        self.grad = [torch.clone(param.grad) for param in self.net.parameters()]
         if self.demo:
             for i in range(6):
                 self.ln[i].set_height(action_distribution.probs[i].detach())
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
-        return self.action.item()
+        return action.item()
 
     def observe(self, observation, reward, done, reset):
         if done is False:
-            self.observations.append(observation)
-            self.actions.append(self.action)
             self.rewards.append(reward)
-            self.log_probs.append(self.log_prob)
+            self.grads.append(self.grad)
         else:
             drewards = self.discount_rewards(self.rewards)
-            policy_loss = [-log_prob * reward for log_prob, reward in zip(self.log_probs, drewards)]
-            policy_loss = torch.stack(policy_loss).sum()
-            self.optimizer.zero_grad()
-            policy_loss.backward()
+            length = len(self.grads)
+            num_params = len(list(self.net.parameters()))
+            weighted_grads = [[self.grads[exp_no][i] * drewards[exp_no] for exp_no in range(length)] for i in range(num_params)]
+            weighted_grad = [torch.sum(torch.stack(weighted_grads[i]), dim=0) for i in range(num_params)]
+            for p, i in zip(self.net.parameters(), range(num_params)):
+                p.grad = weighted_grad[i]
             self.optimizer.step()
-            self.observations = []
+            self.grads = []
             self.rewards = []
-            self.actions = []
-            self.log_probs = []
-            self.observation = None
 
     def save(self, filename):
         torch.save(self.state_dict(), filename)
