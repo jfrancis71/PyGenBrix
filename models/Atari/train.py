@@ -15,7 +15,7 @@ def experiment(env, agent, tb_writer=None, max_steps=500000):
     steps = 0
     episodes = 0
     while steps < max_steps:
-        episode_score, episode_length = experiment_episode(env, agent)
+        episode_score, episode_length = experiment_episode(env, agent, learn=True, on_policy=False)
         print("Episode score=", episode_score, ", Length=", episode_length)
         if tb_writer is not None:
             tb_writer.add_scalar("episode_score", episode_score, steps)
@@ -23,48 +23,34 @@ def experiment(env, agent, tb_writer=None, max_steps=500000):
         steps += episode_length
         episodes += 1
         if episodes % 10 == 0:
-            test_episode_score, test_episode_length = demo_episode(env, agent)
+            test_episode_score, test_episode_length = experiment_episode(env, agent, learn=False, on_policy=True)
             print("Test episode score=", test_episode_score, ", Length=", test_episode_length)
             if tb_writer is not None:
                 tb_writer.add_scalar("test_episode_score", test_episode_score, steps)
                 tb_writer.add_scalar("test_episode_length", test_episode_length, steps)
                 agent.episode_end(tb_writer)
 
-def experiment_episode(env, agent):
+def experiment_episode(env, agent, learn=False, on_policy=True):
     observation = env.reset()
     episode_score = 0
     episode_length = 0
     observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
     done = False
     while done is False:
-        action = agent.act(observation, on_policy=False)
+        action = agent.act(observation, on_policy=demo)
         observation, reward, done, info = env.step(action)
         episode_score += reward
         episode_length += 1
         observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
-        agent.observe(observation, reward, done, False)
+        if learn:
+            agent.observe(observation, reward, done, False)
     return episode_score, episode_length
 
 def demo(env, agent):
     steps = 0
     while steps < 500000:
-        episode_score, episode_length = demo_episode(env, agent)
+        episode_score, episode_length = experiment_episode(env, agent, learn=False, on_policy=True)
         steps += episode_length
-
-def demo_episode(env, agent):
-    observation = env.reset()
-    episode_score = 0
-    episode_length = 0
-    observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
-    done = False
-    while done is False:
-        action = agent.act(observation, on_policy=True)
-        observation, reward, done, info = env.step(action)
-        episode_score += reward
-        episode_length += 1
-        observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
-    return episode_score, episode_length
-
 
 ap = argparse.ArgumentParser(description="RL Trainer")
 ap.add_argument("--agent")
