@@ -73,17 +73,11 @@ env = pfrl_atari_wrappers.MaxAndSkipEnv(env, skip=4)
 env = pfrl_atari_wrappers.WarpFrame(env)
 env = pfrl_atari_wrappers.FrameStack(env, 4)
 
-print("Env=", ns.env)
-if ns.env == "PongNoFrameskip-v4":
-    actions = ["NOOP", "FIRE", "RIGHT", "LEFT", "RIGHTFIRE", "LEFTFIRE"]
-else:
-    print(ns.env + " environment not recognized.")
-    quit()
-
 tb_writer = None
 if ns.folder is not None:
     tb_writer = SummaryWriter(ns.folder)
 
+actions = env.env.get_action_meanings()
 if ns.agent == "PFRLDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
