@@ -73,8 +73,6 @@ class PGEligibilityTracesAgent(nn.Module):
             self.cumulative_grad[i] += adj_reward*self.z[i]
         # Actions preceeding reward affect that reward, but not subsequent rewards
         # Specific to pong
-
-
         if reward != 0:
             self.z = [ torch.zeros_like(p) for p in self.net.parameters()]
         if done is False:
