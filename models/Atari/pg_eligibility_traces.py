@@ -52,7 +52,6 @@ class PGEligibilityTracesAgent(nn.Module):
         x = self.net(observation_tensor)
         action_distribution = Categorical(F.softmax(x, dim=0))
         action = action_distribution.sample()
-#        action = torch.tensor(actual_action)
         self.net.zero_grad()
         loss = -action_distribution.log_prob(action)
         loss.backward()
@@ -64,7 +63,6 @@ class PGEligibilityTracesAgent(nn.Module):
         return action.item()
 
     def observe(self, observation, reward, done, reset):
-#        print("Test Inner: ", self.net[0].weight.grad[0,2,3,3])
         self.mean_reward = .9995*self.mean_reward + .0005*reward
         self.meansq_reward = .9995*self.meansq_reward + .0005*reward**2
         var_reward = self.meansq_reward - self.mean_reward**2
@@ -73,9 +71,10 @@ class PGEligibilityTracesAgent(nn.Module):
         for i, p in zip(range(len(self.z)), self.net.parameters()):
             self.z[i] = .99*self.z[i] + p.grad
             self.cumulative_grad[i] += adj_reward*self.z[i]
-#        print("cum grad=", self.cumulative_grad[0][0,2,3,3])
-        # Just like in PG, specially for pong, we don't take responsiblity for
-        # actions that precede a point scored. treated like a game resetREWORD
+        # Actions preceeding reward affect that reward, but not subsequent rewards
+        # Specific to pong
+
+
         if reward != 0:
             self.z = [ torch.zeros_like(p) for p in self.net.parameters()]
         if done is False:
@@ -83,7 +82,6 @@ class PGEligibilityTracesAgent(nn.Module):
         else:
             for i, p in zip(range(len(self.z)), self.net.parameters()):
                 p.grad = self.cumulative_grad[i]
-#            print("Test ", self.net[0].weight.grad[0,2,3,3])
             self.optimizer.step()
             self.z = [ torch.zeros_like(p) for p in self.net.parameters()]
             self.cumulative_grad = [ torch.zeros_like(p) for p in self.net.parameters()]

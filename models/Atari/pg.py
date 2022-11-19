@@ -33,7 +33,7 @@ class PGAgent(nn.Module):
         self.eps = np.finfo(np.float32).eps.item()
         self.demo = demo
         if self.demo:
-            y_pos = np.arange(6)
+            y_pos = np.arange(n_actions)
             performance = [1]*n_actions
             plt.ion()
             self.figure, ax = plt.subplots(figsize=(6, 4))
@@ -91,6 +91,8 @@ class PGAgent(nn.Module):
         discounted_r = np.zeros_like(r)
         running_add = 0
         for t in reversed(range(0, len(r))):
+            # Actions preceeding reward affect that reward, but not subsequent rewards
+            # Specific to pong
             if r[t] != 0:
                 running_add = 0  # reset the sum, since this was a game boundary (pong specific!)
             running_add = running_add * gamma + r[t]
