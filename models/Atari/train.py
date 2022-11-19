@@ -7,6 +7,7 @@ import py_dqn
 import py_tedqn
 import pg
 import pg_eligibility_traces
+import human_agent
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
@@ -51,6 +52,7 @@ def demo(env, agent):
     while steps < 500000:
         episode_score, episode_length = experiment_episode(env, agent, learn=False, on_policy=True)
         steps += episode_length
+        print("Episode score=", episode_score, ", Length=", episode_length)
 
 ap = argparse.ArgumentParser(description="RL Trainer")
 ap.add_argument("--agent")
@@ -99,6 +101,8 @@ elif ns.agent == "PyTEDQN":
     if ns.demo:
         q_max_steps = 0
     agent = py_tedqn.PyTEDQNAgent(actions, tb_writer, q_max_steps)
+elif ns.agent == "HUMAN":
+    agent = human_agent.HumanAgent()
 else:
     print(ns.agent, " not recognised as agent.")
     quit()
