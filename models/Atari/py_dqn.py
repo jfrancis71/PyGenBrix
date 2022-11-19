@@ -85,6 +85,7 @@ class PyDQNAgent(nn.Module):
             init_chainer_default(nn.Linear(512, n_actions)),
             ).to("cuda")
         self.optimizer = optim.RMSprop(self.moving_nn.parameters(), lr=5e-5)
+        self.loss_fn = nn.MSELoss()
 
     def act(self, observation, on_policy, demo=False):
         self.observation = observation
@@ -123,10 +124,13 @@ class PyDQNAgent(nn.Module):
         curr_state_action_value = self.moving_nn(states[:,0]).gather(1,actions[:,:1])[:,0]
         next_state_action_value = self.target_nn(next_states[:,0]).max(1)[0].detach()
         q_target = rewards[:,0] + .99 * next_state_action_value
-        return nn.MSELoss()(curr_state_action_value, q_target)
+        return self.loss_fn(curr_state_action_value, q_target)
 
     def save(self, filename):
         torch.save(self.state_dict(), filename)
 
     def load(self, filename):
         self.load_state_dict(torch.load(filename))
+
+    def episode_end(self, tb_writer):
+        pass
