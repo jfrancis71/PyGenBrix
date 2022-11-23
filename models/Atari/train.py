@@ -17,7 +17,7 @@ def experiment(env, agent, tb_writer=None, max_steps=500000):
     episodes = 0
     while steps < max_steps:
         episode_score, episode_length = experiment_episode(env, agent, learn=True, on_policy=False)
-        print("Episode score=", episode_score, ", Length=", episode_length)
+        print("At step ", steps, ", episode score=", episode_score, ", Length=", episode_length)
         if tb_writer is not None:
             tb_writer.add_scalar("episode_score", episode_score, steps)
             tb_writer.add_scalar("episode_length", episode_length, steps)
