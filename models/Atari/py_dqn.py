@@ -6,7 +6,6 @@
 
 import collections
 import random
-from collections import namedtuple
 import numpy as np
 import torch
 import torch.nn as nn
@@ -15,9 +14,8 @@ import torch.optim as optim
 import pfrl
 from pfrl import nn as pnn
 from pfrl.initializers import init_chainer_default
-from pfrl.utils.batch_states import batch_states
-from pfrl.replay_buffer import batch_experiences
-from pfrl import agents, explorers
+from pfrl import explorers
+import py_utils
 
 
 def phi(x):
@@ -86,6 +84,8 @@ class PyDQNAgent(nn.Module):
             ).to("cuda")
         self.optimizer = optim.RMSprop(self.moving_nn.parameters(), lr=5e-5)
         self.loss_fn = nn.MSELoss()
+        self.moving_average_loss = py_utils.MovingAverage(gamma=.9995)
+        self.tb_writer = tb_writer
 
     def act(self, observation, on_policy, demo=False):
         self.observation = observation
@@ -113,6 +113,9 @@ class PyDQNAgent(nn.Module):
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+            self.moving_average_loss.update(loss.item())
+            if self.tb_writer is not None and self.steps % 1000 == 0:
+                self.tb_writer.add_scalar("loss", self.moving_average_loss.value(), self.steps)
         if ( self.steps % self.target_update_interval) == 0:
             self.target_nn.load_state_dict(self.moving_nn.state_dict())
 
