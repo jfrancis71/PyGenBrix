@@ -55,10 +55,10 @@ class ReplayBuffer():
 
     def sample(self, batch_size):
         chosen_transitions = random.sample(range(0, len(self.states) - 1), batch_size)
-        states = np.array([[self.states[t]] for t in chosen_transitions])
+        states = np.array([[self.states[t]] for t in chosen_transitions], dtype=np.float32)
         actions = np.array([[self.actions[t]] for t in chosen_transitions])
-        rewards = np.array([[self.rewards[t]] for t in chosen_transitions])
-        next_states = np.array([[self.next_states[t]] for t in chosen_transitions])
+        rewards = np.array([[self.rewards[t]] for t in chosen_transitions], dtype=np.float32)
+        next_states = np.array([[self.next_states[t]] for t in chosen_transitions], dtype=np.float32)
         return states, actions, rewards, next_states
 
 
@@ -96,15 +96,15 @@ class PyDQNAgent(nn.Module):
             self.action = self.select_greedy_action(phi(observation))
         return self.action
 
+    def observe(self, observation, reward, done, reset):
+        self.replay_buffer.append(self.observation, self.action, reward, observation)
+        self.sample_and_improve(32)
+        self.steps += 1
+
     def select_greedy_action(self, observation):
         tensor_obs = torch.tensor(np.array([observation]), device="cuda")
         all_actions = self.moving_nn(tensor_obs)
         return all_actions.max(1)[1].item()
-
-    def observe(self, observation, reward, done, reset):
-        self.replay_buffer.append(self.observation, self.action, reward, observation)       
-        self.sample_and_improve(32)
-        self.steps += 1
 
     def sample_and_improve(self, batch_size):
         if self.steps > 10001:
