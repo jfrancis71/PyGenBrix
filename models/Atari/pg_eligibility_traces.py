@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt; plt.rcdefaults()
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import py_utils
 
 
 # Reference implementation:
@@ -32,8 +33,8 @@ class PGEligibilityTracesAgent(nn.Module):
         self.z = [ torch.zeros_like(p) for p in self.net.parameters()]
         self.cumulative_grad = [ torch.zeros_like(p) for p in self.net.parameters()]
         self.demo = demo
-        self.mean_reward = 0.0
-        self.meansq_reward = 1.0
+        self.mean_reward = py_utils.MovingAverage(gamma=.9995)
+        self.meansq_reward = py_utils.MovingAverage(gamma=.9995)
         if self.demo:
             y_pos = np.arange(6)
             performance = [1]*n_actions
@@ -45,6 +46,7 @@ class PGEligibilityTracesAgent(nn.Module):
             plt.title('Action Probabilities')
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
+        self.eps = np.finfo(np.float32).eps
 
     def act(self, observation, on_policy, demo=False):
         observation = (observation/255.0 - 0.5).astype(np.float32)
@@ -63,11 +65,11 @@ class PGEligibilityTracesAgent(nn.Module):
         return action.item()
 
     def observe(self, observation, reward, done, reset):
-        self.mean_reward = .9995*self.mean_reward + .0005*reward
-        self.meansq_reward = .9995*self.meansq_reward + .0005*reward**2
-        var_reward = self.meansq_reward - self.mean_reward**2
+        self.mean_reward.update(reward)
+        self.meansq_reward.update(reward**2)
+        var_reward = self.meansq_reward.value() - self.mean_reward.value()**2
         std_reward = math.sqrt(var_reward)
-        adj_reward = (reward-self.mean_reward)/std_reward
+        adj_reward = (reward-self.mean_reward.value())/(std_reward+self.eps)
         for i, p in zip(range(len(self.z)), self.net.parameters()):
             self.z[i] = .99*self.z[i] + p.grad
             self.cumulative_grad[i] += adj_reward*self.z[i]
