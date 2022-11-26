@@ -70,6 +70,7 @@ class PGEligibilityTracesAgent(nn.Module):
         var_reward = self.meansq_reward.value() - self.mean_reward.value()**2
         std_reward = math.sqrt(var_reward)
         adj_reward = (reward-self.mean_reward.value())/(std_reward+self.eps)
+        adj_reward = math.tanh(adj_reward*.25)
         for i, p in zip(range(len(self.z)), self.net.parameters()):
             self.z[i] = .99*self.z[i] + p.grad
             self.cumulative_grad[i] += adj_reward*self.z[i]
