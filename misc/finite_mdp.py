@@ -314,10 +314,6 @@ env = CliffEnvironment()
 env.reset()
 agent = CliffLearnableAgent(env.height, env.width)
 
-env.current_state = [3, 1]
-new_observation, reward, done, info = env.step(env.down)
-print("New Obs ", new_observation, "rew = ", reward, " done = ", done)
-
 for _ in range(25):
     total_reward, episode_length = run_episode()
     print("Total reward=", total_reward, ", Length=", episode_length)
