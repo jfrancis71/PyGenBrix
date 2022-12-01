@@ -1,11 +1,11 @@
 import random
+import copy
 import numpy as np
-import cliff_environment
 import q_model
 
-class QLearnableDeterministicCliffModel:
-    def __init__(self):
-        self.env = cliff_environment.CliffEnvironment()
+class QLearnableDeterministicModel:
+    def __init__(self, env):
+        self.env = copy.deepcopy(env)
         self.height, self.width = self.env.height, self.env.width
         self.dones = np.zeros([self.height, self.width, 4]) - 1
         self.rewards = np.zeros([self.height, self.width, 4])
@@ -92,12 +92,11 @@ class QLearnableDeterministicCliffModel:
         print("  ", sampled_transitions[:, :, self.env.left])
 
 
-class CliffLearnableModelAgent:
-    def __init__(self, height, width):
+class LearnableModelAgent:
+    def __init__(self, env):
         self.action = None
         self.observation = None
-        self.height, self.width = height, width
-        self.learnable_model = QLearnableDeterministicCliffModel()
+        self.learnable_model = QLearnableDeterministicModel(env)
         self.q_algorithm = q_model.QAlgorithm(self.learnable_model, self.learnable_model.env)
         self.steps = 0
 

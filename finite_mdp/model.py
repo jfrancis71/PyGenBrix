@@ -1,10 +1,11 @@
 import random
+import copy
 import q_model
 import cliff_environment
 
-class CliffModel:
-    def __init__(self):
-        self.env = cliff_environment.CliffEnvironment()
+class Model:
+    def __init__(self, env):
+        self.env = copy.deepcopy(env)
         self.height, self.width = self.env.height, self.env.width
 
     def sample(self, observation, action):
@@ -12,12 +13,11 @@ class CliffModel:
         return self.env.step(action)
 
 
-class CliffModelAgent:
-    def __init__(self, height, width):
+class ModelAgent:
+    def __init__(self, env):
         self.action = None
         self.observation = None
-        self.height, self.width = height, width
-        self.q_algorithm = q_model.QAlgorithm(CliffModel(), cliff_environment.CliffEnvironment())
+        self.q_algorithm = q_model.QAlgorithm(Model(env), env)
 
     def act(self, observation):
         if random.random() > .1:

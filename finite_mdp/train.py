@@ -1,13 +1,15 @@
 import argparse
 import numpy as np
 import cliff_environment
+import blocking_maze_environment
 import q_agents
-import cliff_model
-import cliff_learnable_model
+import model
+import learnable_model
 
 
 ap = argparse.ArgumentParser(description="Finite MDP Trainer")
 ap.add_argument("--agent")
+ap.add_argument("--env", default="Cliff")
 ns = ap.parse_args()
 
 
@@ -33,17 +35,22 @@ def run_episode():
 
 np.set_printoptions(edgeitems=30, linewidth=100000,
                     formatter=dict(float=lambda x: "%.3g" % x))
-env = cliff_environment.CliffEnvironment()
+if ns.env == "Cliff":
+    env = cliff_environment.CliffEnvironment()
+elif ns.env == "BlockingMaze":
+    env = blocking_maze_environment.BlockingMazeEnvironment()
+else:
+    print("Unknown Environment ", ns.env)
 env.reset()
+
 if ns.agent == "Random":
     agent = q_agents.RandomAgent()
 elif ns.agent == "QOnline":
-    agent = q_agents.QOnlineAgent(4, 12)
-elif ns.agent == "CliffModel":
-    agent = cliff_model.CliffModelAgent(4, 12)
-elif ns.agent == "CliffLearnableModel":
-    agent = cliff_learnable_model.CliffLearnableModelAgent(4, 12)
-
+    agent = q_agents.QOnlineAgent(env.height, env.width)
+elif ns.agent == "Model":
+    agent = model.ModelAgent(env)
+elif ns.agent == "LearnableModel":
+    agent = learnable_model.LearnableModelAgent(env)
 else:
     print("Unknown Agent ", ns.agent)
     quit(1)
