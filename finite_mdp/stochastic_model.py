@@ -12,18 +12,8 @@ class QLearnableStochasticModel:
         self.rewards = np.zeros([self.height, self.width, 4])
         self.num_states = self.height*self.width
         self.visits = np.zeros([self.height, self.width, 4], dtype=np.int64)
-        self.random_rewards = np.random.random([self.height, self.width, 4])+50
-        self.random_dones = np.random.binomial(1, p=np.ones([self.height, self.width, 4]) - .5)
-        self.random_transitions = np.random.randint(self.num_states, size=[self.num_states, 4])
         self.state_transitions_dirichlet_alpha = np.ones([self.num_states, 4, self.num_states])*.01
-        self.state_transition_cat_probs =\
-            [
-                [
-                    np.random.dirichlet(self.state_transitions_dirichlet_alpha[observation_state, action])
-                    for action in range(4)
-                ]
-                for observation_state in range(self.num_states)
-            ]
+        self.sample_parameters()
 
     def sample(self, observation, action):
         self.env.current_state = observation.copy()
