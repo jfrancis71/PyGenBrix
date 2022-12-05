@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 
 
@@ -19,10 +20,9 @@ class QAlgorithm:
                         new_state, reward, done, info = self.model.sample([r, c], a)
                         target_q = self.q[new_state[0], new_state[1]].max()
                         if done:
-                            target_q = 0.0
-                        diff = .1 * \
-                            ((.99*target_q + reward) - self.q[r, c, a])
-                        self.q[r, c, a] += diff
+                            target_q = reward
+                        diff = ((.99*target_q + reward) - self.q[r, c, a])
+                        self.q[r, c, a] += .1 * diff
 
     def print(self):
         print("Q:")
@@ -41,5 +41,5 @@ class QAlgorithm:
             action = self.q[state[0], state[1]].argmax()
             new_state, reward, done, info = self.model.sample(state, action)
             the_plan.append([state, action, reward])
-            new_state = state
+            state = copy.deepcopy(new_state)
         return the_plan
