@@ -13,6 +13,7 @@ class QLearnableStochasticModel:
         self.num_states = self.height*self.width
         self.visits = np.zeros([self.height, self.width, 4], dtype=np.int64)
         self.state_transitions_dirichlet_alpha = np.ones([self.num_states, 4, self.num_states])*.01
+        self.state_transition_cat_probs, self.random_rewards, self.random_dones = None, None, None
         self.sample_parameters()
 
     def sample(self, observation, action):
@@ -114,9 +115,17 @@ class StochasticLearnableModelAgent:
     def observe(self, observation, reward, done, _):
         self.learnable_model.observe(self.observation, self.action, reward, done, observation)
         if self.steps % 20 == 0:
-            self.learnable_model.sample_parameters()
-            self.q_algorithm.reset()
-            self.q_algorithm.update(planning_steps=120)
-            plan = self.q_algorithm.plan(observation)
-            print("The Plan: ", plan)
             print("Total explored=", self.learnable_model.visits.sum())
+            best_q = -1000000
+            best_mdp_state_transition_probs, best_mdp_random_rewards, best_mdp_random_dones = None, None, None
+            for mdp_sample in range(10):
+                self.learnable_model.sample_parameters()
+                self.q_algorithm.reset()
+                self.q_algorithm.update(planning_steps=120)
+                if self.q_algorithm.q[self.observation[0], self.observation[1]].max() > best_q:
+                    best_mdp_state_transition_probs = copy.deepcopy(self.learnable_model.state_transition_cat_probs)
+                    best_mdp_random_rewards = copy.deepcopy(self.learnable_model.random_rewards)
+                    best_mdp_random_dones = copy.deepcopy(self.learnable_model.random_dones)
+            self.learnable_model.state_transition_cat_probs = best_mdp_state_transition_probs
+            self.learnable_model.random_rewards = best_mdp_random_rewards
+            self.learnable_model.random_dones = best_mdp_random_dones
