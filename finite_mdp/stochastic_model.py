@@ -114,11 +114,8 @@ class StochasticLearnableModelAgent:
         self.steps = 0
 
     def act(self, observation):
-        if random.random() > .0:
-            q = self.q_algorithm.q[observation[0], observation[1]]
-            action = q.argmax()
-        else:
-            action = random.sample(range(4), 1)[0]
+        q = self.q_algorithm.q[observation[0], observation[1]]
+        action = q.argmax()
         self.action = action
         self.observation = observation
         self.steps += 1
@@ -129,9 +126,7 @@ class StochasticLearnableModelAgent:
         if self.steps % 20 == 0:
             self.learnable_model.sample_parameters()
             self.q_algorithm.reset()
-            self.q_algorithm.update(planning_steps=40)
-            self.q_algorithm.update(planning_steps=40)
-            self.q_algorithm.update(planning_steps=40)
+            self.q_algorithm.update(planning_steps=120)
             plan = self.q_algorithm.plan(observation)
             print("The Plan: ", plan)
             print("Total explored=", self.learnable_model.visits.sum())
