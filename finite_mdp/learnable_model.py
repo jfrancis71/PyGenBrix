@@ -9,12 +9,12 @@ class QLearnableDeterministicModel:
         self.height, self.width = self.env.height, self.env.width
         self.dones = np.zeros([self.height, self.width, 4]) - 1
         self.rewards = np.zeros([self.height, self.width, 4])
-        num_states = self.height*self.width
-        self.state_transitions = np.zeros([num_states, 4, num_states])
+        self.num_states = self.height*self.width
+        self.state_transitions = np.zeros([self.num_states, 4, self.num_states])
         self.visits = np.zeros([self.height, self.width, 4], dtype=np.int64)
         self.random_rewards = np.random.random([self.height, self.width, 4])+50
         self.random_dones = np.random.binomial(1, p=np.ones([self.height, self.width, 4]) - .5)
-        self.random_transitions = np.random.randint(num_states, size=[num_states, 4])
+        self.random_transitions = np.random.randint(self.num_states, size=[self.num_states, 4])
 
     def sample(self, observation, action):
         self.env.current_state = observation.copy()
@@ -41,8 +41,7 @@ class QLearnableDeterministicModel:
     def sample_parameters(self):
         self.random_dones = np.random.binomial(1, p=np.ones([self.height, self.width, 4]) - .5)
         self.random_rewards = np.random.random([self.height, self.width, 4])+50
-        num_states = self.height * self.width
-        self.random_transitions = np.random.randint(num_states, size=[num_states, 4])
+        self.random_transitions = np.random.randint(self.num_states, size=[self.num_states, 4])
 
     def print_dones(self):
         print("Dones:")
@@ -121,6 +120,4 @@ class LearnableModelAgent:
             self.q_algorithm.update(planning_steps=40)
             plan = self.q_algorithm.plan(observation)
             print("The Plan: ", plan)
-            ac = plan[0][1]
-            st = self.learnable_model.env.state_to_integer(observation)
             print("Total explored=", self.learnable_model.visits.sum())
