@@ -3,6 +3,7 @@ import copy
 import numpy as np
 import q_model
 import torch
+import mdp
 
 
 class QLearnableStochasticModel:
@@ -26,23 +27,17 @@ class QLearnableStochasticModel:
     def __init__(self, env):
         self.env = env  # Only used for the integer to state, state to integer functions
         self.height, self.width = self.env.height, self.env.width
-        self.dones = np.zeros([self.height, self.width, 4]) - 1
-        self.rewards = np.zeros([self.height, self.width, 4])
+        self.dones = np.zeros([self.height*self.width, 4]) - 1
+        self.rewards = np.zeros([self.height*self.width, 4])
         self.num_states = self.height*self.width
-        self.visits = np.zeros([self.height, self.width, 4], dtype=np.int64)
+        self.visits = np.zeros([self.height*self.width, 4], dtype=np.int64)
         self.state_transitions_dirichlet_alpha = np.ones([self.num_states, 4, self.num_states])*.01
-        self.state_transition_cat_probs, self.random_rewards, self.random_dones = None, None, None
+        self.mdp = None
         self.sample_parameters()
 
     def sample(self, observation, action):
-        """Sample a new state, reward, done from the currently sampled MDP given the observation and action."""
-        done = self.dones[observation[0], observation[1], action]
-        reward = self.rewards[observation[0], observation[1], action]
         observation_state = self.env.state_to_integer(observation)
-        next_state = np.random.choice(self.num_states, p=self.state_transition_cat_probs[observation_state][action])
-        if self.visits[observation[0], observation[1], action] == 0:
-            reward = self.random_rewards[observation[0], observation[1], action]
-            done = self.random_dones[observation[0], observation[1], action]
+        next_state, reward, done, _ = self.mdp.sample(observation_state, action)
         new_observation = self.env.integer_to_state(next_state)
         return new_observation, reward, done, None
 
@@ -50,18 +45,15 @@ class QLearnableStochasticModel:
         """Update the distribution over MDP's using this state transition.
 
         Note: does not affect current MDP"""
-        self.dones[observation[0], observation[1], action] = done
-        self.visits[observation[0], observation[1], action] = 1
-        self.rewards[observation[0], observation[1], action] = reward
         observation_state = self.env.state_to_integer(observation)
+        self.dones[observation_state, action] = done
+        self.visits[observation_state, action] = 1
+        self.rewards[observation_state, action] = reward
         next_observation_state = self.env.state_to_integer(next_observation)
         self.state_transitions_dirichlet_alpha[observation_state, action, next_observation_state] += 1000
 
     def sample_parameters(self):
-        """Resample a new MDP using the distribution over MDP's."""
-        self.random_dones = np.random.binomial(1, p=np.ones([self.height, self.width, 4]) - .5)
-        self.random_rewards = np.random.random([self.height, self.width, 4])+50
-        self.state_transition_cat_probs =\
+        state_transition_cat_probs =\
             [
                 [
                     np.random.dirichlet(self.state_transitions_dirichlet_alpha[observation_state, action])
@@ -69,40 +61,45 @@ class QLearnableStochasticModel:
                 ]
                 for observation_state in range(self.num_states)
             ]
+        rewards = (1-self.visits) * (np.random.random([self.height*self.width, 4])+50) + \
+            self.visits * self.rewards
+        dones = (1-self.visits) * (np.random.binomial(1, p=np.ones([self.height*self.width, 4]) - .5)) + \
+            self.visits * self.dones
+        self.mdp = mdp.MDP(self.num_states, state_transition_cat_probs, rewards, dones)
 
     def print_dones(self):
         print("Dones:")
         print("  Up")
-        print("  ", self.dones[:, :, self.env.up])
+        print("  ", self.dones[:, self.env.up])
         print("  Down")
-        print("  ", self.dones[:, :, self.env.down])
+        print("  ", self.dones[:, self.env.down])
         print("  Right")
-        print("  ", self.dones[:, :, self.env.right])
+        print("  ", self.dones[:, self.env.right])
         print("  Left")
-        print("  ", self.dones[:, :, self.env.left])
+        print("  ", self.dones[:, self.env.left])
 
     def print_visits(self):
         print("Visits:")
         print("  Up")
-        print("  ", self.visits[:, :, self.env.up])
+        print("  ", self.visits[:, self.env.up])
         print("  Down")
-        print("  ", self.visits[:, :, self.env.down])
+        print("  ", self.visits[:, self.env.down])
         print("  Right")
-        print("  ", self.visits[:, :, self.env.right])
+        print("  ", self.visits[:, self.env.right])
         print("  Left")
-        print("  ", self.visits[:, :, self.env.left])
+        print("  ", self.visits[:, self.env.left])
 
     def print_sampled_rewards(self):
         sampled_rewards = self.visits*self.rewards + (1-self.visits)*self.random_rewards
         print("Sampled Rewards:")
         print("  Up")
-        print("  ", sampled_rewards[:, :, self.env.up])
+        print("  ", sampled_rewards[:, self.env.up])
         print("  Down")
-        print("  ", sampled_rewards[:, :, self.env.down])
+        print("  ", sampled_rewards[:, self.env.down])
         print("  Right")
-        print("  ", sampled_rewards[:, :, self.env.right])
+        print("  ", sampled_rewards[:, self.env.right])
         print("  Left")
-        print("  ", sampled_rewards[:, :, self.env.left])
+        print("  ", sampled_rewards[:, self.env.left])
 
     def print_sampled_transitions(self):
         sampled_transitions = self.state_transition_cat_probs
@@ -153,9 +150,7 @@ class StochasticLearnableModelAgent:
                 self.q_algorithm.reset()
                 self.q_algorithm.update(planning_steps=120)
                 if self.q_algorithm.q[self.observation[0], self.observation[1]].max() > best_q:
-                    best_mdp_state_transition_probs = copy.deepcopy(self.learnable_model.state_transition_cat_probs)
-                    best_mdp_random_rewards = copy.deepcopy(self.learnable_model.random_rewards)
-                    best_mdp_random_dones = copy.deepcopy(self.learnable_model.random_dones)
-            self.learnable_model.state_transition_cat_probs = best_mdp_state_transition_probs
-            self.learnable_model.random_rewards = best_mdp_random_rewards
-            self.learnable_model.random_dones = best_mdp_random_dones
+                    best_mdp = copy.deepcopy(self.learnable_model.mdp)
+            self.learnable_model.mdp = best_mdp
+            self.q_algorithm.reset()
+            self.q_algorithm.update(planning_steps=120)
