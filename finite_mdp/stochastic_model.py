@@ -45,8 +45,9 @@ class StochasticLearnableModelAgent:
                 self.q_algorithm.mdp = mdp
                 self.q_algorithm.reset()
                 self.q_algorithm.update(planning_steps=120)
-                if self.q_algorithm.q[observation].max() > best_q:
+                if self.q_algorithm.q[next_state].max() > best_q:
                     best_mdp = copy.deepcopy(mdp)
+                    best_q = self.q_algorithm.q[next_state].max()
             self.q_algorithm.mdp = best_mdp
             self.q_algorithm.reset()
             self.q_algorithm.update(planning_steps=120)
