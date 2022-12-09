@@ -6,10 +6,10 @@ import mdp_distribution
 
 
 class LearnableModelAgent:
-    def __init__(self, env):
+    def __init__(self, env, mdp_distribution):
         self.action = None
         self.observation = None
-        self.mdp_distribution = mdp_distribution.DeterministicMDPDistribution(env.height*env.width)
+        self.mdp_distribution = mdp_distribution
         self.q_algorithm = q_model.QAlgorithm(self.mdp_distribution.sample_mdp())
         self.steps = 0
         self.env = env
@@ -47,3 +47,13 @@ class LearnableModelAgent:
             self.q_algorithm.mdp = best_mdp
             self.q_algorithm.reset()
             self.q_algorithm.update(planning_steps=120)
+
+
+class DeterministicLearnableModelAgent(LearnableModelAgent):
+    def __init__(self, env):
+        super().__init__(env, mdp_distribution.DeterministicMDPDistribution(env.height * env.width))
+
+
+class StochasticLearnableModelAgent(LearnableModelAgent):
+    def __init__(self, env):
+        super().__init__(env, mdp_distribution.StochasticMDPDistribution(env.height * env.width))

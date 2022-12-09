@@ -5,7 +5,6 @@ import blocking_maze_environment
 import q_agents
 import model
 import learnable_model
-import stochastic_model
 
 
 ap = argparse.ArgumentParser(description="Finite MDP Trainer")
@@ -42,6 +41,7 @@ elif ns.env == "BlockingMaze":
     env = blocking_maze_environment.BlockingMazeEnvironment()
 else:
     print("Unknown Environment ", ns.env)
+    quit()
 env.reset()
 
 if ns.agent == "Random":
@@ -51,9 +51,9 @@ elif ns.agent == "QOnline":
 elif ns.agent == "Model":
     agent = model.ModelAgent(env)
 elif ns.agent == "LearnableModel":
-    agent = learnable_model.LearnableModelAgent(env)
+    agent = learnable_model.DeterministicLearnableModelAgent(env)
 elif ns.agent == "StochasticLearnableModel":
-    agent = stochastic_model.StochasticLearnableModelAgent(env)
+    agent = learnable_model.StochasticLearnableModelAgent(env)
 else:
     print("Unknown Agent ", ns.agent)
     quit(1)
