@@ -7,8 +7,10 @@ import py_dqn
 import py_tedqn
 import pg
 import pg_eligibility_traces
+import py_randomized_value_functions_dqn
 import human_agent
 import numpy as np
+import random_agent
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -87,6 +89,8 @@ if ns.agent == "PFRLDQN":
     agent = pfrl_dqn.PFRLDQNAgent(actions, tb_writer, q_max_steps)
 elif ns.agent == "PG":
     agent = pg.PGAgent(actions, tb_writer, ns.demo)
+elif ns.agent == "Random":
+    agent = random_agent.RandomAgent()
 elif ns.agent == "PGEligibility":
     agent = pg_eligibility_traces.PGEligibilityTracesAgent(actions, tb_writer, ns.demo)
 elif ns.agent == "PyDQN":
@@ -101,6 +105,11 @@ elif ns.agent == "PyTEDQN":
     if ns.demo:
         q_max_steps = 0
     agent = py_tedqn.PyTEDQNAgent(actions, tb_writer, q_max_steps)
+elif ns.agent == "PyRandomizedValueFunctionsDQN":
+    q_max_steps = ns.max_steps
+    if ns.demo:
+        q_max_steps = 0
+    agent = py_randomized_value_functions_dqn.PyRandomizedValueFunctionsDQNAgent(actions, tb_writer, q_max_steps)
 elif ns.agent == "HUMAN":
     agent = human_agent.HumanAgent()
 else:
