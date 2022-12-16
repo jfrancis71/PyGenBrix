@@ -25,42 +25,30 @@ n_actions = 6
 
 
 # Some ideas based on talk by Ian Osband, Deep Exploration via Randomized Value Functions
+# Have not really got it to work well. Maybe misunderstood
 class PyRandomizedValueFunctionsDQNAgent(nn.Module):
-    def __init__(self, actions, tb_writer, max_steps):
+    def __init__(self, actions, tb_writer, num_agents):
         super().__init__()
         n_actions = actions
-        self.subagent1 = py_dqn.PyDQNAgent(n_actions, None, max_steps)
-        self.subagent2 = py_dqn.PyDQNAgent(n_actions, None, max_steps)
+        self.subagents = [py_dqn.PyDQNAgent(n_actions, None, 0) for agent_idx in range(num_agents)]
         self.training_agent = 0
         self.steps = 0
+        self.num_agents = num_agents
 
     def act(self, observation, on_policy):
         self.observation = observation
         tensor_obs = torch.tensor(np.array([phi(observation)]), device="cuda")
-        all_actions1 = self.subagent1.moving_nn(tensor_obs)[0]
-        all_actions2 = self.subagent2.moving_nn(tensor_obs)[0]
+        all_actions_all_agents = [self.subagents[agent_idx].moving_nn(tensor_obs)[0] for agent_idx in range(self.num_agents)]
         if self.steps % 100 == 0:
-            if all_actions1.max() > all_actions2.max():
-                self.training_agent = 0
-            else:
-                self.training_agent = 1
-        if self.training_agent == 0:
-            self.action = all_actions1.argmax().item()
-        else:
-            self.action = all_actions2.argmax().item()
-        if self.training_agent == 0:
-            self.subagent1.action = self.action
-            self.subagent1.observation = self.observation
-        else:
-            self.subagent2.action = self.action
-            self.subagent2.observation = self.observation
+            best_action_all_agents = [all_actions_all_agents[agent_idx].max().detach().cpu() for agent_idx in range(self.num_agents)]
+            self.training_agent = np.array(best_action_all_agents).argmax().item()
+        self.action = all_actions_all_agents[self.training_agent].argmax().item()
+        self.subagents[self.training_agent].action = self.action
+        self.subagents[self.training_agent].observation = self.observation
         return self.action
 
     def observe(self, observation, reward, done, reset):
-        if self.training_agent == 0:
-            self.subagent1.observe(observation, reward, done, reset)
-        else:
-            self.subagent2.observe(observation, reward, done, reset)
+        self.subagents[self.training_agent].observe(observation, reward, done, reset)
         self.steps += 1
 
     def episode_end(self, tb_writer):

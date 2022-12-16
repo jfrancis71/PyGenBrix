@@ -62,6 +62,7 @@ ap.add_argument("--env", default="PongNoFrameskip-v4")
 ap.add_argument("--max_steps", default=500000, type=int)
 ap.add_argument("--multi_steps", default=2, type=int)
 ap.add_argument("--folder", default=None)
+ap.add_argument("--num_randomized_agents", default=2, type=int)
 #ap.add_argument("--device", default="cpu")
 #ap.add_argument("--rollout_length", default=3, type=int)
 ap.add_argument("--demo", action="store_true")
@@ -109,7 +110,7 @@ elif ns.agent == "PyRandomizedValueFunctionsDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
         q_max_steps = 0
-    agent = py_randomized_value_functions_dqn.PyRandomizedValueFunctionsDQNAgent(actions, tb_writer, q_max_steps)
+    agent = py_randomized_value_functions_dqn.PyRandomizedValueFunctionsDQNAgent(actions, tb_writer, ns.num_randomized_agents)
 elif ns.agent == "HUMAN":
     agent = human_agent.HumanAgent()
 else:
