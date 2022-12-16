@@ -20,6 +20,8 @@ class MDPDistribution:
     # Inspiration:
     # Bayes Approach for Planning and Learning in Partially Observable Markov Decision Process,
     # Ross, Pineau, Chaib-Draa, Kreitmann, 2011
+    # Also Ian Osband, YouTube: Deep Exploration via Randomized Value Functions
+    # Seems to work well in this explicit finite state MDP world.
     def __init__(self, num_states):
         self.dones = np.zeros([num_states, 4]) - 1
         self.rewards = np.zeros([num_states, 4])
