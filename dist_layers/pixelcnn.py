@@ -61,7 +61,7 @@ class _PixelCNNDistribution(nn.Module):
                     batch_shape = conditionals.shape[0]
                 else:
                     raise RuntimeError("In this impl we don't support sample_shape != [] and layer")
-            sampl = torch.zeros([batch_shape]+self.event_shape, device="cuda")
+            sampl = torch.zeros([batch_shape]+self.event_shape, device=next(self.parameters()).device)
             for y in range(self.event_shape[1]):
                 for x in range(self.event_shape[2]):
                     params=self.pixelcnn_net((sampl*2)-1, sample=True, conditional=conditionals)

@@ -55,7 +55,7 @@ class _SpatialIndependentDistribution(nn.Module):
             batch_size = params.shape[0]
         else:
             batch_size = samples_shape[0]
-        init1 = torch.zeros([batch_size] + self.event_shape, device="cuda")
+        init1 = torch.zeros([batch_size] + self.event_shape, device=(self.parameters()).device)
         l1 = self.n1(init1[:,:1], params)
         if temperature >= 0.01:
             init1[:,0] = self.base_distribution_layer(self.n1(init1[:,:1], params)).sample(temperature)[:,0]
