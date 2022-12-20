@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import vdvae.train as vdvae_train
-import PyGenBrix.Train as Train
+import PyGenBrix.utils.trainer as Train
 
 
 class EMATrainer(Train.LightningDistributionTrainer):

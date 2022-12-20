@@ -3,8 +3,8 @@ import torch.nn as nn
 import PyGenBrix.dist_layers.pixelcnn as cnn
 import PyGenBrix.dist_layers.spatial_independent as sp
 import PyGenBrix.dist_layers.common_layers as dl
-import PyGenBrix.models.residual_block as rb
-import PyGenBrix.models.binary_layer as bl
+import PyGenBrix.image_models.residual_block as rb
+import PyGenBrix.image_models.binary_layer as bl
 
 
 class Encoder(nn.Module):

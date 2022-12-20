@@ -4,7 +4,7 @@ import PyGenBrix.dist_layers.spatial_independent as sp
 import PyGenBrix.dist_layers.pixelcnn as pixel_cnn
 import PyGenBrix.dist_layers.parallelcnn as parallel_cnn
 import PyGenBrix.dist_layers.vdvae as vdvae
-import PyGenBrix.models.lb_autoencoder as lbae
+import PyGenBrix.image_models.lb_autoencoder as lbae
 import pygenbrix_layer as pygl
 import os
 import PIL

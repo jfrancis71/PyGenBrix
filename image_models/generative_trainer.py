@@ -2,9 +2,9 @@ import argparse
 import torchvision
 import pytorch_lightning as pl
 
-import PyGenBrix.Train as Train
-import PyGenBrix.ema_trainer as ema_trainer
-import PyGenBrix.models.parser as parser
+import PyGenBrix.utils.trainer as Train
+import PyGenBrix.utils.ema_trainer as ema_trainer
+import PyGenBrix.image_models.parser as parser
 
 ap = argparse.ArgumentParser(description="generative_trainer")
 ap.add_argument("--tensorboard_log")
