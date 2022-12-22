@@ -58,6 +58,9 @@ if ns.env == "PyCliffWalking":
     env = GridToIntegerEnvironment(py_cliff_environment.GridCliffEnvironment())
 elif ns.env == "CliffWalking":
     env = gym.make("CliffWalking-v0", render_mode="human")
+elif ns.env == "FrozenLake":
+    # our algorithms currently assume done transitions are deterministic, hence set slippery=False
+    env = gym.make("FrozenLake-v1", render_mode="human", is_slippery=False)
 elif ns.env == "BlockingMaze":
     env = GridToIntegerEnvironment(blocking_maze_environment.GridBlockingMazeEnvironment())
 else:
@@ -79,6 +82,6 @@ else:
     print("Unknown Agent ", ns.agent)
     quit(1)
 
-for _ in range(25):
+while True:
     total_reward, episode_length = run_episode()
     print("Total reward=", total_reward, ", Length=", episode_length)
