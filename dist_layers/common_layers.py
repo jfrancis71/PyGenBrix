@@ -2,6 +2,11 @@ import torch
 import torch.nn as nn
 
 
+# TODO: Add attribute event_shape to all distribution objects.
+# TODO: Add error checking to confirm all distributions are 3D objects.
+# TODO: Layer objects should define event_shape on construction
+
+
 def quantize(x, num_buckets):
     quantized_samples = torch.clamp((x*num_buckets).floor(), 0, num_buckets-1)
     return quantized_samples/num_buckets + 1.0/(num_buckets*2.0)
