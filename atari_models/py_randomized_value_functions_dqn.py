@@ -25,12 +25,16 @@ n_actions = 6
 
 
 # Some ideas based on talk by Ian Osband, Deep Exploration via Randomized Value Functions
+# Also see Bootstrapped DQN by Ian Osband
 # Have not really got it to work well. Maybe misunderstood
 class PyRandomizedValueFunctionsDQNAgent(nn.Module):
     def __init__(self, actions, tb_writer, num_agents):
         super().__init__()
         n_actions = actions
         self.subagents = [py_dqn.PyDQNAgent(n_actions, None, 0) for agent_idx in range(num_agents)]
+        self.replay_buffer = py_dqn.ReplayBuffer()
+        for agent_idx in range(num_agents):
+            self.subagents[agent_idx].replay_buffer = self.replay_buffer
         self.training_agent = 0
         self.steps = 0
         self.num_agents = num_agents
@@ -43,12 +47,13 @@ class PyRandomizedValueFunctionsDQNAgent(nn.Module):
             best_action_all_agents = [all_actions_all_agents[agent_idx].max().detach().cpu() for agent_idx in range(self.num_agents)]
             self.training_agent = np.array(best_action_all_agents).argmax().item()
         self.action = all_actions_all_agents[self.training_agent].argmax().item()
-        self.subagents[self.training_agent].action = self.action
-        self.subagents[self.training_agent].observation = self.observation
         return self.action
 
     def observe(self, observation, reward, done, reset):
-        self.subagents[self.training_agent].observe(observation, reward, done, reset)
+        self.replay_buffer.append(self.observation, self.action, reward, observation)
+        for agent_idx in range(self.num_agents):
+            self.subagents[agent_idx].steps = self.steps
+            self.subagents[agent_idx].sample_and_improve(32)
         self.steps += 1
 
     def episode_end(self, tb_writer):
