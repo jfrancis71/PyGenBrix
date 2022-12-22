@@ -1,6 +1,6 @@
 import numpy as np
 
-class BlockingMazeEnvironment:
+class GridBlockingMazeEnvironment:
     """CliffEnvironment is implementation of Sutton and Barto example on page 166 (2nd Edition)"""
     def __init__(self):
         self.height, self.width = 6, 9

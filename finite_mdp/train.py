@@ -1,15 +1,16 @@
 import argparse
 import numpy as np
-import cliff_environment
+import py_cliff_environment
 import blocking_maze_environment
 import q_agents
 import model
 import learnable_model
+import gym
 
 
 ap = argparse.ArgumentParser(description="Finite MDP Trainer")
 ap.add_argument("--agent")
-ap.add_argument("--env", default="Cliff")
+ap.add_argument("--env", default="PyCliffWalking")
 ns = ap.parse_args()
 
 
@@ -21,7 +22,6 @@ def run_episode():
     observation = env.reset()
     while not done:
         path.append(observation)
-        assert observation == env.current_state
         action = agent.act(observation)
         new_observation, reward, done, info = env.step(action)
         total_reward += reward
@@ -33,12 +33,33 @@ def run_episode():
     return total_reward, episode_length
 
 
+class GridToIntegerEnvironment:
+    """GridToIntegerEnvironment wraps a grid environment; so state (row,column) pairs are mapped
+       to integer state representations.
+    """
+    def __init__(self, grid_env):
+        self.grid_env = grid_env
+        self.observation_space = gym.spaces.Discrete(self.grid_env.height*self.grid_env.width)
+
+    def reset(self):
+        grid_state = self.grid_env.reset()
+        state = grid_state[0]*self.grid_env.width + grid_state[1]
+        return state
+
+    def step(self, action):
+        grid_state, reward, done, info = self.grid_env.step(action)
+        state = grid_state[0]*self.grid_env.width + grid_state[1]
+        return state, reward, done, info
+
+
 np.set_printoptions(edgeitems=30, linewidth=100000,
                     formatter=dict(float=lambda x: "%.3g" % x))
-if ns.env == "Cliff":
-    env = cliff_environment.CliffEnvironment()
+if ns.env == "PyCliffWalking":
+    env = GridToIntegerEnvironment(py_cliff_environment.GridCliffEnvironment())
+elif ns.env == "CliffWalking":
+    env = gym.make("CliffWalking-v0", render_mode="human")
 elif ns.env == "BlockingMaze":
-    env = blocking_maze_environment.BlockingMazeEnvironment()
+    env = GridToIntegerEnvironment(blocking_maze_environment.GridBlockingMazeEnvironment())
 else:
     print("Unknown Environment ", ns.env)
     quit()

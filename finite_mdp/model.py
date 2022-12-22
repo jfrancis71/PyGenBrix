@@ -1,7 +1,6 @@
 import random
 import copy
 import q_model
-import cliff_environment
 
 class Model:
     def __init__(self, env):

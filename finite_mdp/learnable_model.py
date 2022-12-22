@@ -6,18 +6,16 @@ import mdp_distribution
 
 
 class LearnableModelAgent:
-    def __init__(self, env, mdp_distribution):
+    def __init__(self, mdp_distribution):
         self.action = None
         self.observation = None
         self.mdp_distribution = mdp_distribution
         self.q_algorithm = q_model.QAlgorithm(self.mdp_distribution.sample_mdp())
         self.steps = 0
-        self.env = env
 
     def act(self, observation):
         """return best action from current MDP given current observation"""
-        state = self.env.state_to_integer(observation)
-        q = self.q_algorithm.q[state]
+        q = self.q_algorithm.q[observation]
         action = q.argmax()
         self.action = action
         self.observation = observation
@@ -28,8 +26,8 @@ class LearnableModelAgent:
         """Update determistic functions reward and done, and update probability distribution over state transitions
         Intermittently resample an MDP using the most optimistic (with respect to the
         current observation) of a sample of MDP's."""
-        state = self.env.state_to_integer(self.observation)
-        next_state = self.env.state_to_integer(observation)
+        state = self.observation
+        next_state = observation
         self.mdp_distribution.update(state, self.action, reward, done, next_state)
         # Could consider replanning if new observations substantially change the probability distributions over MDP's,
         if self.steps % 20 == 0:
@@ -51,9 +49,9 @@ class LearnableModelAgent:
 
 class DeterministicLearnableModelAgent(LearnableModelAgent):
     def __init__(self, env):
-        super().__init__(env, mdp_distribution.DeterministicMDPDistribution(env.height * env.width))
+        super().__init__(mdp_distribution.DeterministicMDPDistribution(env.observation_space.n))
 
 
 class StochasticLearnableModelAgent(LearnableModelAgent):
     def __init__(self, env):
-        super().__init__(env, mdp_distribution.StochasticMDPDistribution(env.height * env.width))
+        super().__init__(mdp_distribution.StochasticMDPDistribution(env.observation_space.n))
