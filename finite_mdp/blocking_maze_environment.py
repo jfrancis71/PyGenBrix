@@ -42,9 +42,3 @@ class GridBlockingMazeEnvironment:
         if self.current_state[0] == 0 and self.current_state[1] == self.width-1:
             done = True
         return self.current_state.copy(), reward, done, info
-
-    def state_to_integer(self, state):
-        return state[0]*self.width + state[1]
-
-    def integer_to_state(self, state_no):
-        return np.array([state_no/self.width, state_no % self.width], dtype=np.int64)
