@@ -17,13 +17,14 @@ class ModelAgent:
         self.action = None
         self.observation = None
         self.q_algorithm = q_model.QAlgorithm(Model(env), env)
+        self.num_actions = env.action_space()
 
     def act(self, observation):
         if random.random() > .1:
             q = self.q_algorithm.q[observation[0], observation[1]]
             action = q.argmax()
         else:
-            action = random.sample(range(4), 1)[0]
+            action = random.sample(range(self.num_actions), 1)[0]
         self.action = action
         self.observation = observation
         return action

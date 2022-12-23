@@ -54,4 +54,4 @@ class DeterministicLearnableModelAgent(LearnableModelAgent):
 
 class StochasticLearnableModelAgent(LearnableModelAgent):
     def __init__(self, env):
-        super().__init__(mdp_distribution.StochasticMDPDistribution(env.observation_space.n))
+        super().__init__(mdp_distribution.StochasticMDPDistribution(env.observation_space.n, env.action_space.n))

@@ -4,7 +4,7 @@ import numpy as np
 
 class QAlgorithm:
     def __init__(self, mdp):
-        self.q = np.zeros([mdp.num_states, 4])
+        self.q = np.zeros([mdp.num_states, mdp.num_actions])
         self.mdp = mdp
 
     def reset(self):
@@ -14,7 +14,7 @@ class QAlgorithm:
         # Iterate through every q state
         for i in range(planning_steps):
             for s in range(self.mdp.num_states):
-                for a in range(4):
+                for a in range(self.mdp.num_actions):
                     new_state, reward, done, info = self.mdp.sample(s, a)
                     target_q = self.q[new_state].max()
                     if done:

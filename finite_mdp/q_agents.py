@@ -2,8 +2,8 @@ import random
 import numpy as np
 
 class RandomAgent:
-    def act(self, observation):
-        return random.sample(range(4), 1)[0]
+    def act(self, observation, num_actions):
+        return random.sample(range(num_actions), 1)[0]
 
     def observe(self, new_observation, reward, done, reset):
         pass
@@ -11,7 +11,7 @@ class RandomAgent:
 
 class QOnlineAgent:
     def __init__(self, height, width):
-        self.q = np.zeros([height, width, 4])
+        self.q = np.zeros([height, width, num_actions])
         self.action = None
         self.observation = None
 
@@ -20,7 +20,7 @@ class QOnlineAgent:
             q = self.q[observation[0], observation[1]]
             action = q.argmax()
         else:
-            action = random.sample(range(4), 1)[0]
+            action = random.sample(range(num_actions), 1)[0]
         self.action = action
         self.observation = observation
         return action

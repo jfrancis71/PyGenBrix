@@ -22,11 +22,12 @@ class MDPDistribution:
     # Ross, Pineau, Chaib-Draa, Kreitmann, 2011
     # Also Ian Osband, YouTube: Deep Exploration via Randomized Value Functions
     # Seems to work well in this explicit finite state MDP world.
-    def __init__(self, num_states):
-        self.dones = np.zeros([num_states, 4]) - 1
-        self.rewards = np.zeros([num_states, 4])
-        self.visits = np.zeros([num_states, 4], dtype=np.int64)
+    def __init__(self, num_states, num_actions):
+        self.dones = np.zeros([num_states, num_actions]) - 1
+        self.rewards = np.zeros([num_states, num_actions])
+        self.visits = np.zeros([num_states, num_actions], dtype=np.int64)
         self.num_states = num_states
+        self.num_actions = num_actions
 
     def update(self, state, action, reward, done, next_state):
         """Update the distribution over MDP's using this state transition.
@@ -34,17 +35,17 @@ class MDPDistribution:
         Note: does not affect current MDP"""
         if self.visits[state, action] > 0:
             if self.rewards[state, action] != reward:
-                raise "Reward is assumed deterministic, but different value from previous update"
+                raise RuntimeError("Reward is assumed deterministic, but current reward {} different from previous reward {} from state {} executing action {}".format(reward, self.rewards[state, action], state, action))
             if self.dones[state, action] != done:
-                raise "Done is assumed deterministic, but different value from previous update"
+                raise RuntimeError("Done is assumed deterministic, but current done {} different from previous done {} from state {} executing action {}".format(done, self.dones[state, action], state, action))
         self.rewards[state, action] = reward
         self.dones[state, action] = done
         self.visits[state, action] = 1
 
     def sample_mdp(self):
-        rewards = (1-self.visits) * (np.random.random([self.num_states, 4])+50) + \
+        rewards = (1-self.visits) * (np.random.random([self.num_states, self.num_actions])+50) + \
             self.visits * self.rewards
-        dones = (1-self.visits) * (np.random.binomial(1, p=np.ones([self.num_states, 4]) - .5)) + \
+        dones = (1-self.visits) * (np.random.binomial(1, p=np.ones([self.num_states, self.num_actions]) - .5)) + \
             self.visits * self.dones
         return rewards, dones
 
@@ -96,9 +97,9 @@ class MDPDistribution:
 
 
 class StochasticMDPDistribution(MDPDistribution):
-    def __init__(self, num_states):
-        super(StochasticMDPDistribution, self).__init__(num_states)
-        self.state_transitions_dirichlet_alpha = np.ones([num_states, 4, num_states])*.01
+    def __init__(self, num_states, num_actions):
+        super(StochasticMDPDistribution, self).__init__(num_states, num_actions)
+        self.state_transitions_dirichlet_alpha = np.ones([num_states, num_actions, num_states])*.01
 
     def update(self, state, action, reward, done, next_state):
         """Update the distribution over MDP's using this state transition.
@@ -112,18 +113,18 @@ class StochasticMDPDistribution(MDPDistribution):
             [
                 [
                     np.random.dirichlet(self.state_transitions_dirichlet_alpha[observation_state, action])
-                    for action in range(4)
+                    for action in range(self.num_actions)
                 ]
                 for observation_state in range(self.num_states)
             ]
         rewards, dones = super(StochasticMDPDistribution, self).sample_mdp()
-        return mdp.MDP(self.num_states, state_transition_cat_probs, rewards, dones)
+        return mdp.MDP(self.num_states, self.num_actions, state_transition_cat_probs, rewards, dones)
 
 
 class DeterministicMDPDistribution(MDPDistribution):
     def __init__(self, num_states):
         super(DeterministicMDPDistribution, self).__init__(num_states)
-        self.state_transitions = np.zeros([self.num_states, 4, self.num_states])
+        self.state_transitions = np.zeros([self.num_states, self.num_actions, self.num_states])
 
     def update(self, state, action, reward, done, next_state):
         """Update the distribution over MDP's using this state transition.
@@ -137,10 +138,10 @@ class DeterministicMDPDistribution(MDPDistribution):
 
     def sample_mdp(self):
         rewards, dones = super(DeterministicMDPDistribution, self).sample_mdp()
-        random_transitions = np.random.randint(self.num_states, size=[self.num_states, 4])
-        state_transitions = np.zeros([self.num_states, 4, self.num_states])
+        random_transitions = np.random.randint(self.num_states, size=[self.num_states, self.num_actions])
+        state_transitions = np.zeros([self.num_states, self.num_actions, self.num_states])
         for s in range(self.num_states):
-            for a in range(4):
+            for a in range(self.num_actions):
                 if self.visits[s,a] == 0:
                     state_transitions[s, a, random_transitions[s, a]] = 1.0
                 else:

@@ -56,13 +56,15 @@ np.set_printoptions(edgeitems=30, linewidth=100000,
                     formatter=dict(float=lambda x: "%.3g" % x))
 if ns.env == "PyCliffWalking":
     env = GridToIntegerEnvironment(py_cliff_environment.GridCliffEnvironment())
+elif ns.env == "BlockingMaze":
+    env = GridToIntegerEnvironment(blocking_maze_environment.GridBlockingMazeEnvironment())
 elif ns.env == "CliffWalking":
     env = gym.make("CliffWalking-v0", render_mode="human")
 elif ns.env == "FrozenLake":
     # our algorithms currently assume done transitions are deterministic, hence set slippery=False
-    env = gym.make("FrozenLake-v1", render_mode="human", is_slippery=False)
-elif ns.env == "BlockingMaze":
-    env = GridToIntegerEnvironment(blocking_maze_environment.GridBlockingMazeEnvironment())
+    env = gym.make("FrozenLake-v1", render_mode="human", is_slippery=False, max_episode_steps=1000000)
+elif ns.env == "Taxi":
+    env = gym.make("Taxi-v3", render_mode="human", max_episode_steps=1000000)
 else:
     print("Unknown Environment ", ns.env)
     quit()
