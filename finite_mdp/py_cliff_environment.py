@@ -12,6 +12,7 @@ class GridCliffEnvironment:
         self.up = 1
         self.right = 2
         self.down = 3
+        self.num_actions = 4
 
     def reset(self):
         """
