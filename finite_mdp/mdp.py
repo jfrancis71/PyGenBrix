@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 
 class MDP:
@@ -21,3 +22,9 @@ class MDP:
         reward = self.rewards[state, action]
         next_state = np.random.choice(self.num_states, p=self.state_transition_probs[state][action])
         return next_state, reward, done, None
+
+    def samples(self):
+        dones = self.dones
+        rewards = self.rewards
+        next_states = torch.distributions.categorical.Categorical(probs=torch.tensor(self.state_transition_probs)).sample()
+        return next_states, rewards, dones, None

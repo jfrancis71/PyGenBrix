@@ -109,14 +109,14 @@ class StochasticMDPDistribution(MDPDistribution):
         self.state_transitions_dirichlet_alpha[state, action, next_state] += 1000
 
     def sample_mdp(self):
-        state_transition_cat_probs =\
+        state_transition_cat_probs = np.array(
             [
                 [
                     np.random.dirichlet(self.state_transitions_dirichlet_alpha[observation_state, action])
                     for action in range(self.num_actions)
                 ]
                 for observation_state in range(self.num_states)
-            ]
+            ])
         rewards, dones = super(StochasticMDPDistribution, self).sample_mdp()
         return mdp.MDP(self.num_states, self.num_actions, state_transition_cat_probs, rewards, dones)
 

@@ -1,5 +1,6 @@
 import copy
 import numpy as np
+import torch
 
 
 class QAlgorithm:
@@ -13,14 +14,10 @@ class QAlgorithm:
     def update(self, planning_steps=1):
         # Iterate through every q state
         for i in range(planning_steps):
-            for s in range(self.mdp.num_states):
-                for a in range(self.mdp.num_actions):
-                    new_state, reward, done, info = self.mdp.sample(s, a)
-                    target_q = self.q[new_state].max()
-                    if done:
-                        target_q = reward
-                    diff = ((.99*target_q + reward) - self.q[s, a])
-                    self.q[s, a] += .1 * diff
+             next_states, rewards, dones, info = self.mdp.samples()
+             target_q = torch.index_select(torch.tensor(self.q),0,next_states.flatten()).reshape([self.mdp.num_states,self.mdp.num_actions,self.mdp.num_actions]).max(dim=2)[0] * (1-dones) + dones*rewards
+             diff = ((.99*target_q + rewards) - self.q)
+             self.q += .1 * diff.numpy()
 
     def print(self):
         print("Q:")
