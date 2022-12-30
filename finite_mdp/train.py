@@ -40,6 +40,7 @@ class GridToIntegerEnvironment:
     def __init__(self, grid_env):
         self.grid_env = grid_env
         self.observation_space = gym.spaces.Discrete(self.grid_env.height*self.grid_env.width)
+        self.action_space = gym.spaces.Discrete(self.grid_env.num_actions)
 
     def reset(self):
         grid_state = self.grid_env.reset()
