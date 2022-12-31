@@ -122,8 +122,8 @@ class StochasticMDPDistribution(MDPDistribution):
 
 
 class DeterministicMDPDistribution(MDPDistribution):
-    def __init__(self, num_states):
-        super(DeterministicMDPDistribution, self).__init__(num_states)
+    def __init__(self, num_states, num_actions):
+        super(DeterministicMDPDistribution, self).__init__(num_states, num_actions)
         self.state_transitions = np.zeros([self.num_states, self.num_actions, self.num_states])
 
     def update(self, state, action, reward, done, next_state):
@@ -146,4 +146,4 @@ class DeterministicMDPDistribution(MDPDistribution):
                     state_transitions[s, a, random_transitions[s, a]] = 1.0
                 else:
                     state_transitions[s, a] = self.state_transitions[s,a]
-        return mdp.MDP(self.num_states, state_transitions, rewards, dones)
+        return mdp.MDP(self.num_states, self.num_actions, state_transitions, rewards, dones)
