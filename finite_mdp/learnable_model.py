@@ -12,6 +12,7 @@ class LearnableModelAgent:
         self.mdp_distribution = mdp_distribution
         self.q_algorithm = q_model.QAlgorithm(self.mdp_distribution.sample_mdp())
         self.steps = 0
+        self.explored = -1
 
     def act(self, observation):
         """return best action from current MDP given current observation"""
@@ -29,9 +30,10 @@ class LearnableModelAgent:
         state = self.observation
         next_state = observation
         self.mdp_distribution.update(state, self.action, reward, done, next_state)
-        # Could consider replanning if new observations substantially change the probability distributions over MDP's,
-        if self.steps % 20 == 0:
-            print("Total explored=", self.mdp_distribution.visits.sum())
+        # Replanning if we have learnt something new.
+        if self.steps % 20 == 0 or self.mdp_distribution.visits.sum() > self.explored:
+            self.explored = self.mdp_distribution.visits.sum()
+            print("Total explored=", self.explored)
             best_q = -1000000
             best_mdp_state_transition_probs, best_mdp_random_rewards, best_mdp_random_dones = None, None, None
             for mdp_sample_i in range(10):
