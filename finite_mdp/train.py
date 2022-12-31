@@ -59,6 +59,8 @@ if ns.env == "PyCliffWalking":
     env = GridToIntegerEnvironment(py_cliff_environment.GridCliffEnvironment())
 elif ns.env == "BlockingMaze":
     env = GridToIntegerEnvironment(blocking_maze_environment.GridBlockingMazeEnvironment())
+# Note, CliffWalking slightly different to PyCliffWalking, as walking off cliff takes you back
+# to start, therefore cliff states (like end state) are never visited.
 elif ns.env == "CliffWalking":
     env = gym.make("CliffWalking-v0", render_mode="human")
 elif ns.env == "FrozenLake":
