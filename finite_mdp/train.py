@@ -11,6 +11,7 @@ import gym
 ap = argparse.ArgumentParser(description="Finite MDP Trainer")
 ap.add_argument("--agent")
 ap.add_argument("--env", default="PyCliffWalking")
+ap.add_argument("--device", default="cpu")
 ns = ap.parse_args()
 
 
@@ -80,9 +81,9 @@ elif ns.agent == "QOnline":
 elif ns.agent == "Model":
     agent = model.ModelAgent(env)
 elif ns.agent == "LearnableModel":
-    agent = learnable_model.DeterministicLearnableModelAgent(env)
+    agent = learnable_model.DeterministicLearnableModelAgent(env).to(ns.device)
 elif ns.agent == "StochasticLearnableModel":
-    agent = learnable_model.StochasticLearnableModelAgent(env)
+    agent = learnable_model.StochasticLearnableModelAgent(env).to(ns.device)
 else:
     print("Unknown Agent ", ns.agent)
     quit(1)

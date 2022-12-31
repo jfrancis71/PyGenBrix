@@ -28,6 +28,7 @@ class MDPDistribution:
         self.visits = np.zeros([num_states, num_actions], dtype=np.int64)
         self.num_states = num_states
         self.num_actions = num_actions
+        self.device = "cpu"
 
     def update(self, state, action, reward, done, next_state):
         """Update the distribution over MDP's using this state transition.
@@ -118,7 +119,7 @@ class StochasticMDPDistribution(MDPDistribution):
                 for observation_state in range(self.num_states)
             ])
         rewards, dones = super(StochasticMDPDistribution, self).sample_mdp()
-        return mdp.MDP(self.num_states, self.num_actions, state_transition_cat_probs, rewards, dones)
+        return mdp.MDP(self.num_states, self.num_actions, state_transition_cat_probs, rewards, dones, device=self.device)
 
 
 class DeterministicMDPDistribution(MDPDistribution):
@@ -146,4 +147,7 @@ class DeterministicMDPDistribution(MDPDistribution):
                     state_transitions[s, a, random_transitions[s, a]] = 1.0
                 else:
                     state_transitions[s, a] = self.state_transitions[s,a]
-        return mdp.MDP(self.num_states, self.num_actions, state_transitions, rewards, dones)
+        return mdp.MDP(self.num_states, self.num_actions, state_transitions, rewards, dones, device=self.device)
+
+    def to(self, device):
+        self.device = device
