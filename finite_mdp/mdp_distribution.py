@@ -106,7 +106,7 @@ class StochasticMDPDistribution(MDPDistribution):
 
         Note: does not affect current MDP"""
         super(StochasticMDPDistribution, self).update(state, action, reward, done, next_state)
-        self.state_transitions_dirichlet_alpha[state, action, next_state] += 1000
+        self.state_transitions_dirichlet_alpha[state, action, next_state] += 5000
 
     def sample_mdp(self):
         state_transition_cat_probs = np.array(
