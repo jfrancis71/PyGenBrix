@@ -7,6 +7,8 @@ class MDP(nn.Module):
     """Markov Decision Process - States are categorical variables with a stochastic state transition.
     rewards and dones are deterministic functions"""
     def __init__(self, num_states, num_actions, state_transition_probs, rewards, dones, device="cpu"):
+    # note, we need option to specify device, the to function would not transfer the categorical
+    # distribution correctly, and creating the distribution on each call to sample(s) is...slow
         super().__init__()
         if rewards.shape != (num_states, num_actions):
             raise RuntimeError("rewards shape {} does not match num_states {}".format(rewards.shape, num_states))
