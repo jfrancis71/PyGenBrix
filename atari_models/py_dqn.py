@@ -85,6 +85,7 @@ class PyDQNAgent(nn.Module):
         self.optimizer = optim.RMSprop(self.moving_nn.parameters(), lr=5e-5)
         self.loss_fn = nn.MSELoss()
         self.moving_average_loss = py_utils.MovingAverage(gamma=.9995)
+        self.moving_average_q = py_utils.MovingAverage(gamma=.9995)
         self.tb_writer = tb_writer
 
     def act(self, observation, on_policy, demo=False):
@@ -116,6 +117,7 @@ class PyDQNAgent(nn.Module):
             self.moving_average_loss.update(loss.item())
             if self.tb_writer is not None and self.steps % 1000 == 0:
                 self.tb_writer.add_scalar("loss", self.moving_average_loss.value(), self.steps)
+                self.tb_writer.add_scalar("q", self.moving_average_q.value(), self.steps)
         if ( self.steps % self.target_update_interval) == 0:
             self.target_nn.load_state_dict(self.moving_nn.state_dict())
 
@@ -127,6 +129,7 @@ class PyDQNAgent(nn.Module):
         curr_state_action_value = self.moving_nn(states[:,0]).gather(1,actions[:,:1])[:,0]
         next_state_action_value = self.target_nn(next_states[:,0]).max(1)[0].detach()
         q_target = rewards[:,0] + .99 * next_state_action_value
+        self.moving_average_q.update(q_target.mean().item())
         return self.loss_fn(curr_state_action_value, q_target)
 
     def save(self, filename):
