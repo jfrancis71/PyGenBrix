@@ -101,11 +101,6 @@ elif ns.agent == "TreeBackupDQN":
     if ns.demo:
         q_max_steps = 0
     agent = treebackup_dqn.PyDQNAgent(actions, tb_writer, q_max_steps, ns.multi_steps)
-elif ns.agent == "PyTEDQN":
-    q_max_steps = ns.max_steps
-    if ns.demo:
-        q_max_steps = 0
-    agent = py_tedqn.PyTEDQNAgent(actions, tb_writer, q_max_steps)
 elif ns.agent == "PyRandomizedValueFunctionsDQN":
     q_max_steps = ns.max_steps
     if ns.demo:
