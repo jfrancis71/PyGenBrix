@@ -21,22 +21,21 @@ import py_dqn
 def phi(x):
     return np.asarray(x, dtype=np.float32) / 255
 
-n_actions = 6
 
-
-# Some ideas based on talk by Ian Osband, Deep Exploration via Randomized Value Functions
-# Also see Bootstrapped DQN by Ian Osband
+# Some ideas based on youtube talk by Ian Osband, Deep Exploration via Randomized Value Functions
+# Also see Deep Bootstrapped DQN by Osband, Blundell, Pritzel, Van Roy, 2016
+# Also see Deep Exploration via Randomized Value Functions by Osband, Van Roy, Russo, Wen 2019 
 # Have not really got it to work well. Maybe misunderstood
+# On pong, the initial policy seems to igmore observations, so paddle is nearly always at edges,
+# so interesting observations to learn from.
 class PyRandomizedValueFunctionsDQNAgent(nn.Module):
     def __init__(self, actions, tb_writer, num_agents):
         super().__init__()
         n_actions = actions
         self.subagents = [py_dqn.PyDQNAgent(n_actions, None, 0) for agent_idx in range(num_agents)]
-        self.replay_buffer = py_dqn.ReplayBuffer()
-        for agent_idx in range(num_agents):
-            self.subagents[agent_idx].replay_buffer = self.replay_buffer
         self.training_agent = 0
-        self.steps = 0
+        self.steps = 9900  # DQN's start training at 10,000; so allow for some entries in replay
+                           # buffer before starting training.
         self.num_agents = num_agents
 
     def act(self, observation, on_policy):
@@ -44,13 +43,15 @@ class PyRandomizedValueFunctionsDQNAgent(nn.Module):
         tensor_obs = torch.tensor(np.array([phi(observation)]), device="cuda")
         all_actions_all_agents = [self.subagents[agent_idx].moving_nn(tensor_obs)[0] for agent_idx in range(self.num_agents)]
         if self.steps % 100 == 0:
-            best_action_all_agents = [all_actions_all_agents[agent_idx].max().detach().cpu() for agent_idx in range(self.num_agents)]
-            self.training_agent = np.array(best_action_all_agents).argmax().item()
+            self.training_agent = np.random.randint(0, len(self.subagents))
         self.action = all_actions_all_agents[self.training_agent].argmax().item()
         return self.action
 
     def observe(self, observation, reward, done, reset):
-        self.replay_buffer.append(self.observation, self.action, reward, observation)
+        replacement_sampling = np.random.randint(0, len(self.subagents), len(self.subagents))
+        for agent_idx in replacement_sampling:
+            reward_noise = np.random.random()*0.1
+            self.subagents[agent_idx].replay_buffer.append(self.observation, self.action, reward+reward_noise, observation)
         for agent_idx in range(self.num_agents):
             self.subagents[agent_idx].steps = self.steps
             self.subagents[agent_idx].sample_and_improve(32)
