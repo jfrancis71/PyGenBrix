@@ -4,7 +4,6 @@ from pfrl.wrappers import atari_wrappers as pfrl_atari_wrappers
 import pfrl_dqn
 import treebackup_dqn
 import py_dqn
-import py_tedqn
 import pg
 import pg_eligibility_traces
 import py_randomized_value_functions_dqn
