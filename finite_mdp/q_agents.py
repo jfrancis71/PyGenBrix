@@ -2,8 +2,11 @@ import random
 import numpy as np
 
 class RandomAgent:
-    def act(self, observation, num_actions):
-        return random.sample(range(num_actions), 1)[0]
+    def __init__(self, env):
+        self.num_actions = env.action_space.n
+
+    def act(self, observation):
+        return random.sample(range(self.num_actions), 1)[0]
 
     def observe(self, new_observation, reward, done, reset):
         pass
