@@ -13,16 +13,24 @@ class SequenceLSTM(nn.Module):
         self.fc = nn.Linear(n_hidden, num_tokens)
 
     def log_prob(self, x):
+        """t = torch.tensor([[1,2,3,4],[5,6,0,0]])
+        seq.log_prob(t)
+        >>> tensor([-11.3819, -11.3357], grad_fn=<SumBackward1>)
+        """
+        # x is a 0 padded sequence of shape [B,S]
+
         # sequence is used both for input and as a target for the LSTM network.
-        # Therefore, it is prepended and appended with 0. The 0 prepend indicates
-        # start of sequence, and the appended 0 indicates end of sequence.
+        # We prepend with 0 and appended with 1. The 0 prepend indicates
+        # start of sequence, and the appended 1 indicates end of sequence.
         # The appropriate left and right subsequences are fed in as
-        # input and target respectively
+        # input and target respectively. So note, the input to the LSTM can consist
+        # of 0 and 1's. 0 indicating start of sequence, appended 1 indicating
+        # end of sequence, and intermediate 1's padding sequence to same length
         sequence = torch.zeros([x.shape[0], x.shape[1] + 2], dtype=torch.int64)
-        sequence[:, 1:-1] = x
-        # I'm using 0 token as both start and end tokens; 0 token on input means start, 0 token on output means end
+        sequence[:, 1:-1] = x+1
+        sequence[:, -1] = 1
         logits = self(sequence)[0][:, :-1]
-        log_prob = torch.sum(torch.distributions.categorical.Categorical(logits=logits).log_prob(sequence[:, 1:]), dim=1)
+        log_prob = torch.sum(torch.distributions.categorical.Categorical(logits=logits).log_prob(sequence[:, 1:]-1), dim=1)
         return log_prob
 
     def sample(self):
@@ -31,8 +39,8 @@ class SequenceLSTM(nn.Module):
         while next_token[0] != 0:
             next_token_logits = self(input_sequence)[0][:, -1]
             next_token = torch.distributions.categorical.Categorical(logits=next_token_logits).sample()
-            input_sequence = torch.cat((input_sequence, next_token.unsqueeze(1)), dim=1)
-        sampled_sequence = input_sequence[0, 1:-1]  # remove start and end symbols
+            input_sequence = torch.cat((input_sequence, 1+next_token.unsqueeze(1)), dim=1)
+        sampled_sequence = input_sequence[0, 1:-1]-1  # remove start and end symbols
         return sampled_sequence
 
     def forward(self, x):
