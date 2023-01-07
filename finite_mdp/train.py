@@ -75,7 +75,7 @@ else:
 env.reset()
 
 if ns.agent == "Random":
-    agent = q_agents.RandomAgent()
+    agent = q_agents.RandomAgent(env)
 elif ns.agent == "QOnline":
     agent = q_agents.QOnlineAgent(env.height, env.width)
 elif ns.agent == "Model":
