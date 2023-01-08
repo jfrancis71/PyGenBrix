@@ -1,13 +1,18 @@
+# For LSTM achieves around 18.9, and HMM around 54 by epoch 46
+
+
+import argparse
 import torchtext
 import torch.utils.data as torchdata
 import torch
 import re
 import dist_layers.sequence_lstm as sequence_lstm
+import dist_layers.sequence_hmm as sequence_hmm
 
 
 class SentenceDataset(torch.utils.data.Dataset):
     def __init__(self, multi_dataset):
-        self.sentences = [re.sub('[^A-Za-z0-9]+', ' ', sentence[0]).split() for sentence in multi_dataset]
+        self.sentences = [(re.sub('[^A-Za-z0-9]+', ' ', sentence[0]).split()) for sentence in multi_dataset]
 
     def __len__(self):
         return len(self.sentences)
@@ -43,12 +48,6 @@ class SentenceToIntDataset(torch.utils.data.Dataset):
         return seq_words
 
 
-multi_dataset = torchtext.datasets.Multi30k(split="train", language_pair=("en", "de"))
-sentence_dataset = SentenceDataset(multi_dataset)
-
-s = SentenceToIntDataset(sentence_dataset)
-
-
 def collate(sentences):
     max_sentence_length = max([len(sentence) for sentence in sentences])
     padded_sentences = torch.zeros([len(sentences), max_sentence_length], dtype=torch.int64)
@@ -58,26 +57,41 @@ def collate(sentences):
     return padded_sentences
 
 
-dataloader = torch.utils.data.DataLoader(s, collate_fn=collate, batch_size=16, shuffle=True)
-sentence_net = sequence_lstm.SequenceLSTM(num_tokens=s.vocab_size)
-
-
 def train():
     opt = torch.optim.Adam(sentence_net.parameters(), lr=.001)
-    for e in range(2500):
+    for e in range(25000):
         total_loss = 0.0
         print("Epoch ", e)
+        batch_num = 0
         for (batch_id, x) in enumerate(dataloader):
             sentence_net.zero_grad()
             loss = -torch.mean(sentence_net.log_prob(x))
             loss.backward()
             opt.step()
             total_loss += loss.item()
-        print("Loss=", total_loss/len(s))
+            batch_num += 1
+        print("Loss=", total_loss/batch_num)
         sample_tokens_ids = sentence_net.sample()
         print("Sample tokens=", sample_tokens_ids)
         conv = s.convert(sample_tokens_ids)
         print("Conv=", conv)
 
+
+multi_dataset = torchtext.datasets.Multi30k(split="train", language_pair=("en", "de"))
+sentence_dataset = SentenceDataset(multi_dataset)
+s = SentenceToIntDataset(sentence_dataset)
+dataloader = torch.utils.data.DataLoader(s, collate_fn=collate, batch_size=16, shuffle=True)
+
+ap = argparse.ArgumentParser(description="Text Generator")
+ap.add_argument("--model")
+ns = ap.parse_args()
+
+if ns.model == "lstm":
+    sentence_net = sequence_lstm.SequenceLSTM(s.vocab_size)
+elif ns.model == "hmm":
+    sentence_net = sequence_hmm.SequenceHMM(num_states=128, num_observations=s.vocab_size)
+else:
+    print("Model not recognised.")
+    quit()
 
 train()
