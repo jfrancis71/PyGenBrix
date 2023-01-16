@@ -8,6 +8,7 @@ import torch
 import re
 import dist_layers.sequence_lstm as sequence_lstm
 import dist_layers.sequence_hmm as sequence_hmm
+import utils.py_train
 
 
 class SentenceDataset(torch.utils.data.Dataset):
@@ -57,24 +58,13 @@ def collate(sentences):
     return padded_sentences
 
 
-def train():
-    opt = torch.optim.Adam(sentence_net.parameters(), lr=.001)
-    for e in range(25000):
-        total_loss = 0.0
-        print("Epoch ", e)
-        batch_num = 0
-        for (batch_id, x) in enumerate(dataloader):
-            sentence_net.zero_grad()
-            loss = -torch.mean(sentence_net.log_prob(x))
-            loss.backward()
-            opt.step()
-            total_loss += loss.item()
-            batch_num += 1
-        print("Loss=", total_loss/batch_num)
-        sample_tokens_ids = sentence_net.sample()
-        print("Sample tokens=", sample_tokens_ids)
-        conv = s.convert(sample_tokens_ids)
-        print("Conv=", conv)
+def epoch_end_callback(distribution, epoch_num, loss):
+    print("Epoch ", epoch_num, " loss=", loss)
+    sample_tokens_ids = sentence_net.sample()
+    print("Sample tokens=", sample_tokens_ids)
+    conv = s.convert(sample_tokens_ids)
+    print("Conv=", conv)
+
 
 
 multi_dataset = torchtext.datasets.Multi30k(split="train", language_pair=("en", "de"))
@@ -94,4 +84,4 @@ else:
     print("Model not recognised.")
     quit()
 
-train()
+utils.py_train.train_distribution( sentence_net, s, 25000, collate_fn=collate, epoch_end_fn=epoch_end_callback)
