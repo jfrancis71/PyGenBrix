@@ -39,7 +39,7 @@ def board_eval_move(env, depth, cached_evaluations):
             if termination:
                 score = reward
             else:
-                score = -board_eval_move(eval_env, depth-1, cached_evaluations)[0]
+                score = -.99*board_eval_move(eval_env, depth-1, cached_evaluations)[0]
             cached_evaluations[game_state] = score
         scores.append(score)
     best_score = max(scores)
