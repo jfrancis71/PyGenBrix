@@ -9,12 +9,12 @@ from pettingzoo.classic import connect_four_v3
 def get_legal_actions(env):
     observation, reward, termination, truncation, info = env.last()
     action_mask = observation["action_mask"]
-    return action_mask
+    return np.nonzero(action_mask)[0]
 
 def select_random_action(env):
-    action_mask = get_legal_actions(env)
-    num_actions = sum(action_mask)
-    return np.nonzero(action_mask)[0][random.randint(0, num_actions - 1)]
+    legal_actions = get_legal_actions(env)
+    num_actions = len(legal_actions)
+    return legal_actions[random.randint(0, num_actions - 1)]
 
 
 class MCTSNode:
@@ -66,7 +66,7 @@ def select_node(start_node):
 
 def expand_node(node):
     assert node.children == {}  # we only expand leaf nodes
-    for legal_action in np.nonzero(node.legal_actions)[0]:
+    for legal_action in node.legal_actions:
         child_env = copy.deepcopy(node.env)
         child_env.step(legal_action)
         node.children[legal_action] = MCTSNode(node, child_env)
@@ -118,10 +118,9 @@ def board_eval_move(env, depth, cached_evaluations):
     random_action = select_random_action(env)
     if depth == 0:
         return 0, random_action
-    action_mask = get_legal_actions(env)
-    legal_moves = np.nonzero(action_mask)[0]
+    legal_actions = get_legal_actions(env)
     scores = []
-    for move in legal_moves:
+    for move in legal_actions:
         eval_env = copy.deepcopy(env)
         eval_env.step(move)
         game_state = (tuple(eval_env.env.board), eval_env.agent_selection)
@@ -138,13 +137,10 @@ def board_eval_move(env, depth, cached_evaluations):
     best_score = max(scores)
     indices_best_legal_scores = np.nonzero(np.array(scores) == best_score)[0]
     index_best_legal_scores = random.choice(indices_best_legal_scores)
-    best_move = legal_moves[index_best_legal_scores]
-    if action_mask[best_move] != 1:
-        print("Internal Error")
-#    assert action_mask[best_move] == 1
+    best_move = legal_actions[index_best_legal_scores]
     if depth == 6:
         print("Returning final answer")
-        print("best_move=", best_move, " legal_moves=", legal_moves, " scores = ", scores, " best_score=", best_score, "indices=", indices_best_legal_scores, " idx=", index_best_legal_scores)
+        print("best_move=", best_move, " legal_moves=", legal_actions, " scores = ", scores, " best_score=", best_score, "indices=", indices_best_legal_scores, " idx=", index_best_legal_scores)
 
     return best_score, best_move
 
