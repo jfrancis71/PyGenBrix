@@ -5,10 +5,6 @@ import math
 import numpy as np
 from pettingzoo.classic import connect_four_v3
 
-env = connect_four_v3.env(render_mode="human")
-eval_env = connect_four_v3.env()
-
-env.reset()
 
 def get_legal_actions(env):
     observation, reward, termination, truncation, info = env.last()
@@ -35,7 +31,6 @@ class MCTSNode:
 
 def random_rollout(node):
     """does not alter env returns termination reward from perspective of current player"""
-    termination = False
     random_env = copy.deepcopy(node.env)
     observation, reward, termination, truncation, info = random_env.last()
     assert termination is False
@@ -74,7 +69,6 @@ def expand_node(node):
     for legal_action in np.nonzero(node.legal_actions)[0]:
         child_env = copy.deepcopy(node.env)
         child_env.step(legal_action)
-        observation, reward, termination, truncation, info = child_env.last()
         node.children[legal_action] = MCTSNode(node, child_env)
     return list(node.children.values())[0]  # returns first of these children
 
@@ -105,16 +99,18 @@ def mcts(env):
         expanding_node.sum_value += reward
         expanding_node.count += 1
         backup_node(expanding_node)
+
     max_count = -1
     best_move = None
+    max_value = -100
     for p in root_node.children.items():
         if p[1].count > max_count:
             max_count = p[1].count
-            max_prob = p[1].sum_value / p[1].count
+            max_value = p[1].sum_value / p[1].count
             best_move = p[0]
     for p in root_node.children.items():
         print("Node ", p[0], "sum=", p[1].sum_value, " count = ", p[1].count)
-    return max_prob, best_move
+    return max_value, best_move
 
 
 def board_eval_move(env, depth, cached_evaluations):
@@ -129,10 +125,8 @@ def board_eval_move(env, depth, cached_evaluations):
         eval_env = copy.deepcopy(env)
         eval_env.step(move)
         game_state = (tuple(eval_env.env.board), eval_env.agent_selection)
-#        print("Game state=", game_state)
         if game_state in cached_evaluations:
             score = cached_evaluations[game_state]
-#            print("Hitting cache", game_state, ", score=", score)
         else:
             observation, reward, termination, truncation, info = eval_env.last()
             if termination:
@@ -142,60 +136,88 @@ def board_eval_move(env, depth, cached_evaluations):
             cached_evaluations[game_state] = score
         scores.append(score)
     best_score = max(scores)
-    idxs_best_legal_scores = np.nonzero(np.array(scores) == best_score)[0]
-    idx_best_legal_scores = random.choice(idxs_best_legal_scores)
-    best_move = legal_moves[idx_best_legal_scores]
+    indices_best_legal_scores = np.nonzero(np.array(scores) == best_score)[0]
+    index_best_legal_scores = random.choice(indices_best_legal_scores)
+    best_move = legal_moves[index_best_legal_scores]
     if action_mask[best_move] != 1:
         print("Internal Error")
 #    assert action_mask[best_move] == 1
     if depth == 6:
         print("Returning final answer")
-        print("best_move=", best_move, " legal_moves=", legal_moves, " scores = ", scores, " best_score=", best_score, "idxs=", idxs_best_legal_scores, " idx=", idx_best_legal_scores)
+        print("best_move=", best_move, " legal_moves=", legal_moves, " scores = ", scores, " best_score=", best_score, "indices=", indices_best_legal_scores, " idx=", index_best_legal_scores)
 
     return best_score, best_move
 
-def print_board():
+def print_board(env):
     board = np.reshape(env.env.board, [6,7])
     for level in board:
         print(*level, sep=' ')
     print("")
 
+
+class DualEnvironment:
+    """Maintains two separate but almost duplicate environments, one is render, the other is copyable.
+    This will only work for deterministic environments.
+    Exists because you can't copy.deepcopy environments with PyGame graphical components"""
+    def __init__(self, env_fn):
+        self.env = env_fn(render_mode="human")
+        self.sim_env = env_fn()
+
+    def reset(self):
+        self.env.reset()
+        self.sim_env.reset()
+
+    def step(self, action):
+        self.env.step(action)
+        self.sim_env.step(action)
+
+    def last(self):
+        observation, reward, termination, truncation, info = self.env.last()
+        return observation, reward, termination, truncation, info
+
+    def copy(self):
+        return self.sim_env
+
+
 def play_game():
-    env.reset()
-    eval_env.reset()
+    dual_env.reset()
     winner = 0
     while winner == 0:
-        print_board()
+        print_board(dual_env.env)
     #    human_move = int(input("Please enter move>"))-1
         print("Human Move\n")
-        human_pred_score, human_move = board_eval_move(eval_env, 6, {})
-        print("Predicting ", human_pred_score)
-        env.step(human_move)
-        eval_env.step(human_move)
-        observation, reward, termination, truncation, info = env.last()
+        sim_env = dual_env.copy()
+        human_predicted_score, human_move = board_eval_move(sim_env, 6, {})
+        print("Predicting ", human_predicted_score)
+        dual_env.step(human_move)
+        observation, reward, termination, truncation, info = dual_env.last()
         if termination:
             winner = 1
             break
         print("")
-        print_board()
+        print_board(dual_env.env)
         print("Computer Move\n")
-#        computers_pred_score, computers_move = board_eval_move(eval_env, 6, {})
-        computers_pred_score, computers_move = mcts(eval_env)
-
-        print("Predicting ", computers_pred_score)
-        env.step(computers_move)
-        eval_env.step(computers_move)
-        observation, reward, termination, truncation, info = env.last()
+#        computers_predicted_score, computers_move = board_eval_move(eval_env, 6, {})
+        sim_env = dual_env.copy()
+        computers_predicted_score, computers_move = mcts(sim_env)
+        print("Predicting ", computers_predicted_score)
+        dual_env.step(computers_move)
+        observation, reward, termination, truncation, info = dual_env.last()
         if termination:
             winner = 2
-    print_board()
+    print_board(dual_env.env)
     time.sleep(10)
     return winner
 
-games = []
-for i in range(10):
-    winner = play_game()
-    print("Winner is ", winner)
-    games.append(winner)
-    print("Games=", games)
-print("Tournament ", games)
+dual_env = DualEnvironment(connect_four_v3.env)
+
+def tournament():
+    games = []
+    for i in range(10):
+        winner = play_game()
+        print("Winner is ", winner)
+        games.append(winner)
+        print("Games=", games)
+    print("Tournament ", games)
+
+tournament()
