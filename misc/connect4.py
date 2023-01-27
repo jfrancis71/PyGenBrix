@@ -29,6 +29,7 @@ class MCTSNode:
         observation, reward, termination, truncation, info = self.env.last()
         self.terminated = termination
         self.winner = reward
+        self.max_depth = 0
 
 def random_rollout(node):
     """does not alter env returns termination reward from perspective of current player"""
@@ -55,7 +56,7 @@ def select_node(start_node):
     for child in start_node.children.values():
         if child.count == 0:
             ucb = 1000.0
-        else: # note change sign, their interest opposite to mine
+        else:
             ucb = (child.sum_value/child.count) + c * math.sqrt(log_parent_n / child.count)
         if ucb > best_ucb:
             best_ucb = ucb
@@ -79,9 +80,13 @@ def backup_node(node):
         return
     node.sum_value = 0
     node.count = 0
+    max_depth = -1
     for child in node.children.values():
         node.sum_value -= child.sum_value
         node.count += child.count
+        if node.max_depth > max_depth:
+            max_depth = child.max_depth
+    node.max_depth = max_depth + 1
     backup_node(node)
 
 def mcts(env, num_iterations):
@@ -104,11 +109,16 @@ def mcts(env, num_iterations):
     max_count = -1
     best_move = None
     max_value = -100
+    max_depth = -1
     for p in root_node.children.items():
         if p[1].count > max_count:
             max_count = p[1].count
             max_value = p[1].sum_value / p[1].count
             best_move = p[0]
+        if p[1].max_depth > max_depth:
+            max_depth = p[1].max_depth
+
+    print("Max Depth=", max_depth)
     for p in root_node.children.items():
         print("Node ", p[0], "sum=", p[1].sum_value, " count = ", p[1].count)
     return max_value, best_move
