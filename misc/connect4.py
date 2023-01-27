@@ -1,3 +1,4 @@
+import argparse
 import random
 import copy
 import time
@@ -83,10 +84,10 @@ def backup_node(node):
         node.count += child.count
     backup_node(node)
 
-def mcts(env):
+def mcts(env, num_iterations):
     root_node = MCTSNode(None, env)
 
-    for iterations in range(500):
+    for iterations in range(num_iterations):
         expanding_node = select_node(root_node)
         if expanding_node.terminated == 0:
             rollout_node = expand_node(expanding_node)
@@ -175,45 +176,102 @@ class DualEnvironment:
         return self.sim_env
 
 
-def play_game():
+class MinimaxAgent:
+    def __init__(self, depth):
+        self.depth = depth
+
+    def act(self, sim_env):
+        predicted_score, move = board_eval_move(sim_env, self.depth, {})
+        return predicted_score, move
+
+
+class MCTSAgent:
+    def __init__(self, num_iterations):
+        self.num_iterations = num_iterations
+
+    def act(self, sim_env):
+        predicted_score, move = mcts(sim_env, self.num_iterations)
+        return predicted_score, move
+
+
+class HumanAgent:
+    def act(self, sim_env):
+        move = int(input("Please enter column>"))-1
+        return 0.0, move
+
+
+def play_game(agent1, agent2):
     dual_env.reset()
     winner = 0
     while winner == 0:
         print_board(dual_env.env)
-    #    human_move = int(input("Please enter move>"))-1
-        print("Human Move\n")
+        print("Agent1 Move\n")
         sim_env = dual_env.copy()
-        human_predicted_score, human_move = board_eval_move(sim_env, 6, {})
-        print("Predicting ", human_predicted_score)
-        dual_env.step(human_move)
+        agent1_predicted_score, agent1_move = agent1.act(sim_env)
+        print("Predicting ", agent1_predicted_score)
+        dual_env.step(agent1_move)
         observation, reward, termination, truncation, info = dual_env.last()
         if termination:
-            winner = 1
+            if reward == 1:
+                winner = 1
+            else:
+                winner = 0
             break
         print("")
         print_board(dual_env.env)
-        print("Computer Move\n")
-#        computers_predicted_score, computers_move = board_eval_move(eval_env, 6, {})
+        print("Agent2 Move\n")
         sim_env = dual_env.copy()
-        computers_predicted_score, computers_move = mcts(sim_env)
-        print("Predicting ", computers_predicted_score)
-        dual_env.step(computers_move)
+        agent2_predicted_score, agent2_move = agent2.act(sim_env)
+        print("Predicting ", agent2_predicted_score)
+        dual_env.step(agent2_move)
         observation, reward, termination, truncation, info = dual_env.last()
         if termination:
-            winner = 2
+            if reward == 1:
+                winner = 2
+            else:
+                winner = 0
     print_board(dual_env.env)
     time.sleep(10)
     return winner
 
-dual_env = DualEnvironment(connect_four_v3.env)
-
-def tournament():
+def play_tournament(agent1, agent2):
     games = []
     for i in range(10):
-        winner = play_game()
+        winner = play_game(agent1, agent2)
         print("Winner is ", winner)
         games.append(winner)
         print("Games=", games)
     print("Tournament ", games)
 
-tournament()
+dual_env = DualEnvironment(connect_four_v3.env)
+
+ap = argparse.ArgumentParser(description="Connect 4")
+ap.add_argument("--agent1", default="human")
+ap.add_argument("--agent2", default="minimax")
+ap.add_argument("--agent1_minimax_depth", default=3, type=int)
+ap.add_argument("--agent2_minimax_depth", default=3, type=int)
+ap.add_argument("--agent1_mcts_num_iterations", default=500, type=int)
+ap.add_argument("--agent2_mcts_num_iterations", default=500, type=int)
+ns = ap.parse_args()
+
+if ns.agent1 == "human":
+    agent1 = HumanAgent()
+elif ns.agent1 == "minimax":
+    agent1 = MinimaxAgent(ns.agent1_minimax_depth)
+elif ns.agent1 == "mcts":
+    agent1 = MCTSAgent(ns.agent1_mcts_num_iterations)
+else:
+    print("Unknown agent1")
+    quit()
+
+if ns.agent2 == "human":
+    agent2 = HumanAgent()
+elif ns.agent2 == "minimax":
+    agent2 = MinimaxAgent(ns.agent2_minimax_depth)
+elif ns.agent2 == "mcts":
+    agent2 = MCTSAgent(ns.agent2_mcts_num_iterations)
+else:
+    print("Unknown agent2")
+    quit()
+
+play_tournament(agent1, agent2)
