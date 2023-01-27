@@ -139,9 +139,6 @@ def board_eval_move(env, depth, cached_evaluations):
     indices_best_legal_scores = np.nonzero(np.array(scores) == best_score)[0]
     index_best_legal_scores = random.choice(indices_best_legal_scores)
     best_move = legal_actions[index_best_legal_scores]
-    if depth == 6:
-        print("Returning final answer")
-        print("best_move=", best_move, " legal_moves=", legal_actions, " scores = ", scores, " best_score=", best_score, "indices=", indices_best_legal_scores, " idx=", index_best_legal_scores)
 
     return best_score, best_move
 
