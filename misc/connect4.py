@@ -210,7 +210,8 @@ class HumanAgent:
 def play_game(agent1, agent2):
     dual_env.reset()
     winner = 0
-    while winner == 0:
+    termination = False
+    while termination == False:
         print_board(dual_env.env)
         print("Agent1 Move\n")
         sim_env = dual_env.copy()
