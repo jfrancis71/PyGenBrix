@@ -305,27 +305,18 @@ ap.add_argument("--agent1_tree_policy")
 ap.add_argument("--agent2_tree_policy")
 ns = ap.parse_args()
 
-if ns.agent1_tree_policy == "ucb1":
-    agent1_tree_policy = tree_selection_policy_ucb1
-elif ns.agent1_tree_policy == "ts":
-    agent1_tree_policy = tree_selection_policy_ts
-else:
-    print("Unknown tree policy for agent1")
-    quit()
-if ns.agent2_tree_policy == "ucb1":
-    agent2_tree_policy = tree_selection_policy_ucb1
-elif ns.agent2_tree_policy == "ts":
-    agent2_tree_policy = tree_selection_policy_ts
-else:
-    print("Unknown tree policy for agent1")
-    quit()
-
-
 if ns.agent1 == "human":
     agent1 = HumanAgent()
 elif ns.agent1 == "minimax":
     agent1 = MinimaxAgent(ns.agent1_minimax_depth)
 elif ns.agent1 == "mcts":
+    if ns.agent1_tree_policy == "ucb1":
+        agent1_tree_policy = tree_selection_policy_ucb1
+    elif ns.agent1_tree_policy == "ts":
+        agent1_tree_policy = tree_selection_policy_ts
+    else:
+        print("Unknown tree policy for agent1")
+        quit()
     agent1 = MCTSAgent(ns.agent1_mcts_num_iterations, agent1_tree_policy)
 else:
     print("Unknown agent1")
@@ -336,6 +327,13 @@ if ns.agent2 == "human":
 elif ns.agent2 == "minimax":
     agent2 = MinimaxAgent(ns.agent2_minimax_depth)
 elif ns.agent2 == "mcts":
+    if ns.agent2_tree_policy == "ucb1":
+        agent2_tree_policy = tree_selection_policy_ucb1
+    elif ns.agent2_tree_policy == "ts":
+        agent2_tree_policy = tree_selection_policy_ts
+    else:
+        print("Unknown tree policy for agent2")
+        quit()
     agent2 = MCTSAgent(ns.agent2_mcts_num_iterations, agent2_tree_policy)
 else:
     print("Unknown agent2")
