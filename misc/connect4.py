@@ -150,7 +150,8 @@ def mcts(env, num_iterations, tree_selection_policy):
     for p in root_node.children.items():
         if p[1].count > max_count:
             max_count = p[1].count
-            max_value = p[1].sum_value / p[1].count
+            if p[1].count > 0:
+                max_value = p[1].sum_value / p[1].count
             best_move = p[0]
         if p[1].max_depth > max_depth:
             max_depth = p[1].max_depth
@@ -253,9 +254,10 @@ def play_game(agent1, agent2):
     while termination is False:
         print_board(dual_env.env)
         print("Agent1 Move\n")
+        start = time.time()
         sim_env = dual_env.copy()
         agent1_predicted_score, agent1_move = agent1.act(sim_env)
-        print("Predicting ", agent1_predicted_score)
+        print("Predicting ", agent1_predicted_score, "time=", time.time()-start)
         dual_env.step(agent1_move)
         observation, reward, termination, truncation, info = dual_env.last()
         if termination:
@@ -267,9 +269,10 @@ def play_game(agent1, agent2):
         print("")
         print_board(dual_env.env)
         print("Agent2 Move\n")
+        start = time.time()
         sim_env = dual_env.copy()
         agent2_predicted_score, agent2_move = agent2.act(sim_env)
-        print("Predicting ", agent2_predicted_score)
+        print("Predicting ", agent2_predicted_score, "time=", time.time()-start)
         dual_env.step(agent2_move)
         observation, reward, termination, truncation, info = dual_env.last()
         if termination:
