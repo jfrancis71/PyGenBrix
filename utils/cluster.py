@@ -93,6 +93,7 @@ def pz(z):
 
 def pdatafromcluster(cluster):
     pg = posterior_normal_gamma(NormalGamma(0.0,.01,1.0,1.0), cluster)
+    # I think this is equation 95 from Murphy's Conjugate Bayesian analysis of the Gaussian distribution
     prob = (math.gamma(pg.alpha)/math.gamma(1.0))*(1.0**1.0/pg.beta**pg.alpha)*math.sqrt((.01/pg.glambda))*(2*math.pi)**cluster.shape[0]
     return prob
 
