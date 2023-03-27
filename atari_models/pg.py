@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Categorical
+import torchvision
 import numpy as np
 import torch
 import matplotlib.pyplot as plt; plt.rcdefaults()
@@ -41,8 +42,11 @@ class PGAgent(nn.Module):
             plt.xticks(y_pos, actions)
             plt.ylabel('Prob')
             plt.title('Action Probabilities')
-            self.figure.canvas.draw()
-            self.figure.canvas.flush_events()
+            self.myfig, self.myax = plt.subplots()
+            print("MYAX=", self.myax)
+            self.neurons = self.myax.imshow( np.random.random([40,40]) )
+            self.vis_neurons = torch.zeros([3,170,400])
+            self.vis_neurons[0] = 1.0
 
     def act(self, observation, on_policy, demo=False):
         observation = (observation/255.0 - 0.5).astype(np.float32)
@@ -55,10 +59,33 @@ class PGAgent(nn.Module):
         loss.backward()
         self.grad = [torch.clone(param.grad) for param in self.net.parameters()]
         if self.demo:
+            layer1 = self.net[:3](observation_tensor)
+            layer2 = self.net[3:6](layer1)
+            layer3 = self.net[6:9](layer2)
+
+            layer1 = layer1.reshape(16,1,40,40)
+            layer2 = layer2.reshape(32,1,18,18)
+            layer3 = layer3.reshape(32,1,7,7)
+            layer3 = torch.nn.Upsample(scale_factor=(2,2))(layer3)
+
+            neurons1 = torchvision.utils.make_grid(layer1, nrow=4, ncols=4)
+            neurons2 = torchvision.utils.make_grid(layer2, nrow=4, ncols=2)
+            neurons3 = torchvision.utils.make_grid(layer3, nrow=4, ncols=2)
+
+            self.vis_neurons[:,:170,:170] = neurons1
+            border_margin = 4
+            nextx = neurons1.shape[2] + border_margin
+            self.vis_neurons[:,:neurons2.shape[1],nextx:nextx+neurons2.shape[2]] = neurons2
+            nextx += neurons2.shape[2] + border_margin
+            self.vis_neurons[:,:neurons3.shape[1],nextx:nextx+neurons3.shape[2]] = neurons3
+            reorder = self.vis_neurons.permute(1, 2, 0)
+            self.neurons.set_data( reorder.detach() )
             for i in range(6):
                 self.ln[i].set_height(action_distribution.probs[i].detach())
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
+            self.myfig.canvas.draw()
+            self.myfig.canvas.flush_events()
         return action.item()
 
     def observe(self, observation, reward, done, reset):
