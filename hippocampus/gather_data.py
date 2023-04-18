@@ -8,6 +8,7 @@ ap = argparse.ArgumentParser(description="gather_data")
 ap.add_argument("--ip_address") # ip address of Pi
 ap.add_argument("--folder", default="data")
 ap.add_argument("--rand", action="store_true")  # Use Rand for random movement between frames
+ns = ap.parse_args()
 
 conn = rpyc.classic.connect(ns.ip_address)
 conn.execute("from ev3dev2.motor import LargeMotor, OUTPUT_A")
