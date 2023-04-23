@@ -32,7 +32,7 @@ class SingleFolderImage():
 class HMM:
     def __init__(self):
         self.state_distribution = torch.ones([35])/35
-        self.transition_matrix = 0.09*torch.eye(35) + .8*torch.roll(torch.eye(35), 1,1) + .09*torch.roll(torch.eye(35), 2,1) + .01*torch.ones([35,35])
+        self.transition_matrix = 0.1*torch.eye(35) + .8*torch.roll(torch.eye(35), 1,1) + .08*torch.roll(torch.eye(35), 2,1) + (.02/35)*torch.ones([35,35])
         
     def observe(self, observation_values):  # I'm taking these as outputs of neural net, so not normalised probabilities
         observation_vector = np.exp(-observation_values/500.)
