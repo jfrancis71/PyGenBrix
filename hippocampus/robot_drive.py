@@ -10,25 +10,6 @@ import PyGenBrix.hippocampus.scene_recognition as scene_recognition
 import PyGenBrix.utils.dataset_utils as ds
 
 
-class SingleFolderImage():
-    def __init__(self, root, transform):
-        self.main_dir = root
-        self.transform = transform
-        self.num_images = len(os.listdir(root))
-
-    def __len__(self):
-        return self.num_images-1
-
-    def __getitem__(self, idx):
-        img_loc1 = os.path.join(self.main_dir, "file_" + str(idx)+".jpg")
-        image1 = PIL.Image.open(img_loc1).convert("RGB")
-        tensor_image1 = self.transform(image1)
-        img_loc2 = os.path.join(self.main_dir, "file_" + str(idx+1)+".jpg")
-        image2 = PIL.Image.open(img_loc2).convert("RGB")
-        tensor_image2 = self.transform(image2)
-        return tensor_image1, tensor_image2
-
-
 class HMM:
     def __init__(self):
         self.state_distribution = torch.ones([35])/35
@@ -44,8 +25,8 @@ ap = argparse.ArgumentParser(description="gather_data")
 ap.add_argument("--ip_address") # ip address of Pi
 ap.add_argument("--folder", default="data")
 ns = ap.parse_args()
-train_dataset = SingleFolderImage(ns.folder, transform=torchvision.transforms.Compose([torchvision.transforms.Resize((32,32)), torchvision.transforms.ToTensor()]))
-train_tensor = torch.stack([train_dataset[t][0][0] for t in range(50)])
+train_dataset = ds.SingleFolderImage(ns.folder, transform=torchvision.transforms.Compose([torchvision.transforms.Resize((32,32)), torchvision.transforms.ToTensor()]))
+train_tensor = torch.stack([train_dataset[t][0] for t in range(50)])
 scene = scene_recognition.SceneRecognition()
 representations = scene(train_tensor)
 conn = rpyc.classic.connect(ns.ip_address)
