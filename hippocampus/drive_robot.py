@@ -10,8 +10,6 @@ import PyGenBrix.hippocampus.localization as localization
 import PyGenBrix.hippocampus.scene_recognition as scene_recognition
 import PyGenBrix.utils.dataset_utils as ds
 
-import matplotlib
-matplotlib.use('MacOSX')
 
 class Static_HMM:
     def __init__(self):
@@ -39,7 +37,7 @@ class Static_HMM:
         self.state_distribution = unnormalized/torch.sum(unnormalized)
 
 
-ap = argparse.ArgumentParser(description="gather_data")
+ap = argparse.ArgumentParser(description="drive_robot")
 ap.add_argument("--ip_address") # ip address of Pi
 ap.add_argument("--data_folder", default="data")
 ap.add_argument("--learned_model", default=".")

@@ -43,7 +43,6 @@ class SingleFolderImage():
     def __getitem__(self, idx):
         img_loc = os.path.join(self.main_dir, self.total_imgs[idx])
         image = PIL.Image.open(img_loc).convert("RGB")
-        print(numpy.array(image.getdata()))
         tensor_image = self.transform(image)
         return tensor_image, 0
 
