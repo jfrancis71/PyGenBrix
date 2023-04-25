@@ -27,7 +27,7 @@ class FeatureTransformDataset(torch.utils.data.Dataset):
         return 1
 
     def __getitem__(self, idx):
-        return self.features[:100]
+        return self.features[:500]
 
 
 class HMM(nn.Module):
