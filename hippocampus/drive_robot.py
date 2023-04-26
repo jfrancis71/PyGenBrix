@@ -52,7 +52,6 @@ if ns.model == "static_hmm":
 elif ns.model == "learned_hmm":
     model = localization.Localization()
     model.load(ns.learned_model)
-print("model feature=", model.features.shape)
 y_pos = np.arange(35)
 plt.ion()
 figure, ax = plt.subplots(figsize=(6, 4))
