@@ -1,78 +1,35 @@
 import math
 import random
-import numpy
+import numpy as np
+import matplotlib.pyplot as plt
 import torch
+import PyGenBrix.dist_layers.normal_gamma as ng
 
 
-# References: Herman Kamper, Gibbs Sampling for Fitting Finite and Infinite Gaussian Muxture Models, 2013
-
-
-# normalgamma_sample(0.0, .01, 1.0, 1.0) gives clusters which have low variance but are widely seperated.
-class NormalGamma():
-    def __init__(self, mu, glambda, alpha, beta):  # using name glambda as lambda is reserved word
-        self.mu = mu
-        self.glambda = glambda
-        self.alpha = alpha
-        self.beta = beta
-        self.gamma = torch.distributions.gamma.Gamma(alpha, beta)
-        
-    def sample(self):
-        tau = self.gamma.sample()
-        mu = torch.distributions.normal.Normal(self.mu, 1.0/torch.sqrt(self.glambda*tau)).sample()
-        return mu, tau
-    
-    def log_prob(self, mu,tau):
-        log_prob_gamma = self.gamma.log_prob(tau)
-        log_prob_normal = torch.distributions.normal.Normal(self.mu, 1.0/torch.sqrt(self.glambda*tau)).log_prob(mu)
-        return log_prob_gamma + log_prob_normal
-
-
-def posterior_normal_gamma(prior_normal_gamma, datapoints):
-    n = datapoints.shape[0]
-    if n == 0:
-        return prior_normal_gamma
-    png = prior_normal_gamma
-    mu_n = png.glambda*png.mu + torch.sum(datapoints) / ( png.glambda + n )
-    lambda_n = png.glambda + n
-    alpha_n = png.alpha = n/2.0
-    s = torch.var(datapoints, unbiased=False)
-    beta_n = png.beta + (1/2) * ( n*s + png.glambda*n*((torch.mean(datapoints)-png.mu)**2) / (png.glambda + n) )
-    if torch.isnan(beta_n):
-        raise ValueError("beta_n is nan, datapoints={}".format(datapoints))
-    return NormalGamma(mu_n, lambda_n, alpha_n, beta_n)
-
-
-def posterior_overx_given_normal_gamma(normal_gamma):
-    return torch.distributions.studentT.StudentT(
-        df = torch.tensor(normal_gamma.alpha),
-        loc=torch.tensor(normal_gamma.mu),
-        scale=torch.sqrt(torch.tensor((normal_gamma.beta*(1+normal_gamma.glambda))/(normal_gamma.alpha*normal_gamma.glambda))))
-
-
-def posterioroverzgivenz(z, K, i, alpha):
-    """computes p(z[i] | z\i) assuming K possible clusters see equ 26 kamperh"""
+def posterior_over_z_given_zexn(z, K, n, alpha):
+    """computes p(z[n] | z\n) assuming K possible clusters see equ 26 kamperh (2013)"""
     N = z.shape[0]
-    pi = [ ( alpha/K + torch.sum(torch.cat((z[:i],z[i+1:]), dim=0)==k) ) / ( alpha + N - 1 ) for k in range(K)]
+    pi = [ ( alpha/K + torch.sum(torch.cat((z[:n],z[n+1:]), dim=0)==k) ) / ( alpha + N - 1 ) for k in range(K)]
     return pi
 
 
-def posteriorxgivenclusterdatapoints(dataset, z, n, k):
-    """computes p(x[i] | X\i[k]) ie prob density at point x[i] assuming it"""
+def posterior_over_xn_given_zexn_xexn(prior_normal_gamma, x, z, n, k):
+    """computes p(x[n] | x\n, z\n, z[n]==k]) ie prob density at point x[n] assuming it"""
     """is in cluster k and the other datapoints and cluster assignments"""
-    zexcludingx = torch.cat((z[:n],z[n+1:]))
-    datasetexcludingx = torch.cat((dataset[:n],dataset[n+1:]))
-    clusterkdatapointsexcludingn = torch.masked_select(datasetexcludingx, zexcludingx==k)
-    return torch.exp(posterior_overx_given_normal_gamma(
-        posterior_normal_gamma(NormalGamma(0.0,.01,1.0,1.0), clusterkdatapointsexcludingn)).log_prob(torch.tensor(dataset[n])))
+    z_excluding_nx = torch.cat((z[:n],z[n+1:]))
+    x_excluding_nx = torch.cat((x[:n], x[n+1:]))
+    x_in_cluster_k_exn = torch.masked_select(x_excluding_nx, z_excluding_nx==k)
+    return torch.exp(ng.marginal_normal_gamma(
+        ng.posterior_normal_gamma(prior_normal_gamma, x_in_cluster_k_exn)).log_prob(torch.tensor(x[n])))
 
 
-def collapsed_sample_z(dataset, z, alpha, temperature):
-    N = dataset.shape[0]
-    K = 5
+def collapsed_sample_z(x, z, prior_normal_gamma, K, alpha, temperature):
+    # kamperh 2013 equ 19
+    N = x.shape[0]
     for n in range(N):
-        pi = torch.tensor(posterioroverzgivenz(z, K, n, alpha))
+        pi = torch.tensor(posterior_over_z_given_zexn(z, K, n, alpha))
         post_probs_over_k = torch.tensor([
-            posteriorxgivenclusterdatapoints(dataset, z, n, k)
+            posterior_over_xn_given_zexn_xexn(prior_normal_gamma, x, z, n, k)
             for k in range(K)])
         tot = pi*post_probs_over_k
         probs_over_k = tot / torch.sum(tot)
@@ -83,41 +40,65 @@ def collapsed_sample_z(dataset, z, alpha, temperature):
     return z
 
 
-def pz(z):
-# equ 23
-    prob = math.gamma(1.0)/math.gamma(z.shape[0])
-    for k in range(5):
-        prob *= math.gamma(torch.sum(z==k) + 1.0/5) / math.gamma(1.0/5)
+def pz(z, K, alpha):
+# equ 23 kamperh (2013)
+    prob = math.gamma(alpha)/math.gamma(alpha + z.shape[0])
+    for k in range(K):
+        prob *= math.gamma(torch.sum(z==k) + alpha/K) / math.gamma(alpha/K)
     return prob
 
 
-def pdatafromcluster(cluster):
-    pg = posterior_normal_gamma(NormalGamma(0.0,.01,1.0,1.0), cluster)
-    # I think this is equation 95 from Murphy's Conjugate Bayesian analysis of the Gaussian distribution
-    prob = (math.gamma(pg.alpha)/math.gamma(1.0))*(1.0**1.0/pg.beta**pg.alpha)*math.sqrt((.01/pg.glambda))*(2*math.pi)**cluster.shape[0]
+def px_from_cluster(cluster, prior_ng):
+    post_ng = ng.posterior_normal_gamma(prior_ng, cluster)
+    prob = (math.gamma(post_ng.alpha)/math.gamma(prior_ng.alpha))*(prior_ng.beta**prior_ng.alpha/post_ng.beta**post_ng.alpha)*math.sqrt((prior_ng.kappa/post_ng.kappa))*(2*math.pi)**(cluster.shape[0]/2)  # Murphy 2007, equ 95
     return prob
 
 
-def pxgivenz(dataset, z):
-    # see equ 12
+def px_given_z(x, z, prior_normal_gamma, K, alpha):
+    # see kamperh 2013 equ 29
     prob = 1.0
-    for k in range(5):
-        cluster = torch.masked_select(dataset, z==k)
-        prob *= pdatafromcluster(cluster)
-    return prob*pz(z)
+    for k in range(K):
+        cluster = torch.masked_select(x, z==k)
+        prob *= px_from_cluster(cluster, prior_normal_gamma)
+    return prob*pz(z, K, alpha)
 
 
-def cluster(dataset, alpha=1.0):
-    z = torch.ones_like(dataset)
+def cluster(x, K, prior_normal_gamma, alpha=1.0):
+    z = torch.ones_like(x)
     temp = 1.0
     best_prob = 0.0
     best_z = z.clone()
     for iter in range(25):
-        z = collapsed_sample_z(dataset, z, alpha, temp)
-        prob = pxgivenz(dataset, z)
+        z = collapsed_sample_z(x, z, prior_normal_gamma, K, alpha, temp)
+        prob = px_given_z(x, z, prior_normal_gamma, K, alpha)
         if prob > best_prob:
             best_z = z.clone()
             best_prob = prob
         temp = temp * .99
-    return best_z
+    clusters = []
+    for k in range(K):
+        cluster = x[best_z==k]
+        if cluster.shape[0] > 0:
+            posterior = ng.posterior_normal_gamma(prior_normal_gamma, cluster)
+            clusters.append(posterior.mode)
+    return best_z, clusters
 
+
+def visualize(dataset, assignments):
+    fig, ax = plt.subplots()
+    ax.scatter(dataset, np.zeros(len(dataset)), c=assignments)
+
+
+# Example Use:
+# prior_ng = ng.NormalGamma(0.0,.01,1.0,1.0)
+# K = 5
+# gd_clusters = [prior_ng.sample() for _ in range(K)]
+# sample_cat = torch.distributions.dirichlet.Dirichlet(torch.ones([K])/K).sample()
+# gd_assignments = [torch.distributions.categorical.Categorical(sample_cat).sample() for _ in range(25)]
+# dataset = torch.stack([torch.distributions.Normal(gd_clusters[gd_assignments[n]][0], torch.sqrt(1/gd_clusters[gd_assignments[n]][1])).sample() for n in range(25)])
+# assignments, clusters = cluster.cluster(dataset, K, prior_ng)
+# cluster.visualize(dataset, assignments)
+
+
+# References: Herman Kamper, Gibbs Sampling for Fitting Finite and Infinite Gaussian Muxture Models, 2013
+# Kevin Murphy 2007, Conjugate Bayesian analysis of the Gaussian distribution
