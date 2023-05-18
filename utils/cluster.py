@@ -13,23 +13,23 @@ def posterior_over_z_given_zexn(z, K, n, alpha):
     return pi
 
 
-def posterior_over_xn_given_zexn_xexn(prior_normal_gamma, x, z, n, k):
+def posterior_over_xn_given_zexn_xexn(conjugate_distribution, x, z, n, k):
     """computes p(x[n] | x\n, z\n, z[n]==k]) ie prob density at point x[n] assuming it"""
     """is in cluster k and the other datapoints and cluster assignments"""
     z_excluding_nx = torch.cat((z[:n],z[n+1:]))
     x_excluding_nx = torch.cat((x[:n], x[n+1:]))
-    x_in_cluster_k_exn = torch.masked_select(x_excluding_nx, z_excluding_nx==k)
-    return torch.exp(ng.marginal_normal_gamma(
-        ng.posterior_normal_gamma(prior_normal_gamma, x_in_cluster_k_exn)).log_prob(torch.tensor(x[n])))
+    x_in_cluster_k_exn = x_excluding_nx[z_excluding_nx==k]
+    return torch.exp(
+        conjugate_distribution.posterior(x_in_cluster_k_exn).marginal().log_prob(torch.tensor(x[n])))
 
 
-def collapsed_sample_z(x, z, prior_normal_gamma, K, alpha, temperature):
+def collapsed_sample_z(x, z, conjugate_data_distribution, K, alpha, temperature):
     # kamperh 2013 equ 19
     N = x.shape[0]
     for n in range(N):
         pi = torch.tensor(posterior_over_z_given_zexn(z, K, n, alpha))
         post_probs_over_k = torch.tensor([
-            posterior_over_xn_given_zexn_xexn(prior_normal_gamma, x, z, n, k)
+            posterior_over_xn_given_zexn_xexn(conjugate_data_distribution, x, z, n, k)
             for k in range(K)])
         tot = pi*post_probs_over_k
         probs_over_k = tot / torch.sum(tot)
@@ -48,38 +48,33 @@ def pz(z, K, alpha):
     return prob
 
 
-def px_from_cluster(cluster, prior_ng):
-    post_ng = ng.posterior_normal_gamma(prior_ng, cluster)
-    prob = (math.gamma(post_ng.alpha)/math.gamma(prior_ng.alpha))*(prior_ng.beta**prior_ng.alpha/post_ng.beta**post_ng.alpha)*math.sqrt((prior_ng.kappa/post_ng.kappa))*(2*math.pi)**(cluster.shape[0]/2)  # Murphy 2007, equ 95
-    return prob
-
-
-def px_given_z(x, z, prior_normal_gamma, K, alpha):
+def log_px_given_z(x, z, conjugate_data_dist, K, alpha):
     # see kamperh 2013 equ 29
-    prob = 1.0
+    prob = 0.0
     for k in range(K):
-        cluster = torch.masked_select(x, z==k)
-        prob *= px_from_cluster(cluster, prior_normal_gamma)
-    return prob*pz(z, K, alpha)
+        cluster = x[z==k]
+        probs = conjugate_data_dist.log_posterior_data(cluster)
+        prob += probs
+    return prob+math.log(pz(z, K, alpha))
 
 
 def cluster(x, K, prior_normal_gamma, alpha=1.0):
-    z = torch.ones_like(x)
+    z = torch.ones(x.shape[0])
     temp = 1.0
-    best_prob = 0.0
+    best_prob = -1000000.0
     best_z = z.clone()
-    for iter in range(25):
+    for iter in range(100):
         z = collapsed_sample_z(x, z, prior_normal_gamma, K, alpha, temp)
-        prob = px_given_z(x, z, prior_normal_gamma, K, alpha)
+        prob = log_px_given_z(x, z, prior_normal_gamma, K, alpha)
         if prob > best_prob:
             best_z = z.clone()
             best_prob = prob
-        temp = temp * .99
+        temp = temp * .999
     clusters = []
     for k in range(K):
         cluster = x[best_z==k]
         if cluster.shape[0] > 0:
-            posterior = ng.posterior_normal_gamma(prior_normal_gamma, cluster)
+            posterior = prior_normal_gamma.posterior(cluster)
             clusters.append(posterior.mode)
     return best_z, clusters
 
@@ -89,7 +84,20 @@ def visualize(dataset, assignments):
     ax.scatter(dataset, np.zeros(len(dataset)), c=assignments)
 
 
-# Example Use:
+def visualize_2d(dataset, z, clusters):
+    x, y = np.mgrid[-10:10:.01, -10:10:.01]
+    data = np.dstack((x, y))
+    plt.figure(figsize=(10,10))
+    for cl in range(len(clusters)):
+        rv = torch.distributions.multivariate_normal.MultivariateNormal(clusters[cl][0], precision_matrix=clusters[cl][1])
+        d = rv.log_prob(torch.tensor(data))
+        plt.contour(x, y, d, levels=[-5.0])
+    X = dataset[:,0]
+    Y = dataset[:,1]
+    plt.scatter(X,Y,s=50, c=z)
+
+
+# Example use:
 # prior_ng = ng.NormalGamma(0.0,.01,1.0,1.0)
 # K = 5
 # gd_clusters = [prior_ng.sample() for _ in range(K)]
@@ -97,7 +105,17 @@ def visualize(dataset, assignments):
 # gd_assignments = [torch.distributions.categorical.Categorical(sample_cat).sample() for _ in range(25)]
 # dataset = torch.stack([torch.distributions.Normal(gd_clusters[gd_assignments[n]][0], torch.sqrt(1/gd_clusters[gd_assignments[n]][1])).sample() for n in range(25)])
 # assignments, clusters = cluster.cluster(dataset, K, prior_ng)
-# cluster.visualize(dataset, assignments)
+# cluster.visualize_2d(dataset, assignments)
+
+# Example use for 2D:
+# prior_nw = nw.NormalWishart(torch.tensor([0.0,0.0]), 1/64., 16.0, 4*torch.eye(2))
+# K = 5
+# clusters = [prior_nw.sample() for _ in range(K)]
+# sample_cat = torch.distributions.dirichlet.Dirichlet(torch.ones([K])/K).sample()
+# sample_assignments = [torch.distributions.categorical.Categorical(sample_cat).sample() for _ in range(25)]
+# dataset = torch.stack([torch.distributions.multivariate_normal.MultivariateNormal(clusters[sample_assignments[n]][0], torch.linalg.inv(clusters[sample_assignments[n]][1])).sample() for n in range(25)])
+# z, clusters = cluster.cluster(dataset, K, prior_nw)
+# cluster.visualize_2d(dataset, z, clusters)
 
 
 # References: Herman Kamper, Gibbs Sampling for Fitting Finite and Infinite Gaussian Muxture Models, 2013
