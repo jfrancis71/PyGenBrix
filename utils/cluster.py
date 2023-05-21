@@ -1,3 +1,6 @@
+# Bayesian Finite Mixture Model
+
+
 import math
 import random
 import numpy as np
@@ -13,14 +16,13 @@ def posterior_over_z_given_zexn(z, K, n, alpha):
     return pi
 
 
-def posterior_over_xn_given_zexn_xexn(conjugate_distribution, x, z, n, k):
+def log_posterior_over_xn_given_zexn_xexn(conjugate_distribution, x, z, n, k):
     """computes p(x[n] | x\n, z\n, z[n]==k]) ie prob density at point x[n] assuming it"""
     """is in cluster k and the other datapoints and cluster assignments"""
     z_excluding_nx = torch.cat((z[:n],z[n+1:]))
     x_excluding_nx = torch.cat((x[:n], x[n+1:]))
     x_in_cluster_k_exn = x_excluding_nx[z_excluding_nx==k]
-    return torch.exp(
-        conjugate_distribution.posterior(x_in_cluster_k_exn).marginal().log_prob(torch.tensor(x[n])))
+    return conjugate_distribution.posterior(x_in_cluster_k_exn).marginal().log_prob(torch.tensor(x[n]))
 
 
 def collapsed_sample_z(x, z, conjugate_data_distribution, K, alpha, temperature):
@@ -28,12 +30,12 @@ def collapsed_sample_z(x, z, conjugate_data_distribution, K, alpha, temperature)
     N = x.shape[0]
     for n in range(N):
         pi = torch.tensor(posterior_over_z_given_zexn(z, K, n, alpha))
-        post_probs_over_k = torch.tensor([
-            posterior_over_xn_given_zexn_xexn(conjugate_data_distribution, x, z, n, k)
+        post_log_probs_over_k = torch.tensor([
+            log_posterior_over_xn_given_zexn_xexn(conjugate_data_distribution, x, z, n, k)
             for k in range(K)])
-        tot = pi*post_probs_over_k
-        probs_over_k = tot / torch.sum(tot)
-        cat = torch.distributions.categorical.Categorical(probs=probs_over_k)
+        tot = torch.log(pi)+post_log_probs_over_k
+        log_probs_over_k = tot - torch.logsumexp(tot, dim=0)
+        cat = torch.distributions.categorical.Categorical(logits=log_probs_over_k)
         temp_cat = torch.distributions.categorical.Categorical(logits=cat.logits/temperature)
         new_k = temp_cat.sample()
         z[n] = new_k
@@ -58,14 +60,14 @@ def log_px_given_z(x, z, conjugate_data_dist, K, alpha):
     return prob+math.log(pz(z, K, alpha))
 
 
-def cluster(x, K, prior_normal_gamma, alpha=1.0):
+def cluster(x, K, prior_conjugate_data_dist, alpha=1.0):
     z = torch.ones(x.shape[0])
     temp = 1.0
     best_prob = -1000000.0
     best_z = z.clone()
     for iter in range(100):
-        z = collapsed_sample_z(x, z, prior_normal_gamma, K, alpha, temp)
-        prob = log_px_given_z(x, z, prior_normal_gamma, K, alpha)
+        z = collapsed_sample_z(x, z, prior_conjugate_data_dist, K, alpha, temp)
+        prob = log_px_given_z(x, z, prior_conjugate_data_dist, K, alpha)
         if prob > best_prob:
             best_z = z.clone()
             best_prob = prob
@@ -74,7 +76,7 @@ def cluster(x, K, prior_normal_gamma, alpha=1.0):
     for k in range(K):
         cluster = x[best_z==k]
         if cluster.shape[0] > 0:
-            posterior = prior_normal_gamma.posterior(cluster)
+            posterior = prior_conjugate_data_dist.posterior(cluster)
             clusters.append(posterior.mode)
     return best_z, clusters
 
