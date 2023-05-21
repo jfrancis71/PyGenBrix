@@ -58,7 +58,7 @@ class NormalGamma():
            the log_prob of a dataset.
            myng = ng.NormalGamma(0.0, .01, 1.0, 1.0)
            datapoints = torch.tensor([3.4,7.8,9.8])
-           marginal_normal_gamma(myng).log_prob(datapoints)
+           myng.marginal().log_prob(datapoints)
                >>>tensor([-3.5607, -3.9238, -4.1206])
         """
         # Murphy 2007, equ 100

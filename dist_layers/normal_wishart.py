@@ -33,7 +33,6 @@ class NormalWishart():
 #            covariance_matrix=(1/self.kappa)*covariance).log_prob(mu)
 #        return log_prob_gamma + log_prob_normal
 
-
     def posterior(self, datapoints):
         if datapoints.shape[0] == 0:
             return NormalWishart(self.mu, self.kappa, self.v, self.T)
