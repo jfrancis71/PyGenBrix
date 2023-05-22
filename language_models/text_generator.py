@@ -6,9 +6,9 @@ import torchtext
 import torch.utils.data as torchdata
 import torch
 import re
-import dist_layers.sequence_lstm as sequence_lstm
-import dist_layers.sequence_hmm as sequence_hmm
-import utils.py_train
+import PyGenBrix.dist_layers.sequence_lstm as sequence_lstm
+import PyGenBrix.dist_layers.sequence_hmm as sequence_hmm
+import PyGenBrix.utils.py_train as pytrain
 
 
 class SentenceDataset(torch.utils.data.Dataset):
@@ -79,9 +79,9 @@ ns = ap.parse_args()
 if ns.model == "lstm":
     sentence_net = sequence_lstm.SequenceLSTM(s.vocab_size)
 elif ns.model == "hmm":
-    sentence_net = sequence_hmm.SequenceHMM(num_states=128, num_observations=s.vocab_size)
+    sentence_net = sequence_hmm.TerminatingSequenceHMM(num_states=128, num_observations=s.vocab_size)
 else:
     print("Model not recognised.")
     quit()
 
-utils.py_train.train_distribution( sentence_net, s, 25000, collate_fn=collate, epoch_end_fn=epoch_end_callback)
+pytrain.train_distribution( sentence_net, s, 25000, collate_fn=collate, epoch_end_fn=epoch_end_callback)
