@@ -42,11 +42,12 @@ def collapsed_sample_z(x, z, conjugate_data_distribution, K, alpha, temperature)
     return z
 
 
-def pz(z, K, alpha):
+def log_pz(z, K, alpha):
 # equ 23 kamperh (2013)
-    prob = math.gamma(alpha)/math.gamma(alpha + z.shape[0])
+    print("alpha=", alpha, "z.shape[0]=", z.shape[0])
+    prob = torch.lgamma(torch.tensor(alpha)) - torch.lgamma(torch.tensor(alpha + z.shape[0]))
     for k in range(K):
-        prob *= math.gamma(torch.sum(z==k) + alpha/K) / math.gamma(alpha/K)
+        prob += torch.lgamma(torch.sum(z==k) + alpha/K) - torch.lgamma(torch.tensor(alpha/K))
     return prob
 
 
@@ -57,11 +58,11 @@ def log_px_given_z(x, z, conjugate_data_dist, K, alpha):
         cluster = x[z==k]
         probs = conjugate_data_dist.log_posterior_data(cluster)
         prob += probs
-    return prob+math.log(pz(z, K, alpha))
+    return prob+log_pz(z, K, alpha)
 
 
 def cluster(x, K, prior_conjugate_data_dist, alpha=1.0):
-    z = torch.ones(x.shape[0])
+    z = torch.randint(0, K, (x.shape[0],))
     temp = 1.0
     best_prob = -1000000.0
     best_z = z.clone()
