@@ -23,7 +23,8 @@ class IndependentBeta:
         return torch.distributions.independent.Independent(
             torch.distributions.Bernoulli(probs = self.distributions.concentration1 / (self.distributions.concentration0 + self.distributions.concentration1) ),
             reinterpreted_batch_ndims=1)
-    
+
+# Ref: https://en.wikipedia.org/wiki/Beta-binomial_distribution    
     def log_posterior_data(self, x):
         num_ones = torch.sum(x, dim=0)
         n = torch.ones([x.shape[1]])*x.shape[0]
