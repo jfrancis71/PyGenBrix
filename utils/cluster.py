@@ -123,3 +123,4 @@ def visualize_2d(dataset, z, clusters):
 
 # References: Herman Kamper, Gibbs Sampling for Fitting Finite and Infinite Gaussian Muxture Models, 2013
 # Kevin Murphy 2007, Conjugate Bayesian analysis of the Gaussian distribution
+# Radford Neal 2000, Markov Chain Sampling Methods for Dirichlet Process Mixture Mode
