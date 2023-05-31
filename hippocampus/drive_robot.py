@@ -64,9 +64,9 @@ while True:
     image_tensor=torchvision.transforms.Compose([torchvision.transforms.Resize((32,32)), torchvision.transforms.ToTensor()])(image)
     model.observe(image_tensor)
     for i in range(35):
-        ln[i].set_height(model.state_distribution[i])
+        ln[i].set_height(model.current_state_distribution[i].detach())
         figure.canvas.draw()
         figure.canvas.flush_events()
-    print(model.state_distribution)
+    print(model.current_state_distribution)
     conn.execute("m.on_for_rotations(75, 2)")
     seq += 1
