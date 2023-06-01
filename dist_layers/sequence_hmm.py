@@ -8,7 +8,7 @@ class HMM(nn.Module):
         super().__init__()
         self.observation_model = observation_model
         self.state_model = state_model
-        self.current_state_distribution = self.state_model.prior_states()
+        self.current_state_distribution = self.state_model.prior_states()  # TODO as this is not for training, but arbitrary position start; should this be uniform probability over states?
 
     def log_prob(self, observations):
         alpha = self.observation_model.emission_logits(observations[:, 0]) +\
