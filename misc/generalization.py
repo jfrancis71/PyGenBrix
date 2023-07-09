@@ -54,7 +54,7 @@ def mean_field_guide(*_):
     pyro.sample("layer2.weight", dist.Normal(layer2_weight, torch.ones([1, 24])).to_event(2))
 
 
-ap = argparse.ArgumentParser(description="Text Generator")
+ap = argparse.ArgumentParser(description="Generalization Demonstration")
 ap.add_argument("--train")
 ns = ap.parse_args()
 
