@@ -4,12 +4,14 @@
 import argparse
 import numpy as np
 import torch
+import torch.nn as nn
 import pyro
 import pyro.distributions as dist
 from pyro.infer import SVI, Trace_ELBO
 import pyro.optim as optim
 from pyro.infer.mcmc import MCMC, NUTS
 from pyro.infer import Predictive
+from pyro.nn import PyroSample, PyroModule
 
 
 dataset_x = torch.tensor([[float(d) for d in list(np.binary_repr(n, 12))] for n in range(4096)])
@@ -23,27 +25,33 @@ validation_dataset_x = dataset_x[torch.logical_not(subset_mask)]
 validation_dataset_y = dataset_y[torch.logical_not(subset_mask)]
 
 
-def model(x, y=None):
-    weights1 = pyro.sample("weights1", dist.Normal(torch.zeros([24, 12]), 30.0 * torch.ones([24, 12])).to_event(2))
-    biases1 = pyro.sample("biases1", dist.Normal(torch.zeros([24]), 30.0 * torch.ones([24])).to_event(1))
-    weights2 = pyro.sample("weights2", dist.Normal(torch.zeros([24]), 30.0 * torch.ones([24])).to_event(1))
-    biases2 = pyro.sample("biases2", dist.Normal(torch.zeros([1]), 30.0 * torch.ones([1])).to_event(1))
-    out1 = torch.matmul(weights1, x.permute(1, 0)).permute(1, 0) + biases1
-    out1 = torch.sigmoid(out1)
-    out = torch.matmul(out1, weights2) + biases2[0]
-    with pyro.plate("data", x.shape[0]):
-        pyro.sample("obs", dist.Bernoulli(logits=out), obs=y)
+class BNN(PyroModule):
+    def __init__(self):
+        super().__init__()
+        self.layer1 = PyroModule[nn.Linear](12, 24)
+        self.layer2 = PyroModule[nn.Linear](24, 1)
+        self.layer1.bias = PyroSample(dist.Normal(0., 10.).expand([24]).to_event(1))
+        self.layer1.weight = PyroSample(dist.Normal(0., 10.).expand([24, 12]).to_event(2))
+        self.layer2.bias = PyroSample(dist.Normal(0., 10.).expand([1]).to_event(1))
+        self.layer2.weight = PyroSample(dist.Normal(0., 10.).expand([1, 24]).to_event(2))
+
+    def forward(self, x, y=None):
+        x = nn.Sigmoid()(self.layer1(x))
+        logit = self.layer2(x).squeeze()
+        with pyro.plate("data", x.shape[0]):
+            pyro.sample("obs", dist.Bernoulli(logits=logit), obs=y)
+        return logit
 
 
-def guide(x, y):
-    biases1 = pyro.param('param_biases1', torch.zeros([24]))
-    weights1 = pyro.param('param_weights1', torch.zeros([24, 12]))
-    biases2 = pyro.param('param_biases2', torch.zeros([1]))
-    weights2 = pyro.param('param_weights2', torch.zeros([24]))
-    pyro.sample("weights1", dist.Normal(weights1, torch.ones([24, 12])).to_event(2))
-    pyro.sample("biases1", dist.Normal(biases1, torch.ones([24])).to_event(1))
-    pyro.sample("biases2", dist.Normal(biases2, torch.ones([1])).to_event(1))
-    pyro.sample("weights2", dist.Normal(weights2, torch.ones([24])).to_event(1))
+def mean_field_guide(*_):
+    layer1_bias = pyro.param('param_layer_1_bias', torch.zeros([24]))
+    layer1_weight = pyro.param('param_layer1_weight', torch.zeros([24, 12]))
+    layer2_bias = pyro.param('param_layer2_bias', torch.zeros([1]))
+    layer2_weight = pyro.param('param_layer2_weight', torch.zeros([1, 24]))
+    pyro.sample("layer1.bias", dist.Normal(layer1_bias, torch.ones([24])).to_event(1))
+    pyro.sample("layer1.weight", dist.Normal(layer1_weight, torch.ones([24, 12])).to_event(2))
+    pyro.sample("layer2.bias", dist.Normal(layer2_bias, torch.ones([1])).to_event(1))
+    pyro.sample("layer2.weight", dist.Normal(layer2_weight, torch.ones([1, 24])).to_event(2))
 
 
 ap = argparse.ArgumentParser(description="Text Generator")
@@ -54,8 +62,9 @@ print("Training set sum=", train_dataset_y.sum(), "Validation set sum=", validat
 
 
 def svi_train():
+    model = BNN()
     svi = SVI(model,
-              guide,
+              mean_field_guide,
               optim.Adam({"lr": .01}),
               loss=Trace_ELBO())
     pyro.clear_param_store()
@@ -63,8 +72,8 @@ def svi_train():
     for i in range(num_iters):
         elbo = svi.step(train_dataset_x, train_dataset_y)
         if i % 5000 == 0:
-            train_ans = Predictive(model, guide=guide, num_samples=1)(train_dataset_x, None)["obs"][0]
-            valid_ans = Predictive(model, guide=guide, num_samples=1)(validation_dataset_x, None)["obs"][0]
+            train_ans = Predictive(model, guide=mean_field_guide, num_samples=1)(train_dataset_x, None)["obs"][0]
+            valid_ans = Predictive(model, guide=mean_field_guide, num_samples=1)(validation_dataset_x, None)["obs"][0]
             print("iter=", i,
                   "elbo=", elbo,
                   "train_ans=", torch.abs(train_ans-train_dataset_y).sum(),
@@ -72,6 +81,7 @@ def svi_train():
 
 
 def mcmc_train():
+    model = BNN()
     kernel = NUTS(model)
     mcmc = MCMC(kernel, num_samples=50)
     mcmc.run(train_dataset_x, train_dataset_y)
