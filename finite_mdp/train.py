@@ -5,7 +5,7 @@ import blocking_maze_environment
 import q_agents
 import model
 import learnable_model
-import gym
+import gymnasium as gym
 
 
 ap = argparse.ArgumentParser(description="Finite MDP Trainer")
@@ -20,11 +20,11 @@ def run_episode():
     total_reward = 0
     episode_length = 0
     path = []
-    observation = env.reset()
+    observation = env.reset()[0]
     while not done:
         path.append(observation)
         action = agent.act(observation)
-        new_observation, reward, done, info = env.step(action)
+        new_observation, reward, done, _, info = env.step(action)
         total_reward += reward
         episode_length += 1
         agent.observe(new_observation, reward, done, False)

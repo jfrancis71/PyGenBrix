@@ -1,5 +1,4 @@
 import numpy as np
-import gym
 
 # Sutton and Barto Example, page 132
 class GridCliffEnvironment:
