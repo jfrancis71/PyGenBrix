@@ -96,6 +96,9 @@ class MDPDistribution:
         print("  Left")
         print("  ", sampled_transitions[:, :, self.env.left])
 
+    def to(self, device):
+        self.device = device
+
 
 class StochasticMDPDistribution(MDPDistribution):
     def __init__(self, num_states, num_actions):
@@ -148,6 +151,3 @@ class DeterministicMDPDistribution(MDPDistribution):
                 else:
                     state_transitions[s, a] = self.state_transitions[s,a]
         return mdp.MDP(self.num_states, self.num_actions, state_transitions, rewards, dones, device=self.device)
-
-    def to(self, device):
-        self.device = device
