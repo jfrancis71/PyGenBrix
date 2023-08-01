@@ -1,12 +1,7 @@
 import argparse
-import gym
-from pfrl.wrappers import atari_wrappers as pfrl_atari_wrappers
-import pfrl_dqn
-import treebackup_dqn
-import py_dqn
+import gymnasium as gym
 import pg
 import pg_eligibility_traces
-import py_randomized_value_functions_dqn
 import human_agent
 import numpy as np
 import random_agent
@@ -33,14 +28,14 @@ def experiment(env, agent, tb_writer=None, max_steps=500000):
                 agent.episode_end(tb_writer)
 
 def experiment_episode(env, agent, learn=False, on_policy=True):
-    observation = env.reset()
+    observation, _ = env.reset()
     episode_score = 0
     episode_length = 0
     observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
     done = False
     while done is False:
         action = agent.act(observation, on_policy=demo)
-        observation, reward, done, info = env.step(action)
+        observation, reward, done, truncated, info = env.step(action)
         episode_score += reward
         episode_length += 1
         observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
@@ -71,11 +66,13 @@ if ns.demo:
     render_mode = "human"
 else:
     render_mode = "rgb_array"
-env = gym.make(ns.env, render_mode=render_mode)
+env = gym.make(ns.env, render_mode=render_mode, frameskip=1)
 env.seed(42)
-env = pfrl_atari_wrappers.MaxAndSkipEnv(env, skip=4)
-env = pfrl_atari_wrappers.WarpFrame(env)
-env = pfrl_atari_wrappers.FrameStack(env, 4)
+#env = pfrl_atari_wrappers.MaxAndSkipEnv(env, skip=4)
+#env = pfrl_atari_wrappers.WarpFrame(env)
+#env = pfrl_atari_wrappers.FrameStack(env, 4)
+env = gym.wrappers.AtariPreprocessing(env, screen_size=84)
+env = gym.wrappers.FrameStack(env, num_stack=4) # I've left out Max
 
 tb_writer = None
 if ns.folder is not None:
@@ -83,6 +80,7 @@ if ns.folder is not None:
 
 actions = env.env.get_action_meanings()
 if ns.agent == "PFRLDQN":
+    import pfrl_dqn
     q_max_steps = ns.max_steps
     if ns.demo:
         q_max_steps = 0
@@ -94,13 +92,16 @@ elif ns.agent == "Random":
 elif ns.agent == "PGEligibility":
     agent = pg_eligibility_traces.PGEligibilityTracesAgent(actions, tb_writer, ns.demo)
 elif ns.agent == "PyDQN":
+    import py_dqn
     agent = py_dqn.PyDQNAgent(actions, tb_writer, ns.max_steps)
 elif ns.agent == "TreeBackupDQN":
+    import treebackup_dqn
     q_max_steps = ns.max_steps
     if ns.demo:
         q_max_steps = 0
     agent = treebackup_dqn.PyDQNAgent(actions, tb_writer, q_max_steps, ns.multi_steps)
 elif ns.agent == "PyRandomizedValueFunctionsDQN":
+    import py_randomized_value_functions_dqn
     q_max_steps = ns.max_steps
     if ns.demo:
         q_max_steps = 0
