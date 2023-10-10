@@ -31,8 +31,9 @@ class MatrixObservationModel(nn.Module):
         self.emission_logits_matrix = nn.Parameter(torch.randn(num_states, num_observations))  # (state, observation)
 
     def emission_logits(self, observation):  # (Batch, observation)
+        log_prob = torch.distributions.categorical.Categorical(logits=self.emission_logits_matrix).logits
         """returns vector of length num_states with log p(states, observation)"""
-        return self.emission_logits_matrix[:, observation].transpose(0, 1)
+        return log_prob[:, observation].transpose(0, 1)
 
 
 class StateModel(nn.Module):
