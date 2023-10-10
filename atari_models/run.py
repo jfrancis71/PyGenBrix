@@ -2,7 +2,6 @@ import argparse
 import gymnasium as gym
 import pg
 import pg_eligibility_traces
-import human_agent
 import numpy as np
 import random_agent
 from torch.utils.tensorboard import SummaryWriter
@@ -107,6 +106,7 @@ elif ns.agent == "PyRandomizedValueFunctionsDQN":
         q_max_steps = 0
     agent = py_randomized_value_functions_dqn.PyRandomizedValueFunctionsDQNAgent(actions, tb_writer, ns.num_randomized_agents)
 elif ns.agent == "HUMAN":
+    import human_agent
     agent = human_agent.HumanAgent()
 else:
     print(ns.agent, " not recognised as agent.")
