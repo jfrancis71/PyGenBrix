@@ -29,18 +29,17 @@ def experiment(env, agent, tb_writer=None, max_steps=500000):
 
 def experiment_episode(env, agent, learn=False, on_policy=True):
     observation, _ = env.reset()
+    observation = np.array(observation)
     episode_score = 0
     episode_length = 0
-    observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
     done = False
     while done is False:
-        action = agent.act(observation, on_policy=demo)
+        action = agent.act(observation, on_policy)
         observation, reward, done, truncated, info = env.step(action)
+        observation = np.array(observation)
         episode_score += reward
         episode_length += 1
-        observation = np.moveaxis(observation, [0, 1, 2], [1, 2, 0])
-        if learn:
-            agent.observe(observation, reward, done, False)
+        agent.observe(observation, reward, done, False)
     return episode_score, episode_length
 
 def demo(env, agent):
@@ -60,9 +59,10 @@ ap.add_argument("--num_randomized_agents", default=2, type=int)
 #ap.add_argument("--device", default="cpu")
 #ap.add_argument("--rollout_length", default=3, type=int)
 ap.add_argument("--demo", action="store_true")
+ap.add_argument("--display", action="store_true")
 ns = ap.parse_args()
 
-if ns.demo:
+if ns.display:
     render_mode = "human"
 else:
     render_mode = "rgb_array"
