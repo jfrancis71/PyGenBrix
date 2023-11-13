@@ -11,7 +11,7 @@ def experiment(env, agent, tb_writer=None, max_steps=500000):
     steps = 0
     episodes = 0
     while steps < max_steps:
-        episode_score, episode_length = experiment_episode(env, agent, learn=True, on_policy=False)
+        episode_score, episode_length = experiment_episode(env, agent, eval_mode=False)
         print("At step ", steps, ", episode score=", episode_score, ", Length=", episode_length)
         if tb_writer is not None:
             tb_writer.add_scalar("episode_score", episode_score, steps)
@@ -19,21 +19,21 @@ def experiment(env, agent, tb_writer=None, max_steps=500000):
         steps += episode_length
         episodes += 1
         if episodes % 10 == 0:
-            test_episode_score, test_episode_length = experiment_episode(env, agent, learn=False, on_policy=True)
+            test_episode_score, test_episode_length = experiment_episode(env, agent, eval_mode=True)
             print("Test episode score=", test_episode_score, ", Length=", test_episode_length)
             if tb_writer is not None:
                 tb_writer.add_scalar("test_episode_score", test_episode_score, steps)
                 tb_writer.add_scalar("test_episode_length", test_episode_length, steps)
                 agent.episode_end(tb_writer)
 
-def experiment_episode(env, agent, learn=False, on_policy=True):
+def experiment_episode(env, agent, eval_mode=False):
     observation, _ = env.reset()
     observation = np.array(observation)
     episode_score = 0
     episode_length = 0
     done = False
     while done is False:
-        action = agent.act(observation, on_policy)
+        action = agent.act(observation, eval_mode)
         observation, reward, done, truncated, info = env.step(action)
         observation = np.array(observation)
         episode_score += reward
@@ -44,7 +44,7 @@ def experiment_episode(env, agent, learn=False, on_policy=True):
 def demo(env, agent):
     steps = 0
     while steps < 500000:
-        episode_score, episode_length = experiment_episode(env, agent, learn=False, on_policy=True)
+        episode_score, episode_length = experiment_episode(env, agent, eval_mode=True)
         steps += episode_length
         print("Episode score=", episode_score, ", Length=", episode_length)
 
@@ -58,10 +58,10 @@ ap.add_argument("--num_randomized_agents", default=2, type=int)
 #ap.add_argument("--device", default="cpu")
 #ap.add_argument("--rollout_length", default=3, type=int)
 ap.add_argument("--demo", action="store_true")
-ap.add_argument("--display", action="store_true")
+ap.add_argument("--render", action="store_true")
 ns = ap.parse_args()
 
-if ns.display:
+if ns.render:
     render_mode = "human"
 else:
     render_mode = "rgb_array"
@@ -85,7 +85,7 @@ if ns.agent == "PFRLDQN":
         q_max_steps = 0
     agent = pfrl_dqn.PFRLDQNAgent(actions, tb_writer, q_max_steps)
 elif ns.agent == "PG":
-    agent = pg.PGAgent(actions, tb_writer, ns.demo)
+    agent = pg.PGAgent(actions, tb_writer, False)
 elif ns.agent == "Random":
     agent = random_agent.RandomAgent()
 elif ns.agent == "PGEligibility":

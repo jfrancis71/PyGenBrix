@@ -88,9 +88,9 @@ class PyDQNAgent(nn.Module):
         self.moving_average_q = py_utils.MovingAverage(gamma=.9995)
         self.tb_writer = tb_writer
 
-    def act(self, observation, on_policy, demo=False):
+    def act(self, observation, eval_mode=False):
         self.observation = observation
-        if on_policy == False:
+        if eval_mode == False:
             self.action = self.explorer.select_action(self.steps, lambda:
                 self.select_greedy_action(phi(observation)))
         else:
