@@ -6,6 +6,7 @@ import cv2
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 from cv_bridge import CvBridge
 
 
@@ -17,6 +18,7 @@ class ImageSubscriber(Node):
             in_channel,
             self.listener_callback,
             10)
+        self.publisher = self.create_publisher(String, "object_detection_messages", 10)
         self.bridge = CvBridge()
         self.device = device
 
@@ -29,7 +31,12 @@ class ImageSubscriber(Node):
         image = torch.FloatTensor(image)
         image = image.to(self.device)
         detections = model(image)[0]
-        print("Detections: ", [class_labels[id] for id, score in zip(detections["labels"], detections["scores"]) if score > .9])
+        labels = [class_labels[id] for id, score in zip(detections["labels"], detections["scores"]) if score > .9]
+        msg = String()
+        msg.data = ','.join(labels)
+        self.publisher.publish(msg)
+        self.get_logger().info('Publishing: "%s"' % msg.data)
+
 
 ap = argparse.ArgumentParser(description="MobileNet Object Detector")
 ap.add_argument("--device", default="cpu")
