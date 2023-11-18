@@ -9,22 +9,22 @@ from torch.utils.tensorboard import SummaryWriter
 
 def experiment(env, agent, tb_writer=None, max_steps=500000):
     steps = 0
-    episodes = 0
+    episode = 0
     while steps < max_steps:
         episode_score, episode_length = experiment_episode(env, agent, eval_mode=False)
         print("At step ", steps, ", episode score=", episode_score, ", Length=", episode_length)
         if tb_writer is not None:
             tb_writer.add_scalar("episode_score", episode_score, steps)
             tb_writer.add_scalar("episode_length", episode_length, steps)
+            agent.episode_end(episode)
         steps += episode_length
-        episodes += 1
-        if episodes % 10 == 0:
+        episode += 1
+        if episode % 10 == 0:
             test_episode_score, test_episode_length = experiment_episode(env, agent, eval_mode=True)
             print("Test episode score=", test_episode_score, ", Length=", test_episode_length)
             if tb_writer is not None:
                 tb_writer.add_scalar("test_episode_score", test_episode_score, steps)
                 tb_writer.add_scalar("test_episode_length", test_episode_length, steps)
-                agent.episode_end(tb_writer)
 
 def experiment_episode(env, agent, eval_mode=False):
     observation, _ = env.reset()
