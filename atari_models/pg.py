@@ -8,6 +8,7 @@ import torch
 import matplotlib.pyplot as plt; plt.rcdefaults()
 import numpy as np
 import matplotlib.pyplot as plt
+import PyGenBrix.atari_models.py_utils as utils
 
 
 # Reference implementation:
@@ -33,6 +34,9 @@ class PGAgent(nn.Module):
         self.grads = []
         self.eps = np.finfo(np.float32).eps.item()
         self.demo = demo
+        self.tb_writer = tb_writer
+        self.moving_average_condition_action_entropy = utils.MovingAverage()
+        self.moving_average_action_probs = utils.MovingAverage()
         if self.demo:
             y_pos = np.arange(n_actions)
             performance = [1]*n_actions
@@ -53,6 +57,9 @@ class PGAgent(nn.Module):
         observation_tensor = torch.tensor(observation).unsqueeze(0)
         x = self.net(observation_tensor)
         action_distribution = Categorical(F.softmax(x, dim=0))
+        action_entropy = action_distribution.entropy()
+        self.moving_average_condition_action_entropy.update(action_entropy.detach())
+        self.moving_average_action_probs.update(action_distribution.probs.detach())
         action = action_distribution.sample()
         self.net.zero_grad()
         loss = -action_distribution.log_prob(action)
@@ -130,5 +137,11 @@ class PGAgent(nn.Module):
         discounted_r /= np.std(discounted_r) + self.eps
         return discounted_r
 
-    def episode_end(self, tb_writer):
+    def episode_end(self, episode_no):
+        if self.tb_writer is not None:
+            condition_action_entropy = self.moving_average_condition_action_entropy.value()
+            action_entropy = Categorical(probs=self.moving_average_action_probs.value()).entropy()
+            self.tb_writer.add_scalar("condition_action_entropy", condition_action_entropy, episode_no)
+            self.tb_writer.add_scalar("action_entropy", action_entropy, episode_no)
+            self.tb_writer.add_scalar("entropy_gap", action_entropy-condition_action_entropy, episode_no)
         pass
