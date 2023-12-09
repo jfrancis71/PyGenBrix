@@ -1,0 +1,3 @@
+ros2 run image_transport republish compressed raw --ros-args --remap in/compressed:=/thomas/compressed --remap out:=server  # Run on server to remap robot compressed image to server
+ros2 launch teleop_twist_joy teleop-launch.py joy_config:='xbox'  # runs both a joystick node and a node to translate joystick messages to Twist messages
+./mono ~/orb3/ORB_SLAM3/Vocabulary/ORBvoc.txt ~/orb3/ORB_SLAM3/Examples/Monocular/thomas1.yaml  # runs ORB3 listens to messages on /server/ and publishes on /orb_slam3/camera_pose
