@@ -26,8 +26,8 @@ class ThomasNode(Node):
         self.last_command_time = time.time()
         motora = msg.linear.x*25
         motorb = msg.linear.x*25
-        motora += msg.angular.z * 10
-        motorb -= msg.angular.z * 10
+        motora -= msg.angular.z * 10
+        motorb += msg.angular.z * 10
         self.bp.set_motor_power(self.bp.PORT_A, motora)
         self.bp.set_motor_power(self.bp.PORT_D, motorb)
 
