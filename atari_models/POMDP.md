@@ -44,8 +44,26 @@ $$\alpha_t(x_t) = p(r_t | x_t) \sum_{x_{t-1}} p(x_t | x_{t-1}, r_{1..t-1}, y_{1.
 
 To compute $x_t$ in above conditional, the previous rewards and observations and actions (except the last action) are not relevant.
 
-$$\alpha_t(x_t) = p(r_t | x_t) \sum_{x_{t-1}} p(x_t | x_{t-1},  y_{t+1..T}, a_{t-1..T}) p(x_{t-1}, r_{1..t-1}|y_{1..T}, a_{1..T})$$
+$$\alpha_t(x_t) = p(r_t | x_t) \sum_{x_{t-1}} p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T}) p(x_{t-1}, r_{1..t-1}|y_{1..T}, a_{1..T})$$
 
-Note the final term in the bracket is just $\alpha_{t-1}(x_{t-1}$ So:
+Note the final term in the bracket is just $\alpha_{t-1}(x_{t-1})$ So:
 
-$$\alpha_t(x_t) = p(r_t | x_t) \sum_{x_{t-1}} p(x_t | x_{t-1},  y_{t+1..T}, a_{t-1..T}) \alpha_{t-1}(x_{t-1})$$
+$$\alpha_t(x_t) = p(r_t | x_t) \sum_{x_{t-1}} p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T}) \alpha_{t-1}(x_{t-1})$$
+
+Let's define $\beta$:
+
+$$\beta_t(x_t) = p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T})$$
+
+$$\beta_t(x_t) = \frac{p(x_t, x_{t-1},  y_{t..T} | a_{t-1..T})}{\sum_{x_t^\prime} p(x_t^\prime, x_{t-1},  y_{t..T} | a_{t-1..T})}$$
+
+Break out the $y_t$:
+
+$$\beta_t(x_t) = \frac{p(x_t, x_{t-1},  y_t, y_{t+1..T} | a_{t-1..T})}{\sum_{x_t^\prime} p(x_t^\prime, x_{t-1},  y_t, y_{t+1..T} | a_{t-1..T})}$$
+
+Use chain rule on $y_t$
+
+$$\beta_t(x_t) = \frac{p(y_t| x_{t-1},  x_t, y_{t+1..T} | a_{t-1..T}) p(x_t, x_{t-1}, y_{t+1..T} | a_{t-1..T})}{\sum_{x\prime_t} p(y_t| x_{t-1},  x_t^\prime, y_{t+1..T} | a_{t-1..T}) p(x_t^\prime, x_{t-1}, y_{t+1..T} | a_{t-1..T})}$$
+
+But $y_t$ only depends on $x_t$
+
+$$\beta_t(x_t) = \frac{p(y_t| x_t) p(x_t, x_{t-1}, y_{t+1..T} | a_{t-1..T})}{\sum_{x_t^\prime} p(y_t| x_t^\prime) p(x_t^\prime, x_{t-1}, y_{t+1..T} | a_{t-1..T})}$$
