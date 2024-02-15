@@ -62,7 +62,7 @@ $$\beta_t(x_t) = \frac{p(x_t, x_{t-1},  y_t, y_{t+1..T} | a_{t-1..T})}{\sum_{x_t
 
 Use chain rule on $y_t$
 
-$$\beta_t(x_t) = \frac{p(y_t| x_{t-1},  x_t, y_{t+1..T} | a_{t-1..T}) p(x_t, x_{t-1}, y_{t+1..T} | a_{t-1..T})}{\sum_{x\prime_t} p(y_t| x_{t-1},  x_t^\prime, y_{t+1..T} | a_{t-1..T}) p(x_t^\prime, x_{t-1}, y_{t+1..T} | a_{t-1..T})}$$
+$$\beta_t(x_t) = \frac{p(y_t| x_{t-1},  x_t, y_{t+1..T}, a_{t-1..T}) p(x_t, x_{t-1}, y_{t+1..T} | a_{t-1..T})}{\sum_{x\prime_t} p(y_t| x_{t-1},  x_t^\prime, y_{t+1..T}, a_{t-1..T}) p(x_t^\prime, x_{t-1}, y_{t+1..T} | a_{t-1..T})}$$
 
 But $y_t$ only depends on $x_t$
 
