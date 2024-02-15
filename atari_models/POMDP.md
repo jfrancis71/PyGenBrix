@@ -1,5 +1,7 @@
 # POMDP
 
+Note this is all a work in progress!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 Objective: Learn to model sequence of rewards using sequence of observations and actions.
 
 * $r_{1..T}$ is the sequence of rewards
@@ -49,6 +51,22 @@ $$\alpha_t(x_t) = p(r_t | x_t) \sum_{x_{t-1}} p(x_t | x_{t-1},  y_{t..T}, a_{t-1
 Note the final term in the bracket is just $\alpha_{t-1}(x_{t-1})$ So:
 
 $$\alpha_t(x_t) = p(r_t | x_t) \sum_{x_{t-1}} p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T}) \alpha_{t-1}(x_{t-1})$$
+
+Let's define \psi as:
+
+$$\psi = p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T})$$
+
+We can write this as:
+
+$$\psi = \frac{p(x_t, y_{t..T} | x_{t-1}, a_{t-1..T})}{\sum_{xt} p(x_t, x_{t-1},  y_{t..T} | a_{t-1..T})}$$
+
+So:
+
+$$\psi = \frac{p(y_{t..T} | x_t, x_{t-1},  a_{t-1..T}) p(x_t | x_{t-1}, a_{t-1..T})}{\sum_{xt} p(x_t, x_{t-1},  y_{t..T} | a_{t-1..T})}$$
+
+But $y_{t..T}$ depends only on present state and not on actions in the past. Also $px_t$ depends on previous state and action. It does not depend on actions before that, and I will assume it does not depend on current and future actions.
+
+$$\psi = \frac{p(y_{t..T} | x_t,  a_{t..T}) p(x_t | x_{t-1}, a_{t-1})}{\sum_{xt} p(x_t, x_{t-1},  y_{t..T} | a_{t-1..T})}$$
 
 Let's define $\beta$:
 
