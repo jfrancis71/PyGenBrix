@@ -52,7 +52,7 @@ Note the final term in the bracket is just $\alpha_{t-1}(x_{t-1})$ So:
 
 $$\alpha_t(x_t) = p(r_t | x_t) \sum_{x_{t-1}} p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T}) \alpha_{t-1}(x_{t-1})$$
 
-Let's define \psi as:
+Let's define $\psi$ as:
 
 $$\psi = p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T})$$
 
@@ -68,20 +68,22 @@ But $y_{t..T}$ depends only on present state and not on actions in the past. Als
 
 $$\psi = \frac{p(y_{t..T} | x_t,  a_{t..T}) p(x_t | x_{t-1}, a_{t-1})}{\sum_{xt} p(x_t, x_{t-1},  y_{t..T} | a_{t-1..T})}$$
 
-Let's define $\beta$:
+Let's define $\beta$
 
-$$\beta_t(x_t) = p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T})$$
+$$\beta = p(y_{t..T} | x_t, a_{t..T})$$
 
-$$\beta_t(x_t) = \frac{p(x_t, x_{t-1},  y_{t..T} | a_{t-1..T})}{\sum_{x_t^\prime} p(x_t^\prime, x_{t-1},  y_{t..T} | a_{t-1..T})}$$
+Breaking out y and reverse marginalising over x_t+1
 
-Break out the $y_t$:
+$$\beta = \sum_{x_{t+1}} p(y_t, y_{t+1..T}, x_{t+1} | x_t, a_{t..T})$$
 
-$$\beta_t(x_t) = \frac{p(x_t, x_{t-1},  y_t, y_{t+1..T} | a_{t-1..T})}{\sum_{x_t^\prime} p(x_t^\prime, x_{t-1},  y_t, y_{t+1..T} | a_{t-1..T})}$$
+$$\beta = \sum_{x_{t+1}} p(y_t| y_{t+1..T}, x_{t+1},x_t, a_{t..T}) p(y_{t+1..T} | x_{t+1}, x_t, a_{t..T}) p(x_{t+1} | x_t, a_{t..T})$$
 
-Use chain rule on $y_t$
+Using conditional independency assumptions:
 
-$$\beta_t(x_t) = \frac{p(y_t| x_{t-1},  x_t, y_{t+1..T}, a_{t-1..T}) p(x_t, x_{t-1}, y_{t+1..T} | a_{t-1..T})}{\sum_{x\prime_t} p(y_t| x_{t-1},  x_t^\prime, y_{t+1..T}, a_{t-1..T}) p(x_t^\prime, x_{t-1}, y_{t+1..T} | a_{t-1..T})}$$
+$$\beta = \sum p(y_t|x_t) p(y_{t+1..T} | x_{t+1}, a_{t+1..T}) p(x_{t+1} | x_t, a_{t..T})$$
 
-But $y_t$ only depends on $x_t$
+But middle term is just \beta+1
 
-$$\beta_t(x_t) = \frac{p(y_t| x_t) p(x_t, x_{t-1}, y_{t+1..T} | a_{t-1..T})}{\sum_{x_t^\prime} p(y_t| x_t^\prime) p(x_t^\prime, x_{t-1}, y_{t+1..T} | a_{t-1..T})}$$
+So:
+
+$$\beta = \sum p(y_t|x_t) \beta(y_{t+1}) p(x_{t+1} | x_t, a_{t..T})$$
