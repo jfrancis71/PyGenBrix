@@ -58,11 +58,11 @@ $$\psi = p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T})$$
 
 We can write this as:
 
-$$\psi = \frac{p(x_t, y_{t..T} | x_{t-1}, a_{t-1..T})}{\sum_{xt} p(x_t, x_{t-1},  y_{t..T} | a_{t-1..T})}$$
+$$\psi = \frac{p(x_t, y_{t..T} | x_{t-1}, a_{t-1..T})}{\sum_{x\prime_t} p(x\prime_t, y_{t..T} | x\prime_{t-1}, a_{t-1..T})}$$
 
 So:
 
-$$\psi = \frac{p(y_{t..T} | x_t, x_{t-1},  a_{t-1..T}) p(x_t | x_{t-1}, a_{t-1..T})}{\sum_{xt} p(x_t, x_{t-1},  y_{t..T} | a_{t-1..T})}$$
+$$\psi = \frac{p(y_{t..T} | x_t, x_{t-1},  a_{t-1..T}) p(x_t | x_{t-1}, a_{t-1..T})}{\sum_{xt} p(y_{t..T} | x_t, x_{t-1},  a_{t-1..T}) p(x_t | x_{t-1}, a_{t-1..T})}$$
 
 But $y_{t..T}$ depends only on present state and not on actions in the past. Also $px_t$ depends on previous state and action. It does not depend on actions before that, and I will assume it does not depend on current and future actions.
 
