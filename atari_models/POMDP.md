@@ -89,3 +89,15 @@ But middle term is just $\beta_{t+1}(x_{t+1})$
 So:
 
 $$\beta_t(x_t) = \sum p(y_t|x_t) \beta_{t+1}(x_{t+1}) p(x_{t+1} | x_t, a_{t..T})$$
+
+Note, it may seem like $p(y_t | x_t)$ is defining a generative observational model. But this is not so. For sure $p(y_t | x_t)$ is a conditional model over the observation, but it is not trained to maximize that objective. The only purpose in generating gradients in that model is to improve the reward prediction distribution which is the objective.
+
+Also note, it might seem like you would have to do multiple passes over, eg a PixelCNN to compute this for each possible $x_t$ but alternatively you could have your PixelCNN pixel components output a matrix, where eg columns represent distribution over the possible pixel values, and rows correspond to different states.
+
+I suspect there is a problem with this architecture. What if a single observation gives you complete information over the state. There is no incentive to learn $p(x_t | x_{t-1}, a_{t-1})$
+
+I propose:
+
+$$D_{KL}[p(x_t | y_t, x_{t-1}, a_{t-1}) || p(x_t | x_{t-1}, a_{t-1})]$$
+
+an an extra objective to minimise. No proof, just seems intuitive.
