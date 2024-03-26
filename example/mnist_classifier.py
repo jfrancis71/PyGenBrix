@@ -1,8 +1,8 @@
 import torch.nn as nn
 import torchvision
 import argparse
-import pygen.train.train as train
-import pygen.train.callbacks as callbacks
+import PyGenBrix.train.train as train
+import PyGenBrix.train.callbacks as callbacks
 import torch.nn.functional as F
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -53,8 +53,9 @@ dataset = torchvision.datasets.MNIST(ns.datasets_folder, train=True, download=Tr
 digit_recognizer = DigitRecognizer()
 train_dataset, validation_dataset = random_split(dataset, [50000, 10000])
 tb_writer = SummaryWriter(ns.tb_folder)
-epoch_end_callbacks = callbacks.callback_compose([callbacks.TBClassifyImagesCallback(tb_writer, "train_images", train_dataset),
-                       callbacks.TBClassifyImagesCallback(tb_writer, "validation_images", validation_dataset),
+class_labels = ["{num}".format(num=num) for num in range(10)]
+epoch_end_callbacks = callbacks.callback_compose([callbacks.TBClassifyImagesCallback(tb_writer, "train_images", train_dataset, class_labels),
+                       callbacks.TBClassifyImagesCallback(tb_writer, "validation_images", validation_dataset, class_labels),
                        callbacks.TBLogProbCallback(tb_writer, "train_epoch_log_prob"),
                        callbacks.TBAccuracyCallback(tb_writer, "train_accuracy", train_dataset),
                        callbacks.TBAccuracyCallback(tb_writer, "validation_accuracy", validation_dataset)])

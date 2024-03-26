@@ -1,8 +1,8 @@
 import torch.nn as nn
 import torchvision
 import argparse
-import pygen.train.train as train
-import pygen.train.callbacks as callbacks
+import PyGenBrix.train.train as train
+import PyGenBrix.train.callbacks as callbacks
 import torch.nn.functional as F
 import torch
 from torch.utils.tensorboard import SummaryWriter
