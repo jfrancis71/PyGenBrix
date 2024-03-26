@@ -3,8 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def image_grid(images, labels):
-    """Return a 5x5 grid of the MNIST images as a matplotlib figure."""
-    # Create a figure to contain the plot.
+    """Return a 5x5 grid of images with labels."""
     plt.figure(figsize=(10,10))
     for i in range(25):
         # Start next subplot.
@@ -12,7 +11,18 @@ def image_grid(images, labels):
         plt.xticks([])
         plt.yticks([])
         plt.grid(False)
-        plt.imshow(images[i][0], cmap=plt.cm.binary)
+        image = None
+        num_channels = images[i].shape[0]
+        if num_channels == 1:
+            image = images[i][0]
+            cmap = 'gray'
+        else:
+            if num_channels == 3:
+                image = images[i].permute(1,2,0)
+                cmap = None
+            else:
+                raise("Unknown image with channels", num_channels)
+        plt.imshow(image, cmap=cmap)
     canvas = plt.gca().figure.canvas
     canvas.draw()
     data = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8)
