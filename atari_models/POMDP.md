@@ -66,7 +66,7 @@ So:
 
 $$\psi_t(x_t, x_{t-1}) = \frac{p(y_{t..T} | x_t, x_{t-1},  a_{(t-1)..T}) p(x_t | x_{t-1}, a_{(t-1)..T})}{\sum_{x\prime_t} p(y_{t..T} | x\prime_t, x_{t-1},  a_{(t-1)..T}) p(x\prime_t | x_{t-1}, a_{(t-1)..T})}$$
 
-But $y_{t..T}$ depends only on present state and not on actions in the past. Also $px_t$ depends on previous state and action. It does not depend on actions before that, and I will assume it does not depend on current and future actions.
+But $y_{t..T}$ depends only on present state and not on actions in the past. Also $p(x_t)$ depends on previous state and action. It does not depend on actions before that, and I will assume it does not depend on current and future actions.
 
 $$\psi_t(x_t, x_{t-1}) = \frac{p(y_{t..T} | x_t,  a_{t..T}) p(x_t | x_{t-1}, a_{t-1})}{\sum_{x\prime_t} {p(y_{t..T} | x\prime_t,  a_{t..T}) p(x\prime_t | x_{t-1}, a_{t-1})}} $$
 
