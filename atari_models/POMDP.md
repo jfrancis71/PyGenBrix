@@ -52,23 +52,23 @@ Note the final term in the product is just $\alpha_{t-1}(x_{t-1})$ So:
 
 $$\alpha_t(x_t) = p(r_t | x_t) \sum_{x_{t-1}} p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T}) \alpha_{t-1}(x_{t-1})$$
 
-Let's define $\psi_t(x_t)$ as:
+Let's define $\psi_t(x_t, x_{t-1})$ as:
 
-$$\psi_t(x_t) = p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T})$$
+$$\psi_t(x_t, x_{t-1}) = p(x_t | x_{t-1},  y_{t..T}, a_{t-1..T})$$
 
 We can write this as:
 
 WHY?
 
-$$\psi_t(x_t) = \frac{p(x_t, y_{t..T} | x_{t-1}, a_{(t-1)..T})}{\sum_{x\prime_t} p(x\prime_t, y_{t..T} | x\prime_{t-1}, a_{(t-1)..T})}$$
+$$\psi_t(x_t, x_{t-1}) = \frac{p(x_t, y_{t..T} | x_{t-1}, a_{(t-1)..T})}{\sum_{x\prime_t} p(x\prime_t, y_{t..T} | x_{t-1}, a_{(t-1)..T})}$$
 
 So:
 
-$$\psi_t(x_t) = \frac{p(y_{t..T} | x_t, x_{t-1},  a_{(t-1)..T}) p(x_t | x_{t-1}, a_{(t-1)..T})}{\sum_{xt} p(y_{t..T} | x\prime_t, x_{t-1},  a_{(t-1)..T}) p(x\prime_t | x_{t-1}, a_{(t-1)..T})}$$
+$$\psi_t(x_t, x_{t-1}) = \frac{p(y_{t..T} | x_t, x_{t-1},  a_{(t-1)..T}) p(x_t | x_{t-1}, a_{(t-1)..T})}{\sum_{x\prime_t} p(y_{t..T} | x\prime_t, x_{t-1},  a_{(t-1)..T}) p(x\prime_t | x_{t-1}, a_{(t-1)..T})}$$
 
 But $y_{t..T}$ depends only on present state and not on actions in the past. Also $px_t$ depends on previous state and action. It does not depend on actions before that, and I will assume it does not depend on current and future actions.
 
-$$\psi_t(x_t) = \frac{p(y_{t..T} | x_t,  a_{t..T}) p(x_t | x_{t-1}, a_{t-1})}{\sum_{xt} p(x_t, x_{t-1},  y_{t..T} | a_{t-1..T})}$$
+$$\psi_t(x_t, x_{t-1}) = \frac{p(y_{t..T} | x_t,  a_{t..T}) p(x_t | x_{t-1}, a_{t-1})}{\sum_{x\prime_t} {p(y_{t..T} | x\prime_t,  a_{t..T}) p(x\prime_t | x_{t-1}, a_{t-1})}} $$
 
 Let's define $\beta_t(x_t)$
 
