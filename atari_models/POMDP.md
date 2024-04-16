@@ -96,6 +96,17 @@ Also note, it might seem like you would have to do multiple passes over, eg a Pi
 
 I suspect there is a problem with this architecture. What if a single observation gives you complete information over the state. There is no incentive to learn $p(x_t | x_{t-1}, a_{t-1})$
 
+Simple example:
+$$p(y_2=1 | x_2 = 1) = y_1$$
+$$p(y_2=1 | x_2 = 0) = y_0$$
+$$p(x_2=1 | x_1 = 1) = x_2$$
+
+$$p(x_2 = 1 | y_2 = 1, x_1 = 1 ) = \frac{y_1 x_2}{y_1 x_2 + y_0 (1-x_2)}$$
+
+so this is approximately = 1 if $y_0$ is near 0, unless $x_2$ is also near 0.
+
+
+
 I propose:
 
 $$D_{KL}[p(x_t | y_t, x_{t-1}, a_{t-1}) || p(x_t | x_{t-1}, a_{t-1})]$$
