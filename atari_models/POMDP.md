@@ -119,3 +119,9 @@ I propose:
 $$E_{x_{t-1} \sim p(x_t-1 | y_{1..T}, r_{1..T}, a_{1..T})} [ D_{KL}[p(x_t | y_{1..T}, r_{1..T}, x_{t-1}, a_{t-1}) || p(x_t | x_{t-1}, a_{t-1})] ]$$
 
 an an extra objective to minimise. No proof, just seems intuitive.
+
+
+I think I'd go for option 1.
+
+Test environment: Artificial simple sequence to debug.
+MinAtar, breakout, but modify so reward of -1 on game termination, no other rewards.
