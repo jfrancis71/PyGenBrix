@@ -106,9 +106,16 @@ $$p(x_2 = 1 | y_2 = 1, x_1 = 1 ) = \frac{y_1 x_2}{y_1 x_2 + y_0 (1-x_2)}$$
 so this is approximately = 1 if $y_0$ is near 0, unless $x_2$ is also near 0.
 
 
+Solutions:
+
+1) Drop out randomly some of the $y_t$ observations. This should force the model to rely on the transition model.
+
+2) Pleace an entropy penalty on the transition matrix, ie for every source state there is an entropy penalty over the destination states. This should encourage learning the correct transitions as if you learn incorrect state transitions this leads to (in the above example x_2 being close to 0) which harms the posterior distribution over the next state.
+
+3) 
 
 I propose:
 
-$$D_{KL}[p(x_t | y_t, x_{t-1}, a_{t-1}) || p(x_t | x_{t-1}, a_{t-1})]$$
+$$E_{x_{t-1} \sim p(x_t-1 | y_{1..T}, r_{1..T}, a_{1..T})} [ D_{KL}[p(x_t | y_{1..T}, r_{1..T}, x_{t-1}, a_{t-1}) || p(x_t | x_{t-1}, a_{t-1})] ]$$
 
 an an extra objective to minimise. No proof, just seems intuitive.
