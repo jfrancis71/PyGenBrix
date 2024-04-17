@@ -123,5 +123,11 @@ an an extra objective to minimise. No proof, just seems intuitive.
 
 I think I'd go for option 1.
 
+
+Generally a prior over the states like a Dirichlet distribution would encourage a parsimonious model
 Test environment: Artificial simple sequence to debug.
 MinAtar, breakout, but modify so reward of -1 on game termination, no other rewards.
+What do I expect to go wrong?.....Many things....If training is stuck in local minima then this will be a problem.
+
+
+These ideas are inspired by a paper: Value Prediction Network, Oh, Singh, Lee (2017). I didn't really understand their approach, but I did find their argument that for model based learning to model observations may be very hard and unnecessary to model the rewards.
