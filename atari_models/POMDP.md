@@ -120,7 +120,9 @@ $$E_{x_{t-1} \sim p(x_t-1 | y_{1..T}, r_{1..T}, a_{1..T})} [ D_{KL}[p(x_t | y_{1
 
 an an extra objective to minimise. No proof, just seems intuitive.
 
+Further thoughts:
 
+The problem is there there is no incentive to model p(y|x) correctly and this implies due to the product that the p(xt|xt-1) will be distorted in order to get the posterior right. If we try to fix it by adding an objective on p(y|x) we would be back to a fully generative model which is what we tried to avoid.
 I think I'd go for option 1.
 
 
@@ -131,3 +133,8 @@ What do I expect to go wrong?.....Many things....If training is stuck in local m
 
 
 These ideas are inspired by a paper: Value Prediction Network, Oh, Singh, Lee (2017). I didn't really understand their approach, but I did find their argument that for model based learning to model observations may be very hard and unnecessary to model the rewards.
+
+
+Testing:
+
+Simple sequence, MinAtar, could use breakout but zero rewards and substitute end of life with -1 reward. Also design super simple game, it shouldn't be that difficult, eg catch the ball.
