@@ -71,3 +71,7 @@ $$
 $$
 Log(p(y_{1..t}, x_t) = E_{x_t \sim q_t(x_t)}[Log(p(y_{1..t}, x_t, x_{t-1})] + E_{x_t \sim q_t(x_t)}[Log(\frac{q_{t-1}(x_{t-1})}{p(x_{t-1}|y_{t-1}, x_t)})] + E_{x_t \sim q_t(x_t)}[Log(\frac{1}{q(x_{t-1}})]
 $$
+
+$$
+Log(p(y_{1..t}, x_t) = E_{x_t \sim q_t(x_t)}[Log(p(y_{1..t-1}, y_t, x_t, x_{t-1})] + D_{KL}[q_{t-1}(x_{t-1})||p(x_t|y_{1..t},x_t)] + H[q_{t-1}(x_{t-1})]
+$$
