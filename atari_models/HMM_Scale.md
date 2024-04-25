@@ -46,4 +46,4 @@ $$Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[Log( \frac{p(y_{1..T},x_T)}{p(x_T | y_
 
 $$Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[Log( \frac{p(y_{1..T},x_T)}{p(x_T | y_{1..T} )} \frac{q_t(x_t)}{q_t(x_t)})]$$
 
-$$Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[Log(p(y_{1..T})] + ...$$
+$$Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[Log(p(y_{1..T})] + E_{x_t \sim q(x_t) }[Log(\frac{q(x_t)}{p(x_T|y_{1..T})})] + E_{x_t \sim q(x_t) }[Log(\frac{1}{q(x_T)})]$$
