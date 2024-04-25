@@ -37,7 +37,8 @@ $$p(x,y) = p(x|y) p(y)$$ (From Product Rule)
 
 So:
 
-$$p(y) = p(y,x) p(x|y)$$
+Equ 2:
+$$p(y) = \frac{p(y,x)}{p(x|y)}$$
 
 Used below:
 
