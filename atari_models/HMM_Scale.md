@@ -47,7 +47,10 @@ $$Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[Log( \frac{p(y_{1..T},x_T)}{p(x_T | y_
 
 $$Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[Log( \frac{p(y_{1..T},x_T)}{p(x_T | y_{1..T} )} \frac{q_t(x_t)}{q_t(x_t)})]$$
 
-$$Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[Log(p(y_{1..T})] + E_{x_t \sim q(x_t) }[Log(\frac{q(x_t)}{p(x_T|y_{1..T})})] + E_{x_t \sim q(x_t) }[Log(\frac{1}{q(x_T)})]$$
+```math
+\displaylines{Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[Log(p(y_{1..T})] + E_{x_t \sim q(x_t) }[Log(\frac{q(x_t)}{p(x_T|y_{1..T})})] + \\
+E_{x_t \sim q(x_t) }[Log(\frac{1}{q(x_T)})]}
+```
 
 
 $$Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[\alpha_T(x_T)] + D_{KL}[q(x_T)||p(x_T|y_{1..T})] + H[q_T(x_T)]$$
@@ -69,9 +72,11 @@ $$
 Log(p(y_{1..t}, x_t) = E_{x_t \sim q_t(x_t)}[Log(\frac{p(y_{1.t}, x_t, x_{t-1})}{p(x_{t-1}|y_{1..t}, x_t)} \frac{q_{t-1}(x_{t-1})}{q_{t-1}(x_{t-1})})]
 $$
 
-$$
-Log(p(y_{1..t}, x_t) = E_{x_t \sim q_t(x_t)}[Log(p(y_{1..t}, x_t, x_{t-1})] + E_{x_t \sim q_t(x_t)}[Log(\frac{q_{t-1}(x_{t-1})}{p(x_{t-1}|y_{t-1}, x_t)})] + E_{x_t \sim q_t(x_t)}[Log(\frac{1}{q(x_{t-1}})]
-$$
+```math
+\displaylines{
+Log(p(y_{1..t}, x_t) = E_{x_t \sim q_t(x_t)}[Log(p(y_{1..t}, x_t, x_{t-1})] + E_{x_t \sim q_t(x_t)}[Log(\frac{q_{t-1}(x_{t-1})}{p(x_{t-1}|y_{t-1}, x_t)})] + \\
+E_{x_t \sim q_t(x_t)}[Log(\frac{1}{q(x_{t-1}})]}
+```
 
 $$
 Log(p(y_{1..t}, x_t) = E_{x_t \sim q_t(x_t)}[Log(p(y_{1..t-1}, y_t, x_t, x_{t-1})] + D_{KL}[q_{t-1}(x_{t-1})||p(x_t|y_{1..t},x_t)] + H[q_{t-1}(x_{t-1})]
@@ -81,9 +86,10 @@ $$
 p(y_{1..t-1}, y_t, x_t, x_{t-1}) = p(y_t|x_t) * p(x_t|y_{1..t-1}, x_{t-1}) * p(y_{1..t-1}, x_{t-1})
 $$
 
-$$
-E_{x_t \sim q_t(x_t)}[Log(p(y_{1..t-1}, y_t, x_t, x_{t-1})] = E_{x_t \sim q_t(x_t)}[Log(p(y_t| x_t)] + E_{x_t \sim q_t(x_t)}[Log(p(x_t| x_{t-1})] + E_{x_t \sim q_t(x_t)}[Log(p(y_{t-1}, x_{t-1})]
-$$
+```math
+\displaylines{E_{x_t \sim q_t(x_t)}[Log(p(y_{1..t-1}, y_t, x_t, x_{t-1})] = E_{x_t \sim q_t(x_t)}[Log(p(y_t| x_t)] + E_{x_t \sim q_t(x_t)}[Log(p(x_t| x_{t-1})] + \\
+E_{x_t \sim q_t(x_t)}[Log(p(y_{t-1}, x_{t-1})]}
+```
 
 $$
 E_{x_t \sim q_t(x_t)}[Log(p(y_{1..t-1}, y_t, x_t, x_{t-1})] = E_{x_t \sim q_t(x_t)}[Log(p(y_t| x_t)] + E_{x_t \sim q_t(x_t)}[Log(p(x_t| x_{t-1})] + E_{x_t \sim q_t(x_t)}[\alpha_{t-1}(x_{t-1})]
