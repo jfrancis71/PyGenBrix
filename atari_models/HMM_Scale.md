@@ -56,3 +56,10 @@ Now for the \alpha updates:
 $$\alpha_t(x_t) = Log(p(y_t | x_t)) + Log(\sum_{x_{t-1}} exp(log(p(x_t | x_{t-1})) + \alpha_{t-1}(x_{t-1})))$$
 
 
+$$
+\alpha_t(x_t) = Log(p(y_{1..t}, x_t)
+$$
+
+$$
+Log(p(y_{1..t}, x_t) = E_{x_t \sim q_t(x_t)}[Log(\frac{p(y_{1.t}, x_t, x_{t-1}}{p(x_{t-1}|y_{1..t}, x_t})]
+$$
