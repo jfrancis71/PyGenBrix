@@ -50,3 +50,9 @@ $$Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[Log(p(y_{1..T})] + E_{x_t \sim q(x_t) 
 
 
 $$Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[\alpha_T(x_T)] + D_{KL}[q(x_T)||p(x_T|y_{1..T})] + H[q_T(x_T)]$$
+
+Now for the \alpha updates:
+
+$$\alpha_t(x_t) = Log(p(y_t | x_t)) + Log(\sum_{x_{t-1}} exp(log(p(x_t | x_{t-1})) + \alpha_{t-1}(x_{t-1})))$$
+
+
