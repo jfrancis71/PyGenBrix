@@ -64,6 +64,8 @@ $$
 \alpha_t(x_t) = Log(p(y_{1..t}, x_t)
 $$
 
+For below see equ 2
+
 $$
 Log(p(y_{1..t}, x_t) = E_{x_t \sim q_t(x_t)}[Log(\frac{p(y_{1.t}, x_t, x_{t-1})}{p(x_{t-1}|y_{1..t}, x_t})]
 $$
@@ -83,7 +85,13 @@ Log(p(y_{1..t}, x_t) = E_{x_t \sim q_t(x_t)}[Log(p(y_{1..t-1}, y_t, x_t, x_{t-1}
 $$
 
 $$
-p(y_{1..t-1}, y_t, x_t, x_{t-1}) = p(y_t|x_t) * p(x_t|y_{1..t-1}, x_{t-1}) * p(y_{1..t-1}, x_{t-1})
+p(y_{1..t-1}, y_t, x_t, x_{t-1}) = p(y_t|x_t, x_{t-1}, y{1..t-1}) * p(x_t|y_{1..t-1}, x_{t-1}) * p(y_{1..t-1}, x_{t-1})
+$$
+
+By conditional independency assumptions:
+
+$$
+p(y_{1..t-1}, y_t, x_t, x_{t-1}) = p(y_t|x_t) * p(x_t| x_{t-1}) * p(y_{1..t-1}, x_{t-1})
 $$
 
 ```math
