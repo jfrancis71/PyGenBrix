@@ -79,7 +79,7 @@ $$
 Log(p(y_{1..t}, x_t) = E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_{1..t}, x_t, x_{t-1})] + E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(\frac{q_{t-1}(x_{t-1})}{p(x_{t-1}|y_{1..t}, x_t)})] + \\
 E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(\frac{1}{q(x_{t-1}})]}
 ```
-
+Equ 3:
 ```math
 \displaylines{
 Log(p(y_{1..t}, x_t)) = E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_{1..t-1}, y_t, x_t, x_{t-1}))] + \\
@@ -105,4 +105,14 @@ E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_{t-1}, x_{t-1})]}
 \displaylines{
 E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_{1..t-1}, y_t, x_t, x_{t-1})] = E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_t| x_t)] + \\
 E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(x_t| x_{t-1})] + E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[\alpha_{t-1}(x_{t-1})]}
+```
+
+From equ3 , above and \alpha defn:
+
+```math
+\displaylines{
+\alpha_t(x_t) = E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_t| x_t)] + \\
+E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(x_t| x_{t-1})] + E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[\alpha_{t-1}(x_{t-1})] + \\
+D_{KL}[q_{t-1}(x_{t-1})||p(x_{t-1}|y_{1..t},x_t)] + H[q_{t-1}(x_{t-1})]
+}
 ```
