@@ -57,9 +57,6 @@ $$Log(p(y_{1..T})) = E_{x_t \sim q(x_t) }[\alpha_T(x_T)] + D_{KL}[q(x_T)||p(x_T|
 
 Now for the $\alpha_t(x_t)$ updates:
 
-$$\alpha_t(x_t) = Log(p(y_t | x_t)) + Log(\sum_{x_{t-1}} exp(log(p(x_t | x_{t-1})) + \alpha_{t-1}(x_{t-1})))$$
-
-
 $$
 \alpha_t(x_t) = Log(p(y_{1..t}, x_t)
 $$
@@ -70,55 +67,47 @@ $$
 Log(p(y_{1..t}, x_t) = E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(\frac{p(y_{1.t}, x_t, x_{t-1})}{p(x_{t-1}|y_{1..t}, x_t})]
 $$
 
+Just rearranging terms in numerator
+
 $$
-Log(p(y_{1..t}, x_t) = E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(\frac{p(y_{1.t}, x_t, x_{t-1})}{p(x_{t-1}|y_{1..t}, x_t)} \frac{q_{t-1}(x_{t-1})}{q_{t-1}(x_{t-1})})]
+p(y_{1..t}, x_t, x_{t-1}) = p(y_t, x_t, y_{1..t-1}, x_{t-1})
 $$
 
+By the chain rule
 ```math
 \displaylines{
-Log(p(y_{1..t}, x_t) = E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_{1..t}, x_t, x_{t-1})] + \\
-E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(\frac{q_{t-1}(x_{t-1})}{p(x_{t-1}|y_{1..t}, x_t)})] + \\
-E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(\frac{1}{q(x_{t-1}})]}
-```
-
-Equ 3:
-
-```math
-\displaylines{
-Log(p(y_{1..t}, x_t)) = E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_{1..t-1}, y_t, x_t, x_{t-1}))] + \\
-D_{KL}[q_{t-1}(x_{t-1})||p(x_{t-1}|y_{1..t},x_t)] + H[q_{t-1}(x_{t-1})]}
-```
-
-```math
-\displaylines{
-p(y_{1..t-1}, y_t, x_t, x_{t-1}) = p(y_t|x_t, x_{t-1}, y{1..t-1}) * p(x_t|y_{1..t-1}, x_{t-1}) * \\
-p(y_{1..t-1}, x_{t-1})
+p(y_t, x_t, y_{t-1}, x_{t-1}) = p(y_t | x_t, y_{1..t-1}, x_{t-1}) * \\
+p(x_t | y_{1..t-1}, x_{t-1}) * p(y_{1..t-1}, x_{t-1})
 }
 ```
-By conditional independency assumptions:
 
-$$
-p(y_{1..t-1}, y_t, x_t, x_{t-1}) = p(y_t|x_t) * p(x_t| x_{t-1}) * p(y_{1..t-1}, x_{t-1})
-$$
-
-```math
-\displaylines{E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_{1..t-1}, y_t, x_t, x_{t-1})] = E_{x_{t-1} \sim q_{t-1}(x_{t-1})} \\
-[Log(p(y_t| x_t)] + E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(x_t| x_{t-1})] + \\
-E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_{t-1}, x_{t-1})]}
-```
+Using conditional independency assumptions and substituting $\alpha$
 
 ```math
 \displaylines{
-E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_{1..t-1}, y_t, x_t, x_{t-1})] = E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_t| x_t)] + \\
-E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(x_t| x_{t-1})] + E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[\alpha_{t-1}(x_{t-1})]}
-```
-
-From equ3 , above and \alpha defn:
-
-```math
-\displaylines{
-\alpha_t(x_t) = E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(y_t| x_t)] + \\
-E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[Log(p(x_t| x_{t-1})] + E_{x_{t-1} \sim q_{t-1}(x_{t-1})}[\alpha_{t-1}(x_{t-1})] + \\
-D_{KL}[q_{t-1}(x_{t-1})||p(x_{t-1}|y_{1..t},x_t)] + H[q_{t-1}(x_{t-1})]
+p(y_t, x_t, y_{t-1}, x_{t-1}) = p(y_t | x_t) * \\
+p(x_t | x_{t-1}) * \alpha_{t-1}(x_{t-1})
 }
 ```
+
+Subsituting back into original expression and using $\alpha$
+
+```math
+\displaylines{
+Log(p(y_{1..t}, x_t)) = E_{x_{t-1} \sim q_{t-1}}[Log(p(y_t|x_t)] + \\
+E_{x_{t-1} \sim q_{t-1}}[p(x_t | x_{t-1})] + E_{x_{t-1} \sim q_{t-1}}[\alpha_{t-1}(x_{t-1})] + \\
+E_{x_{t-1} \sim q_{t-1}}[{1/Log(p(x_{t-1}|y_{1..t}, x_t}))]
+}
+```
+
+Note the 1st term is constant wrt expectation, the final term is cross entropy term and using $\alpha$ notation:
+
+```math
+\displaylines{
+\alpha_t(x_t) = Log(p(y_t|x_t)) + \\
+E_{x_{t-1} \sim q_{t-1}}[Log(p(x_t | x_{t-1}))] + E_{x_{t-1} \sim q_{t-1}}[\alpha_{t-1}(x_{t-1})] - \\
+H[q_{t-1}, p(x_{t-1}|y_{1..t}, x_t)]
+}
+```
+
+Note the terminology H here is the cross entropy term (not a joint entropy).
