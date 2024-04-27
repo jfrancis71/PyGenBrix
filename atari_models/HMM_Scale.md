@@ -20,7 +20,7 @@ $$\alpha_t(x_t) = p(y_t | x_t) * \sum_{x_{t-1}} p(x_t | x_{t-1}) * \alpha_{t-1}(
 
 $$\alpha_t(x_t) = p(y_t | x_t) * \sum_{x_{t-1}} p(x_t | x_{t-1}) * \alpha_{t-1}(x_{t-1}) * \frac{q(x_{t-1})}{q(x_{t-1})}$$
 
-$$\alpha_t(x_t) = p(y_t | x_t) * E_{x_{t-1} \sim q(x_t)} [p(x_t | x_{t-1}) * \alpha_{t-1}(x_{t-1}) * \frac{1}{q_t(x_{t-1})}]$$
+$$\alpha_t(x_t) = p(y_t | x_t) * E_{x_{t-1} \sim q(x_{t-1})} [p(x_t | x_{t-1}) * \alpha_{t-1}(x_{t-1}) * \frac{1}{q_t(x_{t-1})}]$$
 
 
 # In The Log Domain
