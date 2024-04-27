@@ -23,3 +23,5 @@ $$
 
 First two terms are the ELBO
 Note the incentive to optimise the p(x) transition structure comes from if it has done a good job of q(x) then moving p(x) closer to that will reduce loss.
+
+A hypothesis is that if the observations give good information over the states then p(x|y) will factorise over individual states quite well, therefore q(x) will also factorize.
