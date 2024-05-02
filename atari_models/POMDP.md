@@ -138,3 +138,4 @@ These ideas are inspired by a paper: Value Prediction Network, Oh, Singh, Lee (2
 Testing:
 
 Simple sequence, MinAtar, could use breakout but zero rewards and substitute end of life with -1 reward. Also design super simple game, it shouldn't be that difficult, eg catch the ball.
+Actually a simple countdown environment, ie states 1->5 with reward on 5 and noisy observations on those states would be a good sanity test.
