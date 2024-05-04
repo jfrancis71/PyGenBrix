@@ -139,3 +139,16 @@ Testing:
 
 Simple sequence, MinAtar, could use breakout but zero rewards and substitute end of life with -1 reward. Also design super simple game, it shouldn't be that difficult, eg catch the ball.
 Actually a simple countdown environment, ie states 1->5 with reward on 5 and noisy observations on those states would be a good sanity test.
+
+
+Alternative
+
+$$
+p(R_1) = E_{y_1}[p(R_1|y_1)]
+$$
+
+$$
+p(R_1, R_2) = E_{y_1, y_2}[p(R_1, R_2|y_1,y_2)]
+$$
+
+Intuition: The probability distribution over rewards should be the same as the expectation of the probability distribution over rewards given observations.
