@@ -125,6 +125,10 @@ Further thoughts:
 The problem is there there is no incentive to model p(y|x) correctly and this implies due to the product that the p(xt|xt-1) will be distorted in order to get the posterior right. If we try to fix it by adding an objective on p(y|x) we would be back to a fully generative model which is what we tried to avoid.
 I think I'd go for option 1.
 
+More further thoughts:
+
+I don't think the problem is overparametrisation. I think it is a bit like a situation in logistic regression where one of your inputs almost completely determines the probability of the label. The coefficients on other inputs are essentially irrelevant and will therefore be meaningless. In that scenario a good solution assuming they are definitely independent inputs (as is our assumption in this model) would be to drop them out randomly. So therefore I now think dropping input's y out randomly seems like a good solution.
+
 
 Generally a prior over the states like a Dirichlet distribution would encourage a parsimonious model
 Test environment: Artificial simple sequence to debug.
