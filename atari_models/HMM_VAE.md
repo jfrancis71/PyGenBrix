@@ -3,25 +3,40 @@
 We wish to optimise (see Appendix A):
 
 $$
-E_{z \sim q(z|x)} [Log(p(x|z))] - D_{KL}[q(z|x)||p(z)]
+E_{z \sim q(z | x)} [Log(p(x | z))] - D_{KL}[q(z | x)||p(z)]
 $$
 
 1st term:
 
 $$
-E_{z \sim q(z|x)} [Log(p(x|z))] = \sum_{t=1}^T E_{z_t \sim q(z_t|x)} [Log(p(x_t|z_t))]
+E_{z \sim q(z | x)} [Log(p(x|z))] = \sum_{t=1}^T E_{z_t \sim q(z_t|x)} [Log(p(x_t|z_t))]
 $$
 
 $$
-q(z_t|x) = do a autoregressive factorisation removing dependency on prior x's
+q(z_t|x) = \prod_{t'=1}^t q(z_{t'} | z_{t'-1}, x)
+$$
+
+Using Bayes rule (conditioned on $z_{t-1}$):
+
+$$
+q(z_t | z_{t-1}, x_{t..T}) = \frac{q(z_t | z_{t-1}) q(x_{t..T} | z_t, z_{t-1})}{q(x_{t..T} | z_{t-1})}
+$$
+
+Dropping dependency of x_t on z_t-1 given z_t:
+
+$$
+q(z_t|z_{t-1}, x_{t..T}) = \frac{q(z_t|z_{t-1}) q(x_{t..T} | z_t)}{q(x_{t..T}|z_{t-1})}
+$$
+
+Just using Bayes rules on last product term in numerator:
+
+$$
+q(z_t|z_{t-1}) \frac{\frac{q(x_{t..T}) q(z_t|x_{t..T})}{p(z_t)}}{q(x_{t..T}|z_{t-1})}
 $$
 
 $$
-q(zt|zt-1, xt..T) = q(zt|zt-1) q(xt..T | zt) / q(xt..T|zt-1)
-
-= q(zt|zt-1) * (q(xt..T) * q(zt|xt..T)/p(zt) . (q(zt..T|zt-1)
-
-= q(z_t|zt-1) q(zt|xt..T)/p(zt) * q(xt..T0/q(xt..T|zt-1)
+q(z_t|z_{t-1}) \frac{q(z_t|x_{t..T})}{q(z_t)} \frac{q(x_{t..T})}{q(x_{t..T}|z_{t-1})}
+$$
 
 Last term is just normalisation factor So=
 
