@@ -1,27 +1,45 @@
-Variational Approach to HMM
+# Variational Approach to HMM
+
+We wish to optimise (see Appendix A):
 
 $$
-Log(p(y)) = E_{x \sim q(x)} [Log(p(y))]
+E_{z \sim q(z|x)} [Log(p(x|z))] - D_{KL}[q(z|x)||p(z)]
+$$
+
+1st term:
+
+$$
+E_{z \sim q(z|x)} [Log(p(x|z))] = \sum()
+$$
+
+it is the sum over all possible qzi's of log p(x|z)
+
+log p(x|z) is the sum of log p(xi|zi) from i=1 to T
+
+# Appendix A
+
+Deriving the ELBO:
+
+
+$$
+Log(p(x)) = E_{x \sim q(z)} [Log(p(x))]
 $$
 
 $$
-Log(p(y)) = E_{x \sim q(x)} [Log(\frac{p(y|x) p(x)}{p(x|y)})]
+Log(p(x)) = E_{z \sim q(z)} [Log(\frac{p(x|z) p(z)}{p(z|x)})]
 $$
 
 $$
-Log(p(y)) = E_{x \sim q(x)} [Log(\frac{p(y|x) p(x)}{p(x|y)} \frac{q(x)}{q(x)})]
+Log(p(x)) = E_{z \sim q(z)} [Log(\frac{p(x|z) p(z)}{p(z|x)} \frac{q(z)}{q(z)})]
 $$
 
 $$
-E_{x \sim q(x)} [Log(p(y|x))] + E_{x \sim q(x)}[Log(\frac{p(x)}{q(x)})] + E_{x \sim q(x)} [Log(\frac{q(x)}{p(x|y)})]
+E_{z \sim q(z)} [Log(p(x|z))] + E_{z \sim q(z)}[Log(\frac{p(z)}{q(z)})] + E_{z \sim q(z)} [Log(\frac{q(z)}{p(z|x)})]
 $$
 
 $$
-E_{x \sim q(x)} [Log(p(y|x))] - D_{KL}[q(x)||p(x)] + D_{KL}[q(x)||p(x|y)]
+E_{z \sim q(z)} [Log(p(x|z))] - D_{KL}[q(z)||p(z)] + D_{KL}[q(z)||p(z|x)]
 $$
 
 
 First two terms are the ELBO
-Note the incentive to optimise the p(x) transition structure comes from if it has done a good job of q(x) then moving p(x) closer to that will reduce loss.
-
-A hypothesis is that if the observations give good information over the states then p(x|y) will factorise over individual states quite well, therefore q(x) will also factorize.
