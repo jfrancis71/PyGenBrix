@@ -104,5 +104,7 @@ $$
 $$
 
 $$
-q(z_t | x_{t..T}) = \sum_{z_{t+1}}\frac{q(z_{t+1}, | x_{t+1..T}) q(z_t | z_{t+1}) q(x_t | z_t)}{q(x_t| x_{t+1..T})}
+q(z_t | x_{t..T}) = \sum_{z_{t+1}} \frac{q(z_{t+1}|z_t)}{q(z_{t+1})} q(z_t|x_t) q(z_{t+1..T}|x_{t+1..T}) \frac{q(x_t)}{q(x_t | x_{t+1..T})}
 $$
+
+So, the 1st term is a transition probability term, the 2nd term provides information from the observation, the third term is a recurrence relation providing information from the future, and the last term ensures the expression normalises.
