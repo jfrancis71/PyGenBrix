@@ -31,11 +31,11 @@ $$
 Just using Bayes rules on last product term in numerator:
 
 $$
-q(z_t|z_{t-1}) \frac{\frac{q(x_{t..T}) q(z_t|x_{t..T})}{p(z_t)}}{q(x_{t..T}|z_{t-1})}
+q(z_t|z_{t-1}, x_{t..T}) = q(z_t|z_{t-1}) \frac{\frac{q(x_{t..T}) q(z_t|x_{t..T})}{p(z_t)}}{q(x_{t..T}|z_{t-1})}
 $$
 
 $$
-q(z_t|z_{t-1}) \frac{q(z_t|x_{t..T})}{q(z_t)} \frac{q(x_{t..T})}{q(x_{t..T}|z_{t-1})}
+q(z_t|z_{t-1}, x_{t..T}) = q(z_t|z_{t-1}) \frac{q(z_t|x_{t..T})}{q(z_t)} \frac{q(x_{t..T})}{q(x_{t..T}|z_{t-1})}
 $$
 
 Last term is just normalisation factor So=
@@ -70,3 +70,39 @@ $$
 
 
 First two terms are the ELBO
+
+# Appendix B
+
+$$
+q(z_t | x_{t..T}) = \sum_{z_{t+1}} q(z_t, z_{t+1} | x_{t..T})
+$$
+
+$$
+q(z_t | x_{t..T}) = \sum_{z_{t+1}}\frac{q(z_t, z_{t+1}, x_t | x_{t+1..T})}{q(x_t| x_{t+1..T})}
+$$
+
+$$
+q(z_t | x_{t..T}) = \sum_{z_{t+1}}\frac{q(z_{t+1}, | x_{t+1..T}) q(z_t | z_{t+1}, x_{t+1..T}) q(x_t | x_{t+1..T}, z_t, z_{t+1})}{q(x_t| x_{t+1..T})}
+$$
+
+$$
+q(z_t | x_{t..T}) = \sum_{z_{t+1}}\frac{q(z_{t+1}, | x_{t+1..T}) q(z_t | z_{t+1}) q(x_t | z_t)}{q(x_t| x_{t+1..T})}
+$$
+
+$$
+q(z_t | x_{t..T}) = \sum_{z_{t+1}}\frac{q(z_{t+1}, | x_{t+1..T}) q(z_t | z_{t+1}) \frac{q(x_t) q(z_t | x_t)}{q(z_t)}}{q(x_t| x_{t+1..T})}
+$$
+
+$$
+q(z_t | x_{t..T}) = \sum_{z_{t+1}} \frac{q(z_t | z_{t+1})}{q(z_t)} q(z_t | x_t) q(z_{t+1} | x_{t+1..T}) \frac{q(x_t)}{q(x_t | x_{t+1..T})}
+$$
+
+Noting:
+
+$$
+\frac{q(z_t | z_{t+1})}{q(z_t)} = \frac{\frac{q(z_t) q(z_{t+1} | z_t)}{q(z_{t+1})}}{q(z_t)} = \frac{q(z_{t+1} | z_t)}{q(z_{t+1})}
+$$
+
+$$
+q(z_t | x_{t..T}) = \sum_{z_{t+1}}\frac{q(z_{t+1}, | x_{t+1..T}) q(z_t | z_{t+1}) q(x_t | z_t)}{q(x_t| x_{t+1..T})}
+$$
