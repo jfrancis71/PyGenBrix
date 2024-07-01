@@ -22,7 +22,7 @@ $$
 q(z_t | z_{t-1}, x_{t..T}) = \frac{q(z_t | z_{t-1}) q(x_{t..T} | z_t, z_{t-1})}{q(x_{t..T} | z_{t-1})}
 $$
 
-Dropping dependency of x_t on z_t-1 given z_t:
+Using $x_{t..T} \perp z_{t-1} | z_t$
 
 $$
 q(z_t|z_{t-1}, x_{t..T}) = \frac{q(z_t|z_{t-1}) q(x_{t..T} | z_t)}{q(x_{t..T}|z_{t-1})}
@@ -31,17 +31,15 @@ $$
 Just using Bayes rules on last product term in numerator:
 
 $$
-q(z_t|z_{t-1}, x_{t..T}) = q(z_t|z_{t-1}) \frac{\frac{q(x_{t..T}) q(z_t|x_{t..T})}{p(z_t)}}{q(x_{t..T}|z_{t-1})}
+q(z_t|z_{t-1}, x_{t..T}) = q(z_t|z_{t-1}) \frac{\left( \frac{q(x_{t..T}) q(z_t|x_{t..T})}{p(z_t)} \right)}{q(x_{t..T}|z_{t-1})}
 $$
 
 $$
 q(z_t|z_{t-1}, x_{t..T}) = q(z_t|z_{t-1}) \frac{q(z_t|x_{t..T})}{q(z_t)} \frac{q(x_{t..T})}{q(x_{t..T}|z_{t-1})}
 $$
 
-Last term is just normalisation factor So=
+Last term is just normalisation factor
 
-=Nzt[ q(zt|zt-1) / q(zt) * q(zt|xt..T)]
-$$
 
 # Appendix A
 
