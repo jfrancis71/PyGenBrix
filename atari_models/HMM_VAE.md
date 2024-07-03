@@ -16,6 +16,12 @@ $$
 q(z_t|x) = \prod_{t'=1}^t q(z_{t'} | z_{t'-1}, x)
 $$
 
+Using $x_{t'} \perp z_t | z_{t-1} \forall t' \lt t$
+
+$$
+q(z_{t} | z_{t-1}, x) = q(z_{t} | z_{t-1}, x_{t..T})
+$$
+
 Using Bayes rule (conditioned on $z_{t-1}$):
 
 $$
