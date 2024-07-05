@@ -1,28 +1,39 @@
 ## Multivariate Kullback Leibler Divergence
 
+We demonstrate:
+
 $$
-D_{KL}[q(Z_{1..n} || p(Z_{1..n})] = \sum_{Z_{1..n}} q(Z_{1..n}) log \frac{q(Z_{1..n})}{p(z_{1..n})}
+D_{KL}[p(X_{1..n} || q(X_{1..n})] = \sum_{i=1}^n E_{X_{1..i-1} \sim p(X_{1..i-1})} [D_{KL}[p(X_i|X_{1..i-1}||q(X_i|X_{1..i-1}] ]
+$$
+
+Using the definition:
+
+$$
+D_{KL}[p(X_{1..n} || q(X_{1..n})] = \sum_{X_{1..n}} p(X_{1..n}) log \frac{p(X_{1..n})}{q(X_{1..n})}
 $$
 
 $$
-= \sum_{Z_1} \sum_{Z_{2..n}} q(Z_1) q(Z_{2..n}|Z_1) Log \frac{q(Z_1) q(Z_{2..n}|Z_1)}{p(Z_1) p(Z_{2..n}|Z_1)}
+ = \sum_{X_{1..n}} p(X_{1..n}) log \prod_{i=1}^n \frac{p(X_i | X_{1..i-1})}{q(X_i | X_{1..i-1})}
 $$
 
 $$
-= \sum_{Z_1} \sum_{Z_{2..n}} q(Z_1) q(Z_{2..n}|Z_1) Log \frac{q(Z_1)}{p(Z_1)} + \sum_{Z_1} \sum_{Z_{2..n}} q(Z_1) q(Z_{2..n}|Z_1) Log \frac{q(Z_{2..n}|Z_1)}{p(Z_{2..n}|Z_1)}
+= \sum_{i=1}^n \sum_{X_{1..n}} p(X_{1..n}) log \frac{p(X_i | X_{1..i-1})}{q(X_i | X_{1..i-1})}
 $$
 
-$$
-= \sum_{Z_1} q(Z_1) Log \frac{q(Z_1)}{p(Z_1)} \sum_{Z_{2..n}} q(Z_{2..n}|Z_1) + \sum_{Z_1} q(Z_1) \sum_{Z_{2..n}} q(Z_{2..n}|Z_1) Log \frac{q(Z_{2..n}|Z_1)}{p(Z_{2..n}|Z_1)}
-$$
+Seperating the sum over variables into before i, i, and after i:
 
 $$
-= D_{KL}[q(Z_1)||p(Z_1)] + E_{Z_1 \sim q(Z_1)}[ D_{KL}[q(Z_{2..n}|Z_1)||p(Z_{2..n}|Z_1)] ]
+= \sum_{i=1}^n \sum_{X_{1..i-1}} \sum_{X_i} \sum_{X_{i+1..n}} p(X_{1..i-1}) p(X_i | X_{1..i-1}) p(X_{i+1..n}) log \frac{p(X_i | X_{1..i-1})}{q(X_i | X_{1..i-1})}
 $$
 
+Using associative rules to pull terms out of factors:
+
 $$
-\displaylines{
-D_{KL}[q(Z_{n..N}|Z_{1..n-1}) || p(Z_{n..N}|Z_{1..n-1})] = D_{KL}[q(Z_n|Z_{1..n-1})||p(Z_n|Z_{1..n-1})] + \\
-E_{Z_{1..n} \sim q(Z_{1..n})}[ D_{KL}[q(Z_{n+1..N}|Z_{1..n})||p(Z_{n+1..N}|Z_{1..n})] ]
-}
+= \sum_{i=1}^n \sum_{X_{1..i-1}} p(X_{1..i-1}) \sum_{X_i} p(X_i | X_{1..i-1}) log \frac{p(X_i | X_{1..i-1})}{q(X_i | X_{1..i-1})} \sum_{X_{i+1..n}}   p(X_{i+1..n}) 
+$$
+
+Last term is just 1, probabilities sum to 1. Previous term is KL on a conditional distribution, and term before is the expectation over this. So:
+
+$$
+= \sum_{i=1}^n E_{X_{1..i-1} \sim p(X_{1..i-1})} [D_{KL}[p(X_i|X_{1..i-1}||q(X_i|X_{1..i-1}] ]
 $$
