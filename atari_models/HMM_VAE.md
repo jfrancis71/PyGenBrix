@@ -153,3 +153,54 @@ $$
 $$
 q(z_t | x_{t..T}) = \sum_{z_{t+1}} \frac{q(z_{t+1}|z_t)}{q(z_{t+1})} q(z_t|x_t) q(z_{t+1..T}|x_{t+1..T}) \frac{q(x_t)}{q(x_t | x_{t+1..T})}
 $$
+
+
+# Appendix D
+
+We demonstrate for the hidden markov model:
+
+$$
+D_{KL}[q(Z_{1..n} || p(Z_{1..n})] = \sum_{i=1}^n E_{Z_{i-1} \sim q(Z_{i-1})} [D_{KL}[q(Z_i|Z_{i-1})||p(Z_i|Z_{i-1})] ]
+$$
+
+For below see the Multivariate KL divergence page:
+
+$$
+D_{KL}[q(Z_{1..n} || p(Z_{1..n})] = \sum_{i=1}^n E_{Z_{1..i-1} \sim q(Z_{1..i-1})} [D_{KL}[q(Z_i|Z_{1..i-1})||p(Z_i|Z_{1..i-1})] ]
+$$
+
+Using the Markov property:
+
+$$
+ = \sum_{i=1}^n E_{Z_{1..i-1} \sim q(Z_{1..i-1})} [D_{KL}[q(Z_i|Z_{i-1})||p(Z_i|Z_{i-1})] ]
+$$
+
+Expanding expectation:
+
+$$
+ = \sum_{i=1}^n \sum_{Z_{1..i-1}} q(Z_{1..i-1}) [D_{KL}[q(Z_i|Z_{i-1})||p(Z_i|Z_{i-1})] ]
+$$
+
+Breaking out the i-1 and 1..i-2 terms:
+
+$$
+ = \sum_{i=1}^n \sum_{Z_{i-1}} \sum_{1..i-2} q(Z_{i-1}) q(Z_{1..i-2 | i-1}) [D_{KL}[q(Z_i|Z_{i-1})||p(Z_i|Z_{i-1})] ]
+$$
+
+Using associative property to move i-1 terms out:
+
+$$
+ = \sum_{i=1}^n \sum_{Z_{i-1}} q(Z_{i-1}) [D_{KL}[q(Z_i|Z_{i-1})||p(Z_i|Z_{i-1})] ] \sum_{1..i-2} q(Z_{1..i-2 | i-1}) 
+$$
+
+That final term sums to one, law of total probability:
+
+$$
+ = \sum_{i=1}^n \sum_{Z_{i-1}} q(Z_{i-1}) [D_{KL}[q(Z_i|Z_{i-1})||p(Z_i|Z_{i-1})] ]
+$$
+
+Rewriting as an expectation:
+
+$$
+ = \sum_{i=1}^n E_{Z_{i-1} \sim q(Z_{i-1})} [D_{KL}[q(Z_i|Z_{i-1})||p(Z_i|Z_{i-1})] ]
+$$
