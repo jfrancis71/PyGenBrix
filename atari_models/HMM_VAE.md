@@ -60,6 +60,9 @@ $$
 
 First two terms are the ELBO
 
+Reference:
+YouTube: Lecture 13 Generative Models, Fei-Fei Li, Stanford University School of Engineering, published 17 Aug 2017. Time: 37:31
+
 
 # Appendix B
 
