@@ -37,3 +37,6 @@ Last term is just 1, probabilities sum to 1. Previous term is KL on a conditiona
 $$
 = \sum_{i=1}^n E_{X_{1..i-1} \sim p(X_{1..i-1})} [D_{KL}[p(X_i|X_{1..i-1}||q(X_i|X_{1..i-1}] ]
 $$
+
+Reference:
+The definition of the Kullback-Leibler divergence came from Wikipedia, Kullback-Leiber divergence, section Definition, accessed on 07 July 2024.
