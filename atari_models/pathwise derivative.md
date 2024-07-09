@@ -6,7 +6,7 @@ $$
 \nabla_\theta[E_{x \sim p_\theta(x)}[f(x)]]
 $$
 
-Define $y(\epsilon,\theta)$ such that $p_\theta(x) = y$
+Define $y(\epsilon,\theta)$ such that $p_\theta(x) = p(y)$
 
 $$
 \nabla_\theta[E_{x \sim p_\theta(x)}[f(x)]] = \nabla_\theta[E_{\epsilon \sim p(\epsilon)} [y(\epsilon,\theta)] ]
