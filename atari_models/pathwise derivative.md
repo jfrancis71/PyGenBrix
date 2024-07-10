@@ -9,13 +9,13 @@ $$
 Define $y(\epsilon,\theta)$ such that $p_\theta(x) = p(y)$
 
 $$
-\nabla_\theta[E_{x \sim p_\theta(x)}[f(x)]] = \nabla_\theta[E_{\epsilon \sim p(\epsilon)} [y(\epsilon,\theta)] ]
+\nabla_\theta[E_{x \sim p_\theta(x)}[f(x)]] = \nabla_\theta[E_{\epsilon \sim p(\epsilon)} [f(y(\epsilon,\theta))] ]
 $$
 
 by exchanging derivative and expectation:
 
 $$
-= E_{\epsilon \sim p(\epsilon)} [\nabla_\theta[ y(\epsilon,\theta)] ]
+= E_{\epsilon \sim p(\epsilon)} [\nabla_\theta[ f(y(\epsilon,\theta))] ]
 $$
 
 Reference:
