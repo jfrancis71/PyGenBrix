@@ -31,13 +31,13 @@ $$
 And path derivative for the second expectation:
 
 $$
-\nabla_\theta[E_{h \sim p_\theta(h)}[f(h)]] = E_{\epsilon \sim g(0,1)}[\nabla[h(\epsilon, \theta)]]
+\nabla_\theta[E_{h \sim p_\theta(h)}[f(h)]] = E_{\epsilon \sim g(0,1)}[\nabla_\theta[f(h(\epsilon, \theta))]]
 $$
 
 So:
 
 $$
-\nabla_\theta[E_{x \sim p_\theta(x)}[f(onehot(x))]] = E_{h \sim p_\theta(h)} [ (f(H(h)) - f(h)) \nabla_\theta [log(p_\theta(h))]] + E_{\epsilon \sim g(0,1)}[\nabla[h(\epsilon, \theta)]]
+\nabla_\theta[E_{x \sim p_\theta(x)}[f(onehot(x))]] = E_{h \sim p_\theta(h)} [ (f(H(h)) - f(h)) \nabla_\theta [log(p_\theta(h))]] + E_{\epsilon \sim g(0,1)}[\nabla_\theta[f(h(\epsilon, \theta))]]
 $$
 
 ## References:
