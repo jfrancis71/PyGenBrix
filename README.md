@@ -1,4 +1,7 @@
 # PyGenBrix
+
+Please note, this repo is not being actively maintained as of 31/07/2024. Some of the functionality here is being moved to the repos, pygen and pygen_models (and being extensively rewritten).
+
 Experimental Generative Models in PyTorch
 
 PyGenBrix is an experimental project for constructing generative probabilistic models with an emphasis on composability of probability distributions. It is aimed at vision applications.
